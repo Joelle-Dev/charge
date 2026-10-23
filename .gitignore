@@ -1,0 +1,7 @@
+node_modules/
+dist/
+# docs/  # 允许 docs 目录被提交（GitHub Pages 分支部署）
+.vscode/
+.idea/
+.DS_Store
+*.log

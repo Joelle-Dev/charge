@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>守财小果 · 语音记账</title>
+  <meta name="description" content="守财小果，说一句就记上。按阶段归类的轻量语音记账应用。">
+  <meta name="theme-color" content="#faf5ec">
+  <meta name="color-scheme" content="light">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="守财小果">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="apple-touch-startup-image" href="./icons/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="./icons/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="./icons/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="./icons/splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="./icons/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="./icons/splash-1206x2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="./icons/splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="./icons/splash-1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)">
+  <style>
+    html, body {
+      margin: 0;
+      background: #faf5ec;
+    }
+    .splash-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background:
+        radial-gradient(600px 420px at 50% 35%, #fffaf3 0%, rgba(255, 250, 243, 0) 70%),
+        #faf5ec;
+      transition: opacity 0.35s ease;
+    }
+    .splash-screen.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .splash-mark {
+      display: block;
+      width: 84px;
+      height: 84px;
+      margin-bottom: 18px;
+      overflow: hidden;
+      border-radius: 22px;
+      background: #fffaf3;
+      border: 1px solid #eadbc9;
+      box-shadow: 0 18px 38px rgba(90, 63, 43, 0.18);
+    }
+    .splash-mark img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .splash-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: #2d2723;
+    }
+    .splash-subtitle {
+      margin-top: 8px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: #8f8175;
+    }
+  </style>
+</head>
+<body>
+  <div id="splash" class="splash-screen">
+    <div class="splash-mark" aria-hidden="true">
+      <img src="./icons/icon-192.png" alt="">
+    </div>
+    <div class="splash-title">守财小果</div>
+    <div class="splash-subtitle">说一句就记上</div>
+  </div>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
