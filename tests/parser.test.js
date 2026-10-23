@@ -81,6 +81,33 @@ test('parseExpenses returns empty when no amount is heard', () => {
   assert.deepEqual(parseExpenses(''), []);
 });
 
+test('parseExpenses splits multiple amounts even without punctuation', () => {
+  const entries = parseExpenses('午饭30 打车25 门票120', { now: NOW });
+  assert.deepEqual(
+    entries.map((e) => [e.amount, e.category]),
+    [[30, '餐饮'], [25, '交通'], [120, '门票']]
+  );
+
+  const joined = parseExpenses('午饭30打车25', { now: NOW });
+  assert.deepEqual(joined.map((e) => e.amount), [30, 25]);
+
+  const shopping = parseExpenses('买了30元水果和25元奶茶', { now: NOW });
+  assert.deepEqual(shopping.map((e) => [e.amount, e.category]), [[30, '购物'], [25, '餐饮']]);
+
+  const days = parseExpenses('昨天吃饭花了35 前天门票花了37', { now: NOW });
+  assert.deepEqual(
+    days.map((e) => [e.amount, e.category, e.note]),
+    [[35, '餐饮', '吃饭'], [37, '门票', '门票']]
+  );
+});
+
+test('multi-amount splitting ignores quantities and dates', () => {
+  assert.equal(parseExpenses('买了2杯奶茶30', { now: NOW }).length, 1);
+  assert.equal(parseExpenses('上午10点花了35', { now: NOW }).length, 1);
+  assert.equal(parseExpenses('10月1日门票120', { now: NOW }).length, 1);
+  assert.equal(parseExpenses('住3晚酒店1200', { now: NOW }).length, 1);
+});
+
 test('parseExpenses respects custom categories', () => {
   const entries = parseExpenses('宠物洗澡180', {
     now: NOW,

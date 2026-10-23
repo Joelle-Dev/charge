@@ -123,27 +123,52 @@ let recognition = null;
 let finalText = '';
 let interimText = '';
 let closing = false;
+let userStopped = true;
+let restartTimer = null;
+let maxTimer = null;
+let lastFinalAt = 0;
+let restartAttempts = 0;
+
+const restarting = ref(false);
+const MAX_LISTEN_MS = 120000;
 
 const statusText = computed(() => {
   if (!supported) return '当前浏览器不支持语音识别';
+  if (restarting.value) return '正在继续聆听…';
   if (recording.value) return '正在聆听…说完再点一下';
   if (text.value.trim()) return '已停止，可以修改文字后解析';
   return '点一下，开始说话';
 });
 
 const hintText = supported
-  ? '说完再点一下结束，也可以直接输入文字'
+  ? '可以连续说多笔，稍作停顿即可分开；说完再点一下'
   : '可以直接输入或粘贴文字，解析后记入';
 
 const parsedTotal = computed(() =>
   parsedEntries.value.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0)
 );
 
+function clearTimers() {
+  if (restartTimer) {
+    clearTimeout(restartTimer);
+    restartTimer = null;
+  }
+  if (maxTimer) {
+    clearTimeout(maxTimer);
+    maxTimer = null;
+  }
+}
+
 function reset() {
   closing = false;
+  userStopped = true;
+  clearTimers();
   finalText = '';
   interimText = '';
+  lastFinalAt = 0;
+  restartAttempts = 0;
   recording.value = false;
+  restarting.value = false;
   text.value = '';
   error.value = '';
   parsedEntries.value = [];
@@ -151,91 +176,185 @@ function reset() {
 
 function cleanup() {
   closing = true;
+  userStopped = true;
+  clearTimers();
   if (recognition) {
     try { recognition.abort(); } catch (err) { /* noop */ }
   }
   recognition = null;
   recording.value = false;
+  restarting.value = false;
 }
 
-function startRecording() {
-  if (!RecognitionCtor || recording.value) return;
-  error.value = '';
-  finalText = '';
+function appendFinal(piece) {
+  const value = String(piece || '').trim();
+  if (!value) return;
+
+  const now = performance.now();
+  const previous = finalText.trimEnd();
+  const needsSeparator = previous &&
+    !/[，,。.；;、！!？?]$/.test(previous) &&
+    now - lastFinalAt > 650;
+  finalText = needsSeparator ? `${previous}，${value}` : `${previous}${value}`;
+  lastFinalAt = now;
   interimText = '';
-  text.value = '';
-  parsedEntries.value = [];
-  closing = false;
+  text.value = finalText;
+}
+
+function flushInterim() {
+  if (!interimText.trim()) return;
+  const pending = interimText;
+  interimText = '';
+  appendFinal(pending);
+}
+
+function stopWithError(message) {
+  userStopped = true;
+  clearTimers();
+  recording.value = false;
+  restarting.value = false;
+  error.value = message;
+}
+
+function handleResult(event) {
+  let interim = '';
+  for (let i = event.resultIndex; i < event.results.length; i += 1) {
+    const result = event.results[i];
+    if (result.isFinal) {
+      appendFinal(result[0].transcript);
+    } else {
+      interim += result[0].transcript;
+    }
+  }
+  interimText = interim;
+  text.value = interim ? `${finalText}${interim}` : finalText;
+  restartAttempts = 0;
+}
+
+function handleError(event) {
+  if (event.error === 'no-speech' || event.error === 'aborted') return;
+
+  const messages = {
+    'not-allowed': '麦克风权限被拒绝。请在浏览器设置中允许麦克风，或直接输入文字。',
+    'service-not-allowed': '语音服务不可用，请直接输入文字。',
+    'audio-capture': '没有找到可用的麦克风。',
+    network: '语音服务连接失败，请检查网络，或直接输入文字。'
+  };
+
+  stopWithError(messages[event.error] || '语音识别失败，请直接输入文字。');
+}
+
+function handleEnd() {
+  if (closing) return;
+  flushInterim();
+  recognition = null;
+
+  if (userStopped) {
+    clearTimers();
+    recording.value = false;
+    restarting.value = false;
+    if (text.value.trim()) parseText();
+    return;
+  }
+
+  if (restartAttempts >= 20) {
+    stopWithError('语音识别多次中断，请再点一下麦克风，或直接输入文字。');
+    return;
+  }
+
+  restartAttempts += 1;
+  restarting.value = true;
+  const delay = Math.min(1200, 200 + restartAttempts * 180);
+  restartTimer = setTimeout(() => {
+    restartTimer = null;
+    if (!userStopped && !closing) startSession();
+  }, delay);
+}
+
+function startSession() {
+  if (userStopped || closing) return;
 
   try {
     recognition = new RecognitionCtor();
   } catch (err) {
-    error.value = '无法启动语音识别，请改用文字输入。';
+    stopWithError('无法启动语音识别，请改用文字输入。');
     return;
   }
 
   recognition.lang = 'zh-CN';
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
+    if (closing) return;
+    restarting.value = false;
     recording.value = true;
   };
 
-  recognition.onresult = (event) => {
-    let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; i += 1) {
-      const result = event.results[i];
-      if (result.isFinal) {
-        finalText += result[0].transcript;
-      } else {
-        interim += result[0].transcript;
-      }
-    }
-    interimText = interim;
-    text.value = `${finalText}${interim}`;
-  };
-
-  recognition.onerror = (event) => {
-    const messages = {
-      'not-allowed': '麦克风权限被拒绝。请在浏览器设置中允许麦克风，或直接输入文字。',
-      'service-not-allowed': '语音服务不可用，请直接输入文字。',
-      'no-speech': '没有听到声音，再试一次，或直接输入文字。',
-      'audio-capture': '没有找到可用的麦克风。',
-      network: '语音服务连接失败，请检查网络，或直接输入文字。',
-      aborted: ''
-    };
-    const message = messages[event.error] ?? '语音识别失败，请直接输入文字。';
-    if (message) error.value = message;
-    recording.value = false;
-  };
-
-  recognition.onend = () => {
-    recording.value = false;
-    if (closing) return;
-    if (!finalText && interimText) {
-      finalText = interimText;
-      text.value = finalText;
-    }
-    if (text.value.trim()) parseText();
-  };
+  recognition.onresult = handleResult;
+  recognition.onerror = handleError;
+  recognition.onend = handleEnd;
 
   try {
     recognition.start();
   } catch (err) {
-    error.value = '无法启动语音识别，请直接输入文字。';
-    recording.value = false;
+    stopWithError('无法启动语音识别，请直接输入文字。');
+  }
+}
+
+function startRecording() {
+  if (!RecognitionCtor || recording.value) return;
+
+  error.value = '';
+  finalText = '';
+  interimText = '';
+  lastFinalAt = 0;
+  restartAttempts = 0;
+  text.value = '';
+  parsedEntries.value = [];
+  closing = false;
+  userStopped = false;
+  clearTimers();
+  recording.value = true;
+  startSession();
+
+  if (!userStopped && !closing) {
+    maxTimer = setTimeout(() => {
+      maxTimer = null;
+      if (!userStopped && !closing) {
+        showToast('语音输入已达到 2 分钟，已停止');
+        stopRecording();
+      }
+    }, MAX_LISTEN_MS);
   }
 }
 
 function stopRecording() {
-  if (!recognition) return;
-  try {
-    recognition.stop();
-  } catch (err) {
-    recording.value = false;
+  userStopped = true;
+  restarting.value = false;
+  clearTimers();
+
+  if (recognition) {
+    try {
+      recognition.stop();
+      setTimeout(() => {
+        if (!closing && userStopped && recording.value) {
+          recognition = null;
+          recording.value = false;
+          flushInterim();
+          if (text.value.trim()) parseText();
+        }
+      }, 800);
+      return;
+    } catch (err) {
+      recognition = null;
+    }
   }
+
+  recording.value = false;
+  flushInterim();
+  if (text.value.trim()) parseText();
 }
 
 function toggleRecording() {

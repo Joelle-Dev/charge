@@ -35,7 +35,7 @@ const RULES = [
     keywords: [
       '购物', '超市', '商场', '衣服', '裤子', '鞋子', '包包', '化妆品', '护肤',
       '日用品', '淘宝', '京东', '拼多多', '纪念品', '特产', '礼物', '数码', '耳机',
-      '手机', '家电', '药店', '药'
+      '手机', '家电', '药店', '药', '买'
     ]
   },
   {
@@ -118,6 +118,10 @@ export function chineseToNumber(input) {
   }
 
   return Number(total.toFixed(4));
+}
+
+export function normalizeText(text) {
+  return normalize(text);
 }
 
 function normalize(text) {
@@ -351,6 +355,49 @@ function splitSegments(text) {
     .filter(Boolean);
 }
 
+function findAmounts(source) {
+  const found = [];
+  let offset = 0;
+
+  while (offset < source.length && found.length < 20) {
+    while (offset < source.length && /\s/.test(source[offset])) offset += 1;
+    const amount = extractAmount(source.slice(offset));
+    if (!amount) break;
+    const end = offset + amount.end;
+    found.push({
+      ...amount,
+      index: offset + amount.index,
+      end
+    });
+    if (end <= offset) break;
+    offset = end;
+  }
+
+  return found;
+}
+
+function splitSegmentByAmounts(segment) {
+  const source = normalizeText(segment);
+  const amounts = findAmounts(source);
+  if (amounts.length < 2) return [source];
+
+  const parts = [];
+  let start = 0;
+  for (const amount of amounts) {
+    const part = source.slice(start, amount.end).trim();
+    if (part) parts.push(part);
+    start = amount.end;
+  }
+
+  const tail = source.slice(start).trim();
+  if (tail) {
+    if (parts.length) parts[parts.length - 1] = `${parts[parts.length - 1]} ${tail}`;
+    else parts.push(tail);
+  }
+
+  return parts;
+}
+
 export function parseExpenses(text, options = {}) {
   const now = options.now || new Date();
   const categories = options.categories || PRESET_CATEGORIES;
@@ -358,18 +405,20 @@ export function parseExpenses(text, options = {}) {
   const entries = [];
 
   for (const segment of segments) {
-    const amount = extractAmount(segment);
-    if (!amount) continue;
-    const { date, consumed } = parseSpentAt(segment, now);
-    const category = detectCategory(segment, categories);
-    const note = cleanNote(segment, [amount.raw, ...consumed]);
-    entries.push({
-      amount: amount.amount,
-      category,
-      note,
-      spentAt: date.toISOString(),
-      raw: segment
-    });
+    for (const part of splitSegmentByAmounts(segment)) {
+      const amount = extractAmount(part);
+      if (!amount) continue;
+      const { date, consumed } = parseSpentAt(part, now);
+      const category = detectCategory(part, categories);
+      const note = cleanNote(part, [amount.raw, ...consumed]);
+      entries.push({
+        amount: amount.amount,
+        category,
+        note,
+        spentAt: date.toISOString(),
+        raw: part
+      });
+    }
   }
 
   return entries;
