@@ -28,16 +28,33 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
   background: #ebe0d2;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
   min-height: 100dvh;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
   background:
     radial-gradient(900px 420px at 50% -8%, #fffaf3 0%, rgba(255, 250, 243, 0) 68%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23d8847c' fill-opacity='0.045' transform='translate(48 45) scale(2) rotate(-18 24 24)'%3E%3Cellipse cx='12' cy='15.4' rx='5.2' ry='4.2'/%3E%3Cellipse cx='5.7' cy='9.4' rx='2.15' ry='2.65'/%3E%3Cellipse cx='9.8' cy='6.4' rx='2.05' ry='2.55'/%3E%3Cellipse cx='14.2' cy='6.4' rx='2.05' ry='2.55'/%3E%3Cellipse cx='18.3' cy='9.4' rx='2.15' ry='2.65'/%3E%3C/g%3E%3C/svg%3E"),
@@ -47,7 +64,7 @@ body {
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overscroll-behavior-y: none;
+  overscroll-behavior: none;
 }
 
 button,
@@ -56,6 +73,27 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: pan-x pan-y;
+}
+
+input,
+textarea,
+select {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+img {
+  -webkit-user-drag: none;
+  user-select: none;
 }
 
 button {
@@ -74,6 +112,7 @@ svg {
 .app-shell {
   position: relative;
   width: min(100%, 600px);
+  min-height: 100vh;
   min-height: 100dvh;
   margin: 0 auto;
   padding: 0 16px 128px;
@@ -476,7 +515,8 @@ svg {
   gap: 7px;
   overflow-x: auto;
   padding: 2px 0 1px;
-  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -496,6 +536,7 @@ svg {
   background: #fffdf9;
   color: var(--muted);
   font-size: 12px;
+  scroll-snap-align: start;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
@@ -504,6 +545,10 @@ svg {
   background: var(--accent-soft);
   color: #8c4c45;
   font-weight: 600;
+}
+
+.filter-chip:active {
+  transform: scale(0.96);
 }
 
 .filter-dot {
@@ -526,6 +571,11 @@ svg {
   color: var(--accent-strong);
   font-size: 12px;
   font-weight: 600;
+  transition: opacity 0.15s ease;
+}
+
+.text-btn:active {
+  opacity: 0.6;
 }
 
 .expense-list {
@@ -891,6 +941,12 @@ svg {
   background: rgba(255, 253, 249, 0.9);
   border: 1px solid rgba(232, 219, 202, 0.95);
   box-shadow: var(--shadow-soft);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.action-secondary:active .action-icon {
+  transform: scale(0.94);
+  background: var(--accent-tint);
 }
 
 .action-icon svg {
@@ -1023,6 +1079,7 @@ svg {
 .sheet-body {
   overflow-y: auto;
   padding: 6px 20px calc(24px + var(--safe-bottom));
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -1063,7 +1120,7 @@ svg {
   border-radius: var(--radius-sm);
   outline: none;
   background: #fff;
-  font-size: 15px;
+  font-size: 16px;
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -1202,6 +1259,11 @@ svg {
   padding: 0;
   background: none;
   text-align: left;
+  transition: opacity 0.15s ease;
+}
+
+.stage-item-main:active {
+  opacity: 0.68;
 }
 
 .stage-item-name {
@@ -1242,6 +1304,13 @@ svg {
   color: var(--muted);
   display: grid;
   place-items: center;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.mini-btn:active,
+.icon-btn:active {
+  transform: scale(0.93);
+  background: var(--accent-tint);
 }
 
 .mini-btn svg {
@@ -1413,6 +1482,11 @@ svg {
   background: var(--danger-soft);
   font-size: 10px;
   font-weight: 600;
+  transition: transform 0.15s ease;
+}
+
+.remove-chip:active {
+  transform: scale(0.94);
 }
 
 .parsed-grid {
@@ -1433,7 +1507,7 @@ svg {
 .parsed-grid .select {
   min-height: 40px;
   padding: 8px 10px;
-  font-size: 14px;
+  font-size: 16px;
   border-radius: 11px;
 }
 
@@ -1551,10 +1625,16 @@ svg {
   justify-content: space-between;
   gap: 14px;
   width: 100%;
-  padding: 12px 0;
+  padding: 12px 8px;
   border: 0;
+  border-radius: 12px;
   background: none;
   text-align: left;
+  transition: background 0.15s ease;
+}
+
+.settings-action:active {
+  background: var(--accent-tint);
 }
 
 .settings-action + .settings-action {

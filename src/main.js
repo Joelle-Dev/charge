@@ -37,3 +37,15 @@ if (splash) {
     window.setTimeout(() => splash.remove(), 400);
   }, delay);
 }
+// App-like touch behaviour: block iOS pinch-to-zoom while keeping normal scrolling.
+['gesturestart', 'gesturechange', 'gestureend'].forEach((type) => {
+  document.addEventListener(type, (event) => event.preventDefault(), { passive: false });
+});
+
+document.addEventListener(
+  'touchmove',
+  (event) => {
+    if (event.touches.length > 1 && event.cancelable) event.preventDefault();
+  },
+  { passive: false }
+);
