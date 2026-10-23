@@ -5,7 +5,7 @@
       <span class="empty-paw empty-paw-a"><PawIcon /></span>
       <span class="empty-paw empty-paw-b"><PawIcon /></span>
       <span class="empty-paw empty-paw-c"><PawIcon /></span>
-      <span class="empty-cat"><CatIcon /></span>
+      <span class="empty-cat"><img class="empty-cat-image" :src="brandIcon" alt=""></span>
     </div>
     <h1>先建一个阶段</h1>
     <p>旅行、装修、某月日常……<br>把钱都记进同一个阶段里。</p>
@@ -14,8 +14,8 @@
 </template>
 
 <script setup>
-import CatIcon from './CatIcon.vue';
 import PawIcon from './PawIcon.vue';
+import brandIcon from '../assets/brand-icon.png';
 import { useSheets } from '../composables/useSheets';
 
 const sheets = useSheets();
