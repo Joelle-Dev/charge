@@ -73,15 +73,14 @@
               </option>
             </select>
           </label>
-          <label class="field">
+          <div class="field">
             <span class="field-label">日期</span>
-            <input
-              class="input"
+            <DateTimeField
+              :model-value="toDateInput(entry.spentAt)"
               type="date"
-              :value="toDateInput(entry.spentAt)"
-              @change="updateEntryDate(entry, $event)"
-            >
-          </label>
+              @update:model-value="updateEntryDate(entry, $event)"
+            />
+          </div>
           <label class="field full">
             <span class="field-label">备注</span>
             <input v-model="entry.note" class="input" type="text" maxlength="40" :placeholder="entry.category">
@@ -111,6 +110,7 @@
 <script setup>
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
+import DateTimeField from './DateTimeField.vue';
 import SheetFrame from './SheetFrame.vue';
 import PawIcon from './PawIcon.vue';
 import { parseExpenses } from '../lib/parser';
@@ -422,8 +422,8 @@ function categoryOptions(entry) {
     : [entry.category, ...categories.value];
 }
 
-function updateEntryDate(entry, event) {
-  entry.spentAt = applyDateToIso(entry.spentAt, event.target.value);
+function updateEntryDate(entry, value) {
+  entry.spentAt = applyDateToIso(entry.spentAt, value);
 }
 
 function removeEntry(index) {

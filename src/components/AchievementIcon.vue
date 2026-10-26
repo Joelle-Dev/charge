@@ -1,6 +1,6 @@
 <template>
   <PawIcon v-if="type === 'paw'" />
-  <svg v-else-if="type === 'bowl'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg v-else-if="type === 'bowl'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M4 11h16"></path>
     <path d="M6.5 11c0 4.6 2 7 5.5 7s5.5-2.4 5.5-7"></path>
     <path d="M9 8c.4-1.8 1.4-2.8 3-3.2"></path>

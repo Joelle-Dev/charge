@@ -39,14 +39,14 @@
       </label>
 
       <div class="form-row">
-        <label class="field">
+        <div class="field">
           <span class="field-label">日期</span>
-          <input v-model="date" class="input" type="date">
-        </label>
-        <label class="field">
+          <DateTimeField v-model="date" type="date" />
+        </div>
+        <div class="field">
           <span class="field-label">时间</span>
-          <input v-model="time" class="input" type="time">
-        </label>
+          <DateTimeField v-model="time" type="time" />
+        </div>
       </div>
 
       <p v-if="error" class="form-error">{{ error }}</p>
@@ -62,6 +62,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { showToast } from 'vant';
+import DateTimeField from './DateTimeField.vue';
 import SheetFrame from './SheetFrame.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';

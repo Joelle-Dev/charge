@@ -4,7 +4,7 @@
       <div class="section-head">
         <div class="section-title">
           <button v-if="showBack" class="records-back" type="button" aria-label="返回首页" @click="$emit('back')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="m15 18-6-6 6-6"></path>
             </svg>
           </button>
@@ -38,7 +38,7 @@
 
       <div class="month-nav">
         <button class="month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="m15 18-6-6 6-6"></path>
           </svg>
         </button>
@@ -46,7 +46,7 @@
           {{ monthLabel(selectedMonth) }}
         </button>
         <button class="month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="m9 18 6-6-6-6"></path>
           </svg>
         </button>
@@ -171,7 +171,7 @@
               </span>
               <span class="day-side">
                 <span class="day-total">¥{{ formatMoney(group.total) }}</span>
-                <svg class="day-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <svg class="day-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m6 9 6 6 6-6"></path>
                 </svg>
               </span>
@@ -214,7 +214,7 @@
       aria-label="回到顶部"
       @click="backToTop"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 19V5"></path>
         <path d="m5 12 7-7 7 7"></path>
       </svg>
