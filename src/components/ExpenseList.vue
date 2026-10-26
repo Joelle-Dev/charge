@@ -181,7 +181,7 @@ function toggleAll() {
 function exportCsv() {
   if (!currentStage.value) return;
   const ok = exportStageCsv(currentStage.value, currentExpenses.value);
-  showToast(ok ? 'CSV 已导出' : '这个阶段还没有支出');
+  showToast(ok ? '已导出（含阶段标题）' : '这个阶段还没有支出');
 }
 
 function onScroll() {

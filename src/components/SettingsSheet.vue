@@ -49,11 +49,14 @@
     </div>
 
     <div class="settings-block">
-      <h3 class="settings-title">数据</h3>
+      <h3 class="settings-title">导出</h3>
+      <p class="settings-desc">
+        导出「{{ currentStage?.name || '当前阶段' }}」的全部支出。CSV 会包含阶段标题、导出时间、笔数、总支出和预算信息。
+      </p>
       <button class="settings-action" type="button" @click="exportCsv">
         <span>
           导出当前阶段 CSV
-          <small>可用 Excel 打开</small>
+          <small>可用 Excel 打开，包含阶段标题</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12"></path>
@@ -61,6 +64,10 @@
           <path d="M5 21h14"></path>
         </svg>
       </button>
+    </div>
+
+    <div class="settings-block">
+      <h3 class="settings-title">数据</h3>
       <button class="settings-action" type="button" @click="clearCurrentStage">
         <span>
           清空当前阶段支出
@@ -164,7 +171,7 @@ function exportCsv() {
     return;
   }
   const ok = exportStageCsv(currentStage.value, currentExpenses.value);
-  showToast(ok ? 'CSV 已导出' : '这个阶段还没有支出');
+  showToast(ok ? '已导出（含阶段标题）' : '这个阶段还没有支出');
 }
 
 async function clearCurrentStage() {

@@ -10,15 +10,42 @@
       <span>手动</span>
     </button>
 
-    <button class="mic-main" type="button" @click="openVoice">
-      <span class="mic-main-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <rect x="9" y="2.5" width="6" height="11" rx="3"></rect>
-          <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"></path>
-          <path d="M12 18v3"></path>
+    <button class="action-secondary" type="button" @click="openDetails">
+      <span class="action-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 6h13"></path>
+          <path d="M8 12h13"></path>
+          <path d="M8 18h13"></path>
+          <path d="M3.5 6h.01"></path>
+          <path d="M3.5 12h.01"></path>
+          <path d="M3.5 18h.01"></path>
         </svg>
       </span>
-      <span class="mic-main-label">说一笔</span>
+      <span>明细</span>
+    </button>
+
+    <button class="mic-slot" type="button" aria-label="说一笔" @click="openVoice">
+      <span class="mic-main">
+        <span class="mic-main-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <rect x="9" y="2.5" width="6" height="11" rx="3"></rect>
+            <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"></path>
+            <path d="M12 18v3"></path>
+          </svg>
+        </span>
+      </span>
+      <span class="mic-caption">说一笔</span>
+    </button>
+
+    <button class="action-secondary" type="button" @click="exportCsv">
+      <span class="action-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12"></path>
+          <path d="m7 10 5 5 5-5"></path>
+          <path d="M5 21h14"></path>
+        </svg>
+      </span>
+      <span>导出</span>
     </button>
 
     <button class="action-secondary" type="button" @click="sheets.openSettings()">
@@ -34,10 +61,12 @@
 </template>
 
 <script setup>
+import { showToast } from 'vant';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
+import { exportStageCsv } from '../utils/csv';
 
-const { currentStage } = useLedger();
+const { currentStage, currentExpenses } = useLedger();
 const sheets = useSheets();
 
 function openVoice() {
@@ -54,5 +83,29 @@ function openManual() {
     return;
   }
   sheets.openExpenseForm();
+}
+
+function openDetails() {
+  if (!currentStage.value) {
+    sheets.openStageForm();
+    return;
+  }
+  document.querySelector('.expense-section')?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start'
+  });
+}
+
+function exportCsv() {
+  if (!currentStage.value) {
+    showToast('先建一个阶段再导出');
+    return;
+  }
+  if (!currentExpenses.value.length) {
+    showToast('这个阶段还没有支出');
+    return;
+  }
+  const ok = exportStageCsv(currentStage.value, currentExpenses.value);
+  showToast(ok ? '已导出（含阶段标题）' : '这个阶段还没有支出');
 }
 </script>
