@@ -1,30 +1,38 @@
 <template>
-  <nav class="actionbar" aria-label="记账操作">
-    <button class="action-secondary" type="button" @click="openManual">
+  <nav class="actionbar" aria-label="记账与导航">
+    <button class="action-secondary" :class="{ active: isHome }" type="button" @click="goHome">
       <span class="action-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+          <path d="m3 10 9-7 9 7"></path>
+          <path d="M5 9v11h14V9"></path>
+          <path d="M9 20v-6h6v6"></path>
         </svg>
       </span>
-      <span>手动</span>
+      <span>首页</span>
     </button>
 
-    <button class="action-secondary" type="button" @click="openDetails">
+    <button class="action-secondary" :class="{ active: isRecords }" type="button" @click="openRecords">
       <span class="action-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M8 6h13"></path>
-          <path d="M8 12h13"></path>
-          <path d="M8 18h13"></path>
-          <path d="M3.5 6h.01"></path>
-          <path d="M3.5 12h.01"></path>
-          <path d="M3.5 18h.01"></path>
+          <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+          <path d="M8 2v4M16 2v4M3 9h18"></path>
+          <path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01"></path>
         </svg>
       </span>
       <span>明细</span>
     </button>
 
-    <button class="mic-slot" type="button" aria-label="说一笔" @click="openVoice">
+    <button
+      class="mic-slot"
+      type="button"
+      aria-label="说一笔"
+      @pointerdown="onMicPointerDown"
+      @pointermove="onMicPointerMove"
+      @pointerup="onMicPointerUp"
+      @pointercancel="onMicPointerCancel"
+      @click="onMicClick"
+      @contextmenu.prevent
+    >
       <span class="mic-main">
         <span class="mic-main-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -37,15 +45,14 @@
       <span class="mic-caption">说一笔</span>
     </button>
 
-    <button class="action-secondary" type="button" @click="exportCsv">
+    <button class="action-secondary" type="button" @click="openManual">
       <span class="action-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v12"></path>
-          <path d="m7 10 5 5 5-5"></path>
-          <path d="M5 21h14"></path>
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
         </svg>
       </span>
-      <span>导出</span>
+      <span>手动</span>
     </button>
 
     <button class="action-secondary" type="button" @click="sheets.openSettings()">
@@ -61,51 +68,94 @@
 </template>
 
 <script setup>
-import { showToast } from 'vant';
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
-import { exportStageCsv } from '../utils/csv';
+import { haptic } from '../utils/haptics';
 
-const { currentStage, currentExpenses } = useLedger();
+const { currentStage } = useLedger();
 const sheets = useSheets();
+const route = useRoute();
+const router = useRouter();
 
-function openVoice() {
-  if (!currentStage.value) {
-    sheets.openStageForm();
+const isHome = computed(() => route.path === '/');
+const isRecords = computed(() => route.path === '/records');
+
+const LONG_PRESS_MS = 320;
+let pressTimer = null;
+let pressStart = null;
+let longPress = false;
+
+function requireStage() {
+  if (currentStage.value) return true;
+  sheets.openStageForm();
+  return false;
+}
+
+function goHome() {
+  if (route.path !== '/') router.push('/');
+}
+
+function openRecords() {
+  if (!requireStage()) return;
+  if (route.path !== '/records') router.push('/records');
+}
+
+function onMicPointerDown(event) {
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  clearTimeout(pressTimer);
+  longPress = false;
+  pressStart = { x: event.clientX, y: event.clientY };
+  try {
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  } catch (err) {
+    // Synthetic events or older browsers may not support pointer capture.
+  }
+  pressTimer = setTimeout(() => {
+    longPress = true;
+    pressStart = null;
+    haptic('medium');
+    if (requireStage()) sheets.openVoice(true);
+  }, LONG_PRESS_MS);
+}
+
+function onMicPointerMove(event) {
+  if (!pressStart) return;
+  if (Math.hypot(event.clientX - pressStart.x, event.clientY - pressStart.y) > 12) {
+    clearTimeout(pressTimer);
+    pressStart = null;
+  }
+}
+
+function onMicPointerUp() {
+  clearTimeout(pressTimer);
+  pressStart = null;
+  if (longPress) {
+    setTimeout(() => {
+      sheets.requestVoiceStop();
+    }, 80);
+    setTimeout(() => {
+      longPress = false;
+    }, 0);
+  }
+}
+
+function onMicPointerCancel() {
+  clearTimeout(pressTimer);
+  pressStart = null;
+  longPress = false;
+}
+
+function onMicClick(event) {
+  if (longPress) {
+    event.preventDefault();
     return;
   }
-  sheets.openVoice();
+  if (requireStage()) sheets.openVoice(false);
 }
 
 function openManual() {
-  if (!currentStage.value) {
-    sheets.openStageForm();
-    return;
-  }
-  sheets.openExpenseForm();
-}
-
-function openDetails() {
-  if (!currentStage.value) {
-    sheets.openStageForm();
-    return;
-  }
-  document.querySelector('.expense-section')?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'start'
-  });
-}
-
-function exportCsv() {
-  if (!currentStage.value) {
-    showToast('先建一个阶段再导出');
-    return;
-  }
-  if (!currentExpenses.value.length) {
-    showToast('这个阶段还没有支出');
-    return;
-  }
-  const ok = exportStageCsv(currentStage.value, currentExpenses.value);
-  showToast(ok ? '已导出（含阶段标题）' : '这个阶段还没有支出');
+  if (requireStage()) sheets.openExpenseForm();
 }
 </script>

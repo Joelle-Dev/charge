@@ -37,9 +37,8 @@
 
       <button
         v-if="editingStage && !editingStage.archived"
-        class="text-btn"
+        class="text-btn stage-delete-btn"
         type="button"
-        style="margin: 14px auto 0; display: block; color: var(--danger)"
         @click="removeStage"
       >
         删除这个阶段
@@ -58,6 +57,8 @@ import { showConfirmDialog, showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
+import { haptic } from '../utils/haptics';
+import { DANGER_COLOR } from '../utils/theme';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
@@ -104,9 +105,11 @@ async function save() {
 
   if (editingStage.value) {
     await updateStage(editingStage.value, { name: trimmed, budget: budgetValue });
+    haptic('success');
     showToast('阶段已更新');
   } else {
     await createStage({ name: trimmed, budget: budgetValue });
+    haptic('success');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast(`已创建「${trimmed}」`);
   }
@@ -118,9 +121,11 @@ async function toggleArchive() {
   if (!stage) return;
   if (stage.archived) {
     await restoreStage(stage);
+    haptic('light');
     showToast(`已恢复「${stage.name}」`);
   } else {
     await archiveStage(stage);
+    haptic('light');
     showToast(`已归档「${stage.name}」`);
   }
   show.value = false;
@@ -135,12 +140,13 @@ async function removeStage() {
       title: '删除阶段',
       message: `删除「${stage.name}」及其中 ${count} 笔支出？此操作不可恢复。`,
       confirmButtonText: '删除',
-      confirmButtonColor: '#c94a44'
+      confirmButtonColor: DANGER_COLOR
     });
   } catch (err) {
     return;
   }
   await deleteStage(stage);
+  haptic('warning');
   showToast('阶段已删除');
   show.value = false;
 }

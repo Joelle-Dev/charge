@@ -1,4 +1,5 @@
 import { formatTime, toDateInput } from './format.js';
+import { monthLabel } from './months.js';
 
 function csvCell(value) {
   const text = String(value ?? '');
@@ -14,6 +15,7 @@ export function buildStageCsv(stage, expenses, options = {}) {
 
   const rows = [
     ['阶段', stage.name],
+    ...(options.month ? [['月份', monthLabel(options.month)]] : []),
     ['导出时间', `${toDateInput(now)} ${formatTime(now)}`],
     ['支出笔数', String(expenses.length)],
     ['总支出', total.toFixed(2)],
@@ -37,8 +39,8 @@ export function buildStageCsv(stage, expenses, options = {}) {
   return `\ufeff${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
 }
 
-export function exportStageCsv(stage, expenses) {
-  const csv = buildStageCsv(stage, expenses);
+export function exportStageCsv(stage, expenses, options = {}) {
+  const csv = buildStageCsv(stage, expenses, options);
   if (!csv) return false;
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });

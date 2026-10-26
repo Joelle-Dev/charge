@@ -20,6 +20,9 @@
           <rect x="7" y="7" width="10" height="10" rx="2"></rect>
         </svg>
       </button>
+      <div class="voice-paws" :class="{ live: recording }" aria-hidden="true">
+        <PawIcon v-for="paw in 5" :key="paw" :style="{ '--paw-index': paw }" />
+      </div>
       <div class="voice-status">{{ statusText }}</div>
       <div class="voice-hint">{{ hintText }}</div>
     </div>
@@ -35,9 +38,9 @@
       <span v-if="recording" class="transcript-live"><i></i>聆听中</span>
     </div>
 
-    <div style="display: flex; gap: 8px; margin-top: -6px">
-      <button class="secondary-btn" type="button" style="flex: 1" @click="parseText">解析文字</button>
-      <button v-if="supported" class="secondary-btn" type="button" style="flex: 1" @click="toggleRecording">
+    <div class="voice-actions">
+      <button class="secondary-btn" type="button" @click="parseText">解析文字</button>
+      <button v-if="supported" class="secondary-btn" type="button" @click="toggleRecording">
         {{ recording ? '停止' : '语音输入' }}
       </button>
     </div>
@@ -48,7 +51,10 @@
     <div v-if="parsedEntries.length" class="parsed-list">
       <div v-for="(entry, index) in parsedEntries" :key="entry.key" class="parsed-card">
         <div class="parsed-head">
-          <span class="parsed-raw">{{ entry.raw || entry.note || '识别结果' }}</span>
+          <span class="parsed-head-left">
+            <span class="parsed-index"><PawIcon />{{ index + 1 }}</span>
+            <span class="parsed-raw">{{ entry.raw || entry.note || '识别结果' }}</span>
+          </span>
           <button class="remove-chip" type="button" @click="removeEntry(index)">移除</button>
         </div>
         <div class="parsed-grid">
@@ -85,23 +91,36 @@
     </div>
 
     <div v-if="parsedEntries.length" class="parsed-actions">
-      <button class="primary-btn" type="button" @click="saveParsed">全部入账 · ¥{{ formatMoney(parsedTotal) }}</button>
+      <button class="primary-btn" type="button" :disabled="saving" @click="saveParsed">
+        {{ saving ? '入账中…' : `全部入账 · ¥${formatMoney(parsedTotal)}` }}
+      </button>
       <button class="secondary-btn" type="button" @click="parseText">重新解析</button>
     </div>
 
     <p class="sheet-note">语音识别由浏览器和系统服务提供。若不便说话，可直接输入文字。</p>
+
+    <template #overlay>
+      <div v-if="showStamp" class="paw-stamp" aria-hidden="true">
+        <PawIcon />
+        <span>果冻记好了</span>
+      </div>
+    </template>
   </SheetFrame>
 </template>
 
 <script setup>
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
+import PawIcon from './PawIcon.vue';
 import { parseExpenses } from '../lib/parser';
 import { useLedger } from '../composables/useLedger';
+import { useSheets } from '../composables/useSheets';
 import { applyDateToIso, formatMoney, toDateInput, uid } from '../utils/format';
+import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
+const sheets = useSheets();
 const { currentStage, categories, addExpenses } = useLedger();
 
 const RecognitionCtor = typeof window !== 'undefined'
@@ -118,6 +137,8 @@ const recording = ref(false);
 const text = ref('');
 const error = ref('');
 const parsedEntries = ref([]);
+const saving = ref(false);
+const showStamp = ref(false);
 
 let recognition = null;
 let finalText = '';
@@ -128,6 +149,7 @@ let restartTimer = null;
 let maxTimer = null;
 let lastFinalAt = 0;
 let restartAttempts = 0;
+let pendingStop = false;
 
 const restarting = ref(false);
 const MAX_LISTEN_MS = 120000;
@@ -169,6 +191,9 @@ function reset() {
   restartAttempts = 0;
   recording.value = false;
   restarting.value = false;
+  saving.value = false;
+  showStamp.value = false;
+  pendingStop = false;
   text.value = '';
   error.value = '';
   parsedEntries.value = [];
@@ -177,6 +202,7 @@ function reset() {
 function cleanup() {
   closing = true;
   userStopped = true;
+  pendingStop = false;
   clearTimers();
   if (recognition) {
     try { recognition.abort(); } catch (err) { /* noop */ }
@@ -290,6 +316,10 @@ function startSession() {
     if (closing) return;
     restarting.value = false;
     recording.value = true;
+    if (pendingStop) {
+      pendingStop = false;
+      stopRecording();
+    }
   };
 
   recognition.onresult = handleResult;
@@ -317,6 +347,7 @@ function startRecording() {
   userStopped = false;
   clearTimers();
   recording.value = true;
+  haptic('light');
   startSession();
 
   if (!userStopped && !closing) {
@@ -334,6 +365,7 @@ function stopRecording() {
   userStopped = true;
   restarting.value = false;
   clearTimers();
+  haptic('light');
 
   if (recognition) {
     try {
@@ -405,24 +437,46 @@ async function saveParsed() {
     return;
   }
 
+  if (saving.value) return;
+  saving.value = true;
   try {
     const count = parsedEntries.value.length;
     await addExpenses(parsedEntries.value);
-    showToast(`已记 ${count} 笔`);
+    showStamp.value = true;
+    haptic('success');
+    await new Promise((resolve) => setTimeout(resolve, 420));
     show.value = false;
+    showToast(`果冻记下 ${count} 笔`);
   } catch (err) {
     console.error(err);
     showToast('入账失败，请重试');
+  } finally {
+    saving.value = false;
   }
 }
 
-watch(show, (visible) => {
+watch(show, async (visible) => {
   if (visible) {
     reset();
+    if (sheets.voiceAutostart.value && supported) {
+      await nextTick();
+      startRecording();
+    }
   } else {
     cleanup();
   }
 });
+
+watch(
+  () => sheets.voiceStopTick.value,
+  () => {
+    pendingStop = true;
+    if (recording.value) {
+      pendingStop = false;
+      stopRecording();
+    }
+  }
+);
 
 onUnmounted(cleanup);
 </script>

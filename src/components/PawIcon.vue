@@ -7,9 +7,3 @@
     <ellipse cx="18.3" cy="9.4" rx="2.15" ry="2.65" transform="rotate(20 18.3 9.4)" />
   </svg>
 </template>
-
-<style scoped>
-.paw-icon {
-  display: block;
-}
-</style>

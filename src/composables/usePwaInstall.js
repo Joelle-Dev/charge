@@ -1,7 +1,6 @@
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 
 const deferredPrompt = ref(null);
-const installed = ref(false);
 const standalone = ref(false);
 const isIos = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
@@ -16,14 +15,11 @@ if (typeof window !== 'undefined') {
   });
 
   window.addEventListener('appinstalled', () => {
-    installed.value = true;
     deferredPrompt.value = null;
   });
 }
 
 export function usePwaInstall() {
-  const canInstall = computed(() => Boolean(deferredPrompt.value));
-
   async function promptInstall() {
     if (!deferredPrompt.value) return false;
     deferredPrompt.value.prompt();
@@ -33,8 +29,6 @@ export function usePwaInstall() {
   }
 
   return {
-    canInstall,
-    installed,
     standalone,
     isIos,
     promptInstall

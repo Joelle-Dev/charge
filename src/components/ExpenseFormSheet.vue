@@ -61,21 +61,19 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { showConfirmDialog, showToast } from 'vant';
+import { showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
+import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
-import {
-  combineLocal,
-  formatMoney,
-  toDateInput,
-  toTimeInput
-} from '../utils/format';
+import { haptic } from '../utils/haptics';
+import { combineLocal, toDateInput, toTimeInput } from '../utils/format';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
-const { editingExpense } = sheets;
-const { categories, addExpense, updateExpense, deleteExpense } = useLedger();
+const { editingExpense, expenseDraft } = sheets;
+const { categories, addExpense, updateExpense } = useLedger();
+const { removeExpense: removeExpenseAction } = useExpenseActions();
 
 const amount = ref('');
 const note = ref('');
@@ -92,17 +90,19 @@ const categoryOptions = computed(() => {
 });
 
 watch(
-  [show, editingExpense],
+  [show, editingExpense, expenseDraft],
   ([visible]) => {
     if (!visible) return;
     const expense = editingExpense.value;
+    const draft = expenseDraft.value;
     const now = new Date();
-    amount.value = expense ? String(expense.amount) : '';
-    note.value = expense?.note || '';
-    selectedCategory.value = expense?.category ||
+    const draftDate = draft?.date ? combineLocal(draft.date, toTimeInput(now)) : null;
+    amount.value = expense ? String(expense.amount) : draft ? String(draft.amount || '') : '';
+    note.value = expense?.note || draft?.note || '';
+    selectedCategory.value = expense?.category || draft?.category ||
       (categories.value.includes('餐饮') ? '餐饮' : categories.value[0]);
-    date.value = toDateInput(expense?.spentAt || now);
-    time.value = toTimeInput(expense?.spentAt || now);
+    date.value = toDateInput(expense?.spentAt || draft?.spentAt || draftDate || now);
+    time.value = toTimeInput(expense?.spentAt || draft?.spentAt || now);
     error.value = '';
   }
 );
@@ -132,7 +132,8 @@ async function save() {
     showToast('已保存修改');
   } else {
     await addExpense(payload);
-    showToast('已记下这笔');
+    haptic('success');
+    showToast('喵，已记下这笔');
   }
   show.value = false;
 }
@@ -140,18 +141,7 @@ async function save() {
 async function removeExpense() {
   const expense = editingExpense.value;
   if (!expense) return;
-  try {
-    await showConfirmDialog({
-      title: '删除支出',
-      message: `删除这笔 ¥${formatMoney(expense.amount)} 的支出？`,
-      confirmButtonText: '删除',
-      confirmButtonColor: '#c94a44'
-    });
-  } catch (err) {
-    return;
-  }
-  await deleteExpense(expense.id);
-  showToast('已删除');
-  show.value = false;
+  const removed = await removeExpenseAction(expense);
+  if (removed) show.value = false;
 }
 </script>

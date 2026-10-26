@@ -10,14 +10,16 @@ import {
   deleteMany
 } from '../lib/db';
 import { PRESET_CATEGORIES, DEFAULT_CATEGORY } from '../lib/parser';
-import { dayKey, dayLabel, sumAmounts, uid } from '../utils/format';
+import { dayKey, sumAmounts, toDateInput, uid } from '../utils/format';
+import { catTitleForExpenses } from '../utils/titles';
+import { buildStageSummary } from '../utils/summary';
+import { buildTemplates, mergeTemplates } from '../utils/templates';
 
 const stages = ref([]);
 const expenses = ref([]);
 const categories = ref([...PRESET_CATEGORIES]);
 const currentStageId = ref(null);
 const ready = ref(false);
-const loading = ref(false);
 
 let initPromise = null;
 
@@ -40,6 +42,21 @@ const currentExpenses = computed(() =>
 
 const total = computed(() => sumAmounts(currentExpenses.value));
 
+const todayExpenses = computed(() => {
+  const today = toDateInput(new Date());
+  return currentExpenses.value.filter((expense) => dayKey(new Date(expense.spentAt)) === today);
+});
+
+const currentCatTitle = computed(() => catTitleForExpenses(currentExpenses.value));
+
+const recentTemplates = computed(() =>
+  mergeTemplates(
+    buildTemplates(currentExpenses.value, 3),
+    buildTemplates(expenses.value, 3),
+    3
+  )
+);
+
 const categoryGroups = computed(() => {
   const groups = new Map();
   for (const expense of currentExpenses.value) {
@@ -51,29 +68,27 @@ const categoryGroups = computed(() => {
     .sort((a, b) => b.amount - a.amount);
 });
 
-const groupedExpenses = computed(() => {
-  const groups = new Map();
-  for (const expense of currentExpenses.value) {
-    const key = dayKey(new Date(expense.spentAt));
-    if (!groups.has(key)) {
-      groups.set(key, { key, label: dayLabel(key), total: 0, items: [] });
-    }
-    const group = groups.get(key);
-    group.items.push(expense);
-    group.total += Number(expense.amount) || 0;
+const stageStatsMap = computed(() => {
+  const map = new Map();
+  for (const expense of expenses.value) {
+    const item = map.get(expense.stageId) || { count: 0, total: 0 };
+    item.count += 1;
+    item.total += Number(expense.amount) || 0;
+    map.set(expense.stageId, item);
   }
-  return [...groups.values()];
+  return map;
 });
 
 function stageExpenses(stageId) {
-  return expenses.value
-    .filter((expense) => expense.stageId === stageId)
-    .sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
+  return expenses.value.filter((expense) => expense.stageId === stageId);
 }
 
 function stageStats(stageId) {
-  const items = stageExpenses(stageId);
-  return { count: items.length, total: sumAmounts(items) };
+  return stageStatsMap.value.get(stageId) || { count: 0, total: 0 };
+}
+
+function stageSummary(stage) {
+  return buildStageSummary(stage, stageExpenses(stage.id));
 }
 
 async function refreshExpenses() {
@@ -99,7 +114,6 @@ async function reload() {
 async function init() {
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    loading.value = true;
     try {
       const stored = await getSetting('categories', null);
       if (Array.isArray(stored) && stored.length) {
@@ -118,7 +132,6 @@ async function init() {
       console.error(err);
       showToast('本地数据加载失败，请刷新重试');
     } finally {
-      loading.value = false;
       ready.value = true;
     }
   })();
@@ -239,20 +252,19 @@ export function useLedger() {
     stages,
     expenses,
     categories,
-    currentStageId,
     ready,
-    loading,
     activeStages,
     archivedStages,
     currentStage,
     currentExpenses,
     total,
+    todayExpenses,
+    currentCatTitle,
+    recentTemplates,
     categoryGroups,
-    groupedExpenses,
-    stageExpenses,
     stageStats,
+    stageSummary,
     init,
-    reload,
     switchStage,
     createStage,
     updateStage,

@@ -28,6 +28,14 @@ test('CSV includes stage title and summary rows', () => {
   assert.match(csv, /2026-10-23,12:00,餐饮,午饭,35\.00/);
 });
 
+test('CSV can include a month title', () => {
+  const csv = buildStageCsv(stage, expenses, {
+    now: new Date('2026-10-23T16:30:00+08:00'),
+    month: '2026-10'
+  });
+  assert.match(csv, /^月份,2026年10月$/m);
+});
+
 test('CSV returns empty when there are no expenses', () => {
   assert.equal(buildStageCsv(stage, []), '');
 });

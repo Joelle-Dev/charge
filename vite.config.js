@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { VantResolver } from '@vant/auto-import-resolver';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -14,10 +13,6 @@ export default defineConfig(({ mode }) => {
     base: './',
     plugins: [
       vue(),
-      AutoImport({
-        resolvers: [VantResolver()],
-        dts: false
-      }),
       Components({
         resolvers: [VantResolver()],
         dts: false
@@ -36,6 +31,29 @@ export default defineConfig(({ mode }) => {
           start_url: startUrl,
           scope,
           categories: ['finance', 'productivity', 'lifestyle'],
+          shortcuts: [
+            {
+              name: '说一笔',
+              short_name: '说一笔',
+              description: '打开语音记账',
+              url: `${startUrl}?action=voice`,
+              icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
+            },
+            {
+              name: '手动记一笔',
+              short_name: '手动记账',
+              description: '打开手动记账',
+              url: `${startUrl}?action=manual`,
+              icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
+            },
+            {
+              name: '支出明细',
+              short_name: '明细',
+              description: '查看支出日历和明细',
+              url: `${startUrl}#/records`,
+              icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
+            }
+          ],
           icons: [
             {
               src: './icons/icon-192.png',

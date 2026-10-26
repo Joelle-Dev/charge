@@ -5,8 +5,15 @@ const showStageForm = ref(false);
 const showVoice = ref(false);
 const showExpenseForm = ref(false);
 const showSettings = ref(false);
+const showSearch = ref(false);
+const showAchievements = ref(false);
+const showSummary = ref(false);
 const editingStage = ref(null);
 const editingExpense = ref(null);
+const expenseDraft = ref(null);
+const summaryStage = ref(null);
+const voiceAutostart = ref(false);
+const voiceStopTick = ref(0);
 
 function openStages() {
   showStages.value = true;
@@ -18,18 +25,41 @@ function openStageForm(stage = null) {
   showStageForm.value = true;
 }
 
-function openVoice() {
+function openVoice(autoStart = false) {
   if (showStageForm.value) showStageForm.value = false;
+  voiceAutostart.value = autoStart;
   showVoice.value = true;
 }
 
-function openExpenseForm(expense = null) {
+function requestVoiceStop() {
+  voiceStopTick.value += 1;
+}
+
+function openExpenseForm(expense = null, draft = null) {
+  showSearch.value = false;
   editingExpense.value = expense || null;
+  expenseDraft.value = draft || null;
   showExpenseForm.value = true;
+}
+
+function openSearch() {
+  showSearch.value = true;
 }
 
 function openSettings() {
   showSettings.value = true;
+}
+
+function openAchievements() {
+  showSettings.value = false;
+  showAchievements.value = true;
+}
+
+function openSummary(stage) {
+  showStages.value = false;
+  showSettings.value = false;
+  summaryStage.value = stage;
+  showSummary.value = true;
 }
 
 export function useSheets() {
@@ -39,12 +69,23 @@ export function useSheets() {
     showVoice,
     showExpenseForm,
     showSettings,
+    showSearch,
+    showAchievements,
+    showSummary,
     editingStage,
     editingExpense,
+    expenseDraft,
+    summaryStage,
+    voiceAutostart,
+    voiceStopTick,
     openStages,
     openStageForm,
     openVoice,
+    requestVoiceStop,
     openExpenseForm,
-    openSettings
+    openSearch,
+    openSettings,
+    openAchievements,
+    openSummary
   };
 }

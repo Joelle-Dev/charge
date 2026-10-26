@@ -9,6 +9,20 @@ const CATEGORY_COLORS = {
 };
 
 const PALETTE = ['#6f8fb8', '#d9825b', '#a78bc4', '#db7c9b', '#d9a84e', '#c68a5f', '#8f9bb3'];
+const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const moneyFormatters = new Map();
+
+function moneyFormatter(maximumFractionDigits) {
+  let formatter = moneyFormatters.get(maximumFractionDigits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat('zh-CN', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits
+    });
+    moneyFormatters.set(maximumFractionDigits, formatter);
+  }
+  return formatter;
+}
 
 export function uid(prefix = 'id') {
   if (globalThis.crypto?.randomUUID) return `${prefix}_${globalThis.crypto.randomUUID()}`;
@@ -16,10 +30,7 @@ export function uid(prefix = 'id') {
 }
 
 export function formatMoney(value, maximumFractionDigits = 2) {
-  return new Intl.NumberFormat('zh-CN', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits
-  }).format(Number(value) || 0);
+  return moneyFormatter(maximumFractionDigits).format(Number(value) || 0);
 }
 
 export function pad2(value) {
@@ -65,9 +76,8 @@ export function dayLabel(key) {
   if (key === toDateInput(yesterday)) return '昨天';
   const d = combineLocal(key, '12:00');
   if (!d) return key;
-  const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
   const prefix = d.getFullYear() === today.getFullYear() ? '' : `${d.getFullYear()}年`;
-  return `${prefix}${d.getMonth() + 1}月${d.getDate()}日 ${weekday}`;
+  return `${prefix}${d.getMonth() + 1}月${d.getDate()}日 ${WEEKDAYS[d.getDay()]}`;
 }
 
 export function categoryColor(name) {
