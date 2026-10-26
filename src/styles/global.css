@@ -186,7 +186,7 @@ svg {
   min-height: 100vh;
   min-height: 100dvh;
   margin: 0 auto;
-  padding: 0 var(--shell-pad) calc(96px + var(--safe-bottom));
+  padding: 0 var(--shell-pad) calc(86px + var(--safe-bottom));
   background: transparent;
 }
 
@@ -537,7 +537,7 @@ svg {
 .expense-section {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--topbar-height) - 96px - var(--safe-bottom));
+  min-height: calc(100dvh - var(--topbar-height) - 86px - var(--safe-bottom));
   scroll-margin-top: calc(var(--topbar-height) + 10px);
 }
 
@@ -996,17 +996,18 @@ svg {
 .actionbar {
   position: fixed;
   left: 50%;
-  bottom: calc(10px + var(--safe-bottom));
+  bottom: 0;
   z-index: 40;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: end;
   gap: 2px;
   width: min(100%, 600px);
-  padding: 6px 14px 7px;
+  padding: 6px 14px calc(7px + var(--safe-bottom));
   transform: translateX(-50%);
   border: 1px solid rgba(232, 219, 202, 0.92);
-  border-radius: 28px;
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   background: var(--surface-soft);
   box-shadow: 0 16px 36px rgba(var(--shadow-rgb), 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
