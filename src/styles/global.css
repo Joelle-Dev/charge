@@ -1225,6 +1225,11 @@ svg {
   padding: 8px 18px 8px 20px;
 }
 
+.sheet-toolbar {
+  flex: none;
+  padding: 0 20px 4px;
+}
+
 .sheet-head h2 {
   margin: 0;
   font-size: 18px;
@@ -1244,6 +1249,8 @@ svg {
 }
 
 .sheet-body {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-wrap: anywhere;
   padding: 6px 20px calc(24px + var(--safe-bottom));
@@ -3322,6 +3329,11 @@ input[type='search']::-webkit-search-decoration {
 @media (max-width: 360px) {
   .form-row {
     gap: 8px;
+  }
+
+  .sheet-toolbar {
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .sheet-body {

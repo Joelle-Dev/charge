@@ -1,20 +1,43 @@
 <template>
-  <SheetFrame v-model:show="show" title="搜索明细" max-height="90dvh">
-    <div class="search-field">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <circle cx="11" cy="11" r="6.5"></circle>
-        <path d="m16 16 4 4"></path>
-      </svg>
-      <input
-        ref="searchInput"
-        v-model="query"
-        type="search"
-        inputmode="search"
-        placeholder="搜备注、分类、金额"
-        aria-label="搜索明细"
-      >
-      <button v-if="query" class="search-clear" type="button" aria-label="清空搜索" @click="query = ''">×</button>
-    </div>
+  <SheetFrame
+    ref="sheetRef"
+    v-model:show="show"
+    title="搜索明细"
+    :max-height="sheetMaxHeight"
+    fill
+    @opened="focusSearch"
+  >
+    <template #toolbar>
+      <div class="search-field">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5"></circle>
+          <path d="m16 16 4 4"></path>
+        </svg>
+        <input
+          ref="searchInput"
+          v-model="query"
+          type="search"
+          inputmode="search"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          enterkeyhint="search"
+          placeholder="搜备注、分类、金额"
+          aria-label="搜索明细"
+        >
+        <button
+          v-if="query"
+          class="search-clear"
+          type="button"
+          aria-label="清空搜索"
+          @mousedown.prevent
+          @click="clearQuery"
+        >
+          ×
+        </button>
+      </div>
+    </template>
 
     <div v-if="filterCategories.length > 1" class="filter-row search-filters">
       <button
@@ -76,7 +99,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import SheetFrame from './SheetFrame.vue';
 import ExpenseRow from './ExpenseRow.vue';
 import PawIcon from './PawIcon.vue';
@@ -93,6 +116,24 @@ const { removeExpense } = useExpenseActions();
 const query = ref('');
 const selectedCategory = ref('all');
 const searchInput = ref(null);
+const sheetRef = ref(null);
+const sheetMaxHeight = ref('90dvh');
+let viewportTimer = null;
+
+function syncSheetHeight() {
+  const viewportHeight = window.visualViewport?.height || window.innerHeight;
+  sheetMaxHeight.value = `${Math.min(Math.round(viewportHeight * 0.9), 680)}px`;
+}
+
+function scheduleSheetHeight() {
+  clearTimeout(viewportTimer);
+  viewportTimer = setTimeout(syncSheetHeight, 80);
+}
+
+function removeViewportListener() {
+  window.visualViewport?.removeEventListener('resize', scheduleSheetHeight);
+  clearTimeout(viewportTimer);
+}
 
 const filterCategories = computed(() => {
   const set = new Set();
@@ -128,13 +169,19 @@ const filteredGroups = computed(() => {
   return [...groups.values()];
 });
 
-watch(show, async (visible) => {
-  if (!visible) return;
+watch(show, (visible) => {
+  if (!visible) {
+    removeViewportListener();
+    return;
+  }
+
   query.value = '';
   selectedCategory.value = 'all';
-  await nextTick();
-  searchInput.value?.focus?.();
+  syncSheetHeight();
+  window.visualViewport?.addEventListener('resize', scheduleSheetHeight);
 });
+
+onUnmounted(removeViewportListener);
 
 watch(
   () => currentStage.value?.id,
@@ -142,6 +189,19 @@ watch(
     selectedCategory.value = 'all';
   }
 );
+
+watch([query, selectedCategory], () => {
+  sheetRef.value?.scrollToTop?.();
+});
+
+function focusSearch() {
+  searchInput.value?.focus?.({ preventScroll: true });
+}
+
+function clearQuery() {
+  query.value = '';
+  focusSearch();
+}
 
 function editExpense(expense) {
   show.value = false;

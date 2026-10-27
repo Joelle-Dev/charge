@@ -6,6 +6,7 @@
     teleport="body"
     class="sheet-popup"
     :style="{ maxHeight }"
+    @opened="emit('opened')"
   >
     <div class="sheet-page" :style="pageStyle">
       <div
@@ -24,7 +25,10 @@
           </svg>
         </button>
       </header>
-      <div class="sheet-body">
+      <div v-if="$slots.toolbar" class="sheet-toolbar">
+        <slot name="toolbar" />
+      </div>
+      <div ref="bodyRef" class="sheet-body">
         <slot />
       </div>
       <slot name="overlay" />
@@ -37,10 +41,13 @@ import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
   title: { type: String, default: '' },
-  maxHeight: { type: String, default: '92dvh' }
+  maxHeight: { type: String, default: '92dvh' },
+  fill: { type: Boolean, default: false }
 });
 
 const show = defineModel('show', { type: Boolean, default: false });
+const emit = defineEmits(['opened']);
+const bodyRef = ref(null);
 const dragY = ref(0);
 const dragging = ref(false);
 let startY = 0;
@@ -48,8 +55,11 @@ let startTime = 0;
 
 const pageStyle = computed(() => ({
   maxHeight: props.maxHeight,
+  height: props.fill ? props.maxHeight : undefined,
   transform: `translateY(${dragY.value}px)`,
-  transition: dragging.value ? 'none' : 'transform 0.22s var(--ease-out)'
+  transition: dragging.value
+    ? 'none'
+    : 'transform 0.22s var(--ease-out), height 0.18s ease'
 }));
 
 function onTouchStart(event) {
@@ -86,4 +96,10 @@ function onTouchEnd() {
 watch(show, (visible) => {
   if (visible) dragY.value = 0;
 });
+
+function scrollToTop() {
+  bodyRef.value?.scrollTo?.({ top: 0 });
+}
+
+defineExpose({ scrollToTop });
 </script>
