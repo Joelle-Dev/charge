@@ -1253,7 +1253,7 @@ svg {
   min-height: 0;
   overflow-y: auto;
   overflow-wrap: anywhere;
-  padding: 6px 20px calc(24px + var(--safe-bottom));
+  padding: 6px 20px calc(24px + var(--safe-bottom) + var(--keyboard-inset, 0px));
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }

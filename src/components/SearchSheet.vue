@@ -5,6 +5,7 @@
     title="搜索明细"
     :max-height="sheetMaxHeight"
     fill
+    keyboard-padding
     @opened="focusSearch"
   >
     <template #toolbar>
@@ -99,7 +100,7 @@
 </template>
 
 <script setup>
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import SheetFrame from './SheetFrame.vue';
 import ExpenseRow from './ExpenseRow.vue';
 import PawIcon from './PawIcon.vue';
@@ -118,21 +119,10 @@ const selectedCategory = ref('all');
 const searchInput = ref(null);
 const sheetRef = ref(null);
 const sheetMaxHeight = ref('90dvh');
-let viewportTimer = null;
 
 function syncSheetHeight() {
   const viewportHeight = window.visualViewport?.height || window.innerHeight;
   sheetMaxHeight.value = `${Math.min(Math.round(viewportHeight * 0.9), 680)}px`;
-}
-
-function scheduleSheetHeight() {
-  clearTimeout(viewportTimer);
-  viewportTimer = setTimeout(syncSheetHeight, 80);
-}
-
-function removeViewportListener() {
-  window.visualViewport?.removeEventListener('resize', scheduleSheetHeight);
-  clearTimeout(viewportTimer);
 }
 
 const filterCategories = computed(() => {
@@ -170,18 +160,12 @@ const filteredGroups = computed(() => {
 });
 
 watch(show, (visible) => {
-  if (!visible) {
-    removeViewportListener();
-    return;
-  }
+  if (!visible) return;
 
   query.value = '';
   selectedCategory.value = 'all';
   syncSheetHeight();
-  window.visualViewport?.addEventListener('resize', scheduleSheetHeight);
 });
-
-onUnmounted(removeViewportListener);
 
 watch(
   () => currentStage.value?.id,
