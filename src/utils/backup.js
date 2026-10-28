@@ -172,10 +172,43 @@ export function prepareBackupImport(data, options = {}) {
     existingStages = [],
     existingCategories = [],
     existingAchievements = [],
-    existingCurrentStageId = null
+    existingCurrentStageId = null,
+    mergeIntoStageId = null
   } = options;
   const merge = mode === 'merge';
   const now = Date.now();
+
+  const categories = [...new Set([
+    ...(merge ? existingCategories : []),
+    ...data.categories,
+    DEFAULT_CATEGORY
+  ])];
+
+  const achievementUnlocked = [...new Set([
+    ...(merge ? existingAchievements : []),
+    ...data.achievementUnlocked
+  ])];
+
+  if (merge && mergeIntoStageId) {
+    const expenses = data.expenses.map((expense) => ({
+      ...expense,
+      id: uid('expense'),
+      stageId: mergeIntoStageId,
+      createdAt: expense.createdAt || now
+    }));
+    return {
+      stages: [],
+      expenses,
+      categories,
+      currentStageId: mergeIntoStageId,
+      achievementUnlocked,
+      counts: {
+        stages: 0,
+        expenses: expenses.length
+      }
+    };
+  }
+
   const stageIdMap = new Map();
 
   const stages = data.stages.map((stage) => {
@@ -192,17 +225,6 @@ export function prepareBackupImport(data, options = {}) {
       stageId: stageIdMap.get(expense.stageId),
       createdAt: expense.createdAt || now
     }));
-
-  const categories = [...new Set([
-    ...(merge ? existingCategories : []),
-    ...data.categories,
-    DEFAULT_CATEGORY
-  ])];
-
-  const achievementUnlocked = [...new Set([
-    ...(merge ? existingAchievements : []),
-    ...data.achievementUnlocked
-  ])];
 
   const firstActive = stages.find((stage) => !stage.archived)?.id || null;
   let currentStageId = firstActive;

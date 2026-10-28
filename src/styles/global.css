@@ -2062,6 +2062,13 @@ input[type='search']::-webkit-search-decoration {
   line-height: 1.55;
 }
 
+.import-hint {
+  margin: -2px 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .import-options {
   margin-top: -4px;
   margin-bottom: 14px;

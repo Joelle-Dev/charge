@@ -71,6 +71,9 @@
         <p v-if="mode === 'replace'" class="import-danger-note">
           覆盖恢复会清空当前全部阶段、支出和分类，且无法撤销。
         </p>
+        <p v-else-if="currentStage" class="import-hint">
+          支出会合并到当前阶段「{{ currentStage.name }}」，不会新建阶段。
+        </p>
       </template>
 
       <template v-else>
@@ -296,7 +299,8 @@ async function confirmImport() {
         existingStages: stages.value,
         existingCategories: categories.value,
         existingAchievements: unlockedIds.value,
-        existingCurrentStageId: currentStage.value?.id || null
+        existingCurrentStageId: currentStage.value?.id || null,
+        mergeIntoStageId: currentStage.value?.id || null
       });
 
       if (mode.value === 'replace') {
@@ -316,7 +320,11 @@ async function confirmImport() {
       await importBackup(prepared, mode.value);
       await setUnlocked(prepared.achievementUnlocked, mode.value);
       haptic('success');
-      showToast(`已导入 ${prepared.counts.stages} 个阶段、${prepared.counts.expenses} 笔支出`);
+      if (mode.value === 'merge' && currentStage.value) {
+        showToast(`已导入 ${prepared.counts.expenses} 笔到「${currentStage.value.name}」`);
+      } else {
+        showToast(`已导入 ${prepared.counts.stages} 个阶段、${prepared.counts.expenses} 笔支出`);
+      }
     } else {
       const parsed = preview.value.parsed;
       const categoriesFromRows = [...new Set(parsed.expenses.map((item) => item.category))];

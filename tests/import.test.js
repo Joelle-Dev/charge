@@ -173,6 +173,38 @@ test('prepareBackupImport remaps IDs when merging', () => {
   assert.deepEqual(prepared.counts, { stages: 1, expenses: 1 });
 });
 
+test('prepareBackupImport merges expenses into the current stage', () => {
+  const payload = buildBackup({
+    stages: [stage],
+    expenses: [expense],
+    categories: ['餐饮'],
+    currentStageId: 'stage_1',
+    achievementUnlocked: ['first-paw']
+  });
+  const parsed = parseBackup(JSON.stringify(payload));
+  const prepared = prepareBackupImport(parsed.data, {
+    mode: 'merge',
+    existingStages: [{ id: 'stage_existing', name: '现有', archived: false }],
+    existingCategories: ['交通'],
+    existingAchievements: ['ten-records'],
+    existingCurrentStageId: 'stage_existing',
+    mergeIntoStageId: 'stage_existing'
+  });
+
+  assert.deepEqual(prepared.stages, []);
+  assert.equal(prepared.expenses.length, 1);
+  assert.equal(prepared.expenses[0].stageId, 'stage_existing');
+  assert.notEqual(prepared.expenses[0].id, 'expense_1');
+  assert.equal(prepared.currentStageId, 'stage_existing');
+  assert.ok(prepared.categories.includes('交通'));
+  assert.ok(prepared.categories.includes('餐饮'));
+  assert.deepEqual(
+    [...prepared.achievementUnlocked].sort(),
+    ['first-paw', 'ten-records']
+  );
+  assert.deepEqual(prepared.counts, { stages: 0, expenses: 1 });
+});
+
 test('prepareBackupImport preserves IDs when replacing', () => {
   const payload = buildBackup({
     stages: [stage],
