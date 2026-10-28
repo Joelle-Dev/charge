@@ -267,11 +267,13 @@ async function onFileChange(event) {
     return;
   }
 
-  const matchedStage = result.stageName
-    ? stages.value.find((stage) => stage.name === result.stageName)
-    : null;
-  targetStageId.value = matchedStage?.id || '__new__';
-  newStageName.value = matchedStage?.name || result.stageName || '导入数据';
+  if (currentStage.value) {
+    targetStageId.value = currentStage.value.id;
+    newStageName.value = currentStage.value.name;
+  } else {
+    targetStageId.value = '__new__';
+    newStageName.value = result.stageName || '导入数据';
+  }
   skipDuplicates.value = true;
   preview.value = {
     format: 'csv',
