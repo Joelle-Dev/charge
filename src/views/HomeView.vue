@@ -1,7 +1,7 @@
 <template>
   <div class="loading-state" v-if="!ready">
     <span class="loading-dot"></span>
-    正在读取本地账本…
+    {{ loadingHint }}
   </div>
   <Transition v-else name="stage-fade" mode="out-in">
     <EmptyState v-if="!currentStage" key="empty" />
@@ -22,5 +22,5 @@ import QuickAddChips from '../components/QuickAddChips.vue';
 import CategoryChart from '../components/CategoryChart.vue';
 import RecentExpenses from '../components/RecentExpenses.vue';
 
-const { ready, currentStage } = useLedger();
+const { ready, loadingHint, currentStage } = useLedger();
 </script>

@@ -1,5 +1,13 @@
 const DB_NAME = 'shengji-db';
-const DB_VERSION = 1;
+const DB_VERSION = 3;
+
+const EXPENSE_INDEXES = [
+  ['stageId', 'stageId'],
+  ['spentAt', 'spentAt'],
+  ['category', 'category'],
+  ['stageId_spentAt', ['stageId', 'spentAt']],
+  ['stageId_category', ['stageId', 'category']]
+];
 
 let dbPromise = null;
 
@@ -22,6 +30,12 @@ function transactionDone(tx) {
   });
 }
 
+function ensureIndex(store, name, keyPath) {
+  if (!store.indexNames.contains(name)) {
+    store.createIndex(name, keyPath, { unique: false });
+  }
+}
+
 export function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
@@ -33,12 +47,22 @@ export function openDB() {
         db.createObjectStore('stages', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('expenses')) {
-        const store = db.createObjectStore('expenses', { keyPath: 'id' });
-        store.createIndex('stageId', 'stageId', { unique: false });
-        store.createIndex('spentAt', 'spentAt', { unique: false });
+        db.createObjectStore('expenses', { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains('settings')) {
         db.createObjectStore('settings', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('stats')) {
+        db.createObjectStore('stats', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('searchChunks')) {
+        const chunks = db.createObjectStore('searchChunks', { keyPath: 'key' });
+        chunks.createIndex('stageId', 'stageId', { unique: false });
+      }
+
+      const expenses = request.transaction.objectStore('expenses');
+      for (const [name, keyPath] of EXPENSE_INDEXES) {
+        ensureIndex(expenses, name, keyPath);
       }
     };
 
@@ -55,6 +79,111 @@ export async function getAll(storeName) {
   const result = await requestToPromise(tx.objectStore(storeName).getAll());
   await transactionDone(tx);
   return result;
+}
+
+export async function getAllByIndex(storeName, indexName, query = null) {
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const result = await requestToPromise(tx.objectStore(storeName).index(indexName).getAll(query));
+  await transactionDone(tx);
+  return result;
+}
+
+export async function countByIndex(storeName, indexName, query = null) {
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const result = await requestToPromise(tx.objectStore(storeName).index(indexName).count(query));
+  await transactionDone(tx);
+  return result;
+}
+
+export async function getPageByIndex(storeName, indexName, range, options = {}) {
+  const { direction = 'next', limit = 100 } = options;
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const index = tx.objectStore(storeName).index(indexName);
+  const records = [];
+  let aborted = false;
+
+  await new Promise((resolve, reject) => {
+    const request = index.openCursor(range, direction);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      records.push(cursor.value);
+      if (records.length >= limit) {
+        aborted = true;
+        try {
+          tx.abort();
+        } catch (err) {
+          // The transaction may already be complete.
+        }
+        resolve();
+        return;
+      }
+      cursor.continue();
+    };
+  });
+
+  if (!aborted) {
+    await transactionDone(tx);
+  }
+  return records;
+}
+
+export async function scanAll(storeName, onRecord) {
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const store = tx.objectStore(storeName);
+  let count = 0;
+
+  await new Promise((resolve, reject) => {
+    const request = store.openCursor();
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      count += 1;
+      onRecord(cursor.value);
+      cursor.continue();
+    };
+  });
+
+  await transactionDone(tx);
+  return count;
+}
+
+
+export async function scanIndex(storeName, indexName, query, onRecord) {
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const index = tx.objectStore(storeName).index(indexName);
+  let count = 0;
+
+  await new Promise((resolve, reject) => {
+    const request = index.openCursor(query);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      count += 1;
+      onRecord(cursor.value);
+      cursor.continue();
+    };
+  });
+
+  await transactionDone(tx);
+  return count;
 }
 
 export async function getRecord(storeName, key) {
@@ -96,6 +225,13 @@ export async function deleteMany(storeName, keys) {
   const tx = db.transaction(storeName, 'readwrite');
   const store = tx.objectStore(storeName);
   for (const key of keys) store.delete(key);
+  await transactionDone(tx);
+}
+
+export async function clearStores(storeNames) {
+  const db = await openDB();
+  const tx = db.transaction(storeNames, 'readwrite');
+  for (const storeName of storeNames) tx.objectStore(storeName).clear();
   await transactionDone(tx);
 }
 

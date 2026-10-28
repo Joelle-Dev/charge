@@ -2,7 +2,7 @@ import { computed, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import { getSetting, setSetting } from '../lib/db';
 import { useLedger } from './useLedger';
-import { buildAchievementStats, getAchievementState } from '../utils/achievements';
+import { getAchievementState } from '../utils/achievements';
 import { haptic } from '../utils/haptics';
 
 const unlockedIds = ref([]);
@@ -11,9 +11,9 @@ let initPromise = null;
 let watcherStarted = false;
 
 export function useAchievements() {
-  const { expenses, stages } = useLedger();
+  const { achievementStats } = useLedger();
 
-  const stats = computed(() => buildAchievementStats(expenses.value, stages.value));
+  const stats = computed(() => achievementStats.value);
   const currentAchievements = computed(() => getAchievementState(stats.value));
   const achievements = computed(() =>
     currentAchievements.value.map((achievement) => ({
@@ -26,6 +26,13 @@ export function useAchievements() {
   async function persist(ids) {
     unlockedIds.value = ids;
     await setSetting('achievementUnlocked', ids);
+  }
+
+  async function setUnlocked(ids, mode = 'replace') {
+    const next = mode === 'merge'
+      ? [...new Set([...unlockedIds.value, ...ids])]
+      : [...new Set(ids)];
+    await persist(next);
   }
 
   function startWatcher() {
@@ -75,7 +82,9 @@ export function useAchievements() {
   return {
     stats,
     achievements,
+    unlockedIds,
     unlockedCount,
+    setUnlocked,
     initAchievements
   };
 }

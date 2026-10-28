@@ -92,7 +92,7 @@ const route = useRoute();
 const router = useRouter();
 
 const isHome = computed(() => route.path === '/');
-const isRecords = computed(() => route.path === '/records');
+const isRecords = computed(() => route.path === '/records' || route.path === '/year');
 
 const LONG_PRESS_MS = 320;
 let pressTimer = null;

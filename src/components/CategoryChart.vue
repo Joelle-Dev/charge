@@ -1,5 +1,5 @@
 <template>
-  <section v-if="currentExpenses.length" class="card insight-card">
+  <section v-if="currentStageStats.count" class="card insight-card">
     <div class="card-head">
       <h2>花在哪了</h2>
       <span class="muted">{{ rows.length }} 类</span>
@@ -32,7 +32,7 @@ import { computed } from 'vue';
 import { useLedger } from '../composables/useLedger';
 import { categoryColor, formatMoney } from '../utils/format';
 
-const { currentExpenses, categoryGroups, total } = useLedger();
+const { currentStageStats, categoryGroups, total } = useLedger();
 
 const rows = computed(() => {
   const sum = total.value;

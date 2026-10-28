@@ -13,7 +13,7 @@
         </div>
         <div class="section-actions">
           <button
-            v-if="currentExpenses.length"
+            v-if="currentStageStats.count"
             class="section-icon"
             type="button"
             aria-label="搜索明细"
@@ -32,7 +32,7 @@
           >
             {{ allExpanded ? '收起' : '展开全部' }}
           </button>
-          <button v-if="currentExpenses.length" class="text-btn" type="button" @click="exportCsv">导出</button>
+          <button v-if="currentStageStats.count" class="text-btn" type="button" @click="exportCsv">导出</button>
         </div>
       </div>
 
@@ -93,7 +93,7 @@
       </div>
     </div>
 
-    <template v-if="currentExpenses.length">
+    <template v-if="currentStageStats.count">
       <div v-if="viewMode === 'calendar'" ref="calendarViewRef" class="calendar-view">
         <ExpenseCalendar
           :month="selectedMonth"
@@ -146,6 +146,10 @@
             <button class="text-btn" type="button" @click="editInList">去列表修改</button>
           </div>
         </div>
+
+        <button class="text-btn records-year-link" type="button" @click="goYearSummary">
+          查看全年汇总
+        </button>
       </div>
 
       <div v-else class="list-view">
@@ -193,12 +197,19 @@
           <PawIcon class="list-end-paw" />
           <span>已经到底啦 · 这个月共 {{ monthExpenses.length }} 笔</span>
         </div>
+
+        <button class="text-btn records-year-link" type="button" @click="goYearSummary">
+          查看全年汇总
+        </button>
       </div>
     </template>
 
     <div v-else class="list-empty">
       <p>还没有支出</p>
       <span>点下面的麦克风，说一句就记上</span>
+      <button class="text-btn records-year-link" type="button" @click="goYearSummary">
+        查看全年汇总
+      </button>
     </div>
 
     <MonthPickerSheet
@@ -224,6 +235,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import PawIcon from './PawIcon.vue';
 import ExpenseRow from './ExpenseRow.vue';
@@ -244,7 +256,7 @@ import {
   sumAmounts,
   toDateInput
 } from '../utils/format';
-import { addMonths, currentMonthKey, monthKey, monthLabel } from '../utils/months';
+import { addMonths, currentMonthKey, monthLabel } from '../utils/months';
 import { haptic } from '../utils/haptics';
 
 defineProps({
@@ -252,9 +264,18 @@ defineProps({
 });
 defineEmits(['back']);
 
-const { currentStage, currentExpenses, todayExpenses, categoryGroups } = useLedger();
+const {
+  currentStage,
+  currentStageStats,
+  todayStats,
+  categoryGroups,
+  dataVersion,
+  latestMonthForStage,
+  loadMonthExpenses
+} = useLedger();
 const { removeExpense } = useExpenseActions();
 const sheets = useSheets();
+const router = useRouter();
 const {
   viewMode,
   selectedMonth,
@@ -268,6 +289,7 @@ const currentMonth = currentMonthKey();
 const showMonthPicker = ref(false);
 const showBackToTop = ref(false);
 const expandedKeys = ref(new Set());
+const loadedMonthExpenses = ref([]);
 const calendarViewRef = ref(null);
 const dayPopoverRef = ref(null);
 const dayPopover = reactive({
@@ -278,11 +300,12 @@ const dayPopover = reactive({
   placement: 'bottom',
   arrowX: 0
 });
+let loadToken = 0;
 
 if (!selectedMonth.value || stageId.value !== currentStage.value?.id) {
   stageId.value = currentStage.value?.id || null;
-  selectedMonth.value = currentExpenses.value[0]
-    ? monthKey(new Date(currentExpenses.value[0].spentAt))
+  selectedMonth.value = currentStage.value
+    ? latestMonthForStage(currentStage.value.id)
     : currentMonth;
   selectedCategory.value = 'all';
   selectedDate.value = '';
@@ -290,14 +313,10 @@ if (!selectedMonth.value || stageId.value !== currentStage.value?.id) {
 
 const filterCategories = computed(() => categoryGroups.value.map((group) => group.category));
 
-const filteredExpenses = computed(() => {
-  if (selectedCategory.value === 'all') return currentExpenses.value;
-  return currentExpenses.value.filter((expense) => expense.category === selectedCategory.value);
+const monthExpenses = computed(() => {
+  if (selectedCategory.value === 'all') return loadedMonthExpenses.value;
+  return loadedMonthExpenses.value.filter((expense) => expense.category === selectedCategory.value);
 });
-
-const monthExpenses = computed(() =>
-  filteredExpenses.value.filter((expense) => monthKey(new Date(expense.spentAt)) === selectedMonth.value)
-);
 
 const monthTotal = computed(() => sumAmounts(monthExpenses.value));
 
@@ -323,9 +342,9 @@ const selectedDayLabel = computed(() => dayLabel(selectedDate.value));
 
 const showTodayEmpty = computed(() =>
   viewMode.value === 'list' &&
-  currentExpenses.value.length > 0 &&
+  currentStageStats.value.count > 0 &&
   selectedMonth.value === currentMonth &&
-  todayExpenses.value.length === 0 &&
+  todayStats.value.count === 0 &&
   selectedCategory.value === 'all'
 );
 
@@ -334,39 +353,44 @@ const allExpanded = computed(() =>
   filteredGroups.value.every((group) => expandedKeys.value.has(group.key))
 );
 
-function dateForMonth(month) {
-  const item = currentExpenses.value.find(
-    (expense) => monthKey(new Date(expense.spentAt)) === month
-  );
-  if (item) return dayKey(new Date(item.spentAt));
+function emptyDateForMonth(month) {
   return month === currentMonth ? todayKey : `${month}-01`;
 }
 
-function syncMonthSelection(month, preserveDate = false) {
-  const items = filteredExpenses.value.filter(
-    (expense) => monthKey(new Date(expense.spentAt)) === month
-  );
+function settleSelection(preserveDate = false) {
+  const items = monthExpenses.value;
   const keepDate = preserveDate &&
     selectedDate.value &&
-    monthKey(new Date(`${selectedDate.value}T12:00:00`)) === month &&
-    (!items.length || items.some((expense) => dayKey(new Date(expense.spentAt)) === selectedDate.value));
+    items.some((expense) => dayKey(new Date(expense.spentAt)) === selectedDate.value);
 
   if (!keepDate) {
     selectedDate.value = items[0]
       ? dayKey(new Date(items[0].spentAt))
-      : dateForMonth(month);
+      : emptyDateForMonth(selectedMonth.value);
   }
 
-  const expandedDay = keepDate
+  const expandedDay = items.some(
+    (expense) => dayKey(new Date(expense.spentAt)) === selectedDate.value
+  )
     ? selectedDate.value
-    : items[0]
-      ? dayKey(new Date(items[0].spentAt))
-      : '';
-  expandedKeys.value = new Set(
-    expandedDay && items.some((expense) => dayKey(new Date(expense.spentAt)) === expandedDay)
-      ? [expandedDay]
-      : []
-  );
+    : '';
+  expandedKeys.value = new Set(expandedDay ? [expandedDay] : []);
+}
+
+async function loadMonthData(month, preserveDate = false) {
+  const stage = currentStage.value;
+  const token = ++loadToken;
+
+  if (!stage) {
+    loadedMonthExpenses.value = [];
+    settleSelection(false);
+    return;
+  }
+
+  const items = await loadMonthExpenses(stage.id, month);
+  if (token !== loadToken) return;
+  loadedMonthExpenses.value = items;
+  settleSelection(preserveDate);
 }
 
 function isExpanded(key) {
@@ -523,6 +547,11 @@ function backToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function goYearSummary() {
+  haptic('light');
+  router.push('/year');
+}
+
 watch(
   () => filteredGroups.value[0]?.key,
   (key) => {
@@ -535,41 +564,39 @@ watch(
 );
 
 watch(
-  selectedMonth,
-  (month, previous) => {
+  [selectedMonth, () => currentStage.value?.id, dataVersion],
+  async ([month, id], previous) => {
     closeDayPopover();
-    syncMonthSelection(month, previous === undefined);
+    const previousId = previous?.[1];
+    const previousMonth = previous?.[0];
+
+    if (id !== stageId.value) {
+      stageId.value = id || null;
+      selectedCategory.value = 'all';
+      selectedDate.value = '';
+      const latest = id ? latestMonthForStage(id) : currentMonth;
+      if (month !== latest) {
+        selectedMonth.value = latest;
+        return;
+      }
+    }
+
+    if (!id) {
+      loadedMonthExpenses.value = [];
+      settleSelection(false);
+      return;
+    }
+
+    const isDataRefresh = Boolean(previous) && previousId === id && previousMonth === month;
+    await loadMonthData(month, isDataRefresh);
   },
   { immediate: true }
 );
 
 watch(selectedCategory, () => {
   closeDayPopover();
-  const items = filteredExpenses.value.filter(
-    (expense) => monthKey(new Date(expense.spentAt)) === selectedMonth.value
-  );
-  if (!items.some((expense) => dayKey(new Date(expense.spentAt)) === selectedDate.value)) {
-    selectedDate.value = items[0]
-      ? dayKey(new Date(items[0].spentAt))
-      : dateForMonth(selectedMonth.value);
-  }
-  expandedKeys.value = new Set(items[0] ? [dayKey(new Date(items[0].spentAt))] : []);
+  settleSelection(false);
 });
-
-watch(
-  () => currentStage.value?.id,
-  async () => {
-    closeDayPopover();
-    stageId.value = currentStage.value?.id || null;
-    selectedCategory.value = 'all';
-    await nextTick();
-    const latest = currentExpenses.value[0]
-      ? monthKey(new Date(currentExpenses.value[0].spentAt))
-      : currentMonth;
-    if (selectedMonth.value === latest) syncMonthSelection(latest);
-    else selectedMonth.value = latest;
-  }
-);
 
 onMounted(() => {
   window.addEventListener('scroll', onScroll, { passive: true });

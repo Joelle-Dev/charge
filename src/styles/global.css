@@ -1983,6 +1983,94 @@ input[type='search']::-webkit-search-decoration {
   color: var(--accent-strong);
 }
 
+.import-pick {
+  width: 100%;
+}
+
+.import-preview {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.import-file {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.import-file strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.import-file span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.import-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.import-stats b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.import-warnings {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff4e8;
+  color: #8a5714;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.import-warnings strong {
+  display: block;
+}
+
+.import-warnings ul {
+  margin: 5px 0 0;
+  padding-left: 18px;
+}
+
+.import-warnings li {
+  margin: 2px 0;
+}
+
+.import-warnings > span {
+  display: block;
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
+.import-danger-note {
+  margin: -2px 0 12px;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.import-options {
+  margin-top: -4px;
+  margin-bottom: 14px;
+}
+
+.import-error {
+  white-space: pre-wrap;
+}
+
 .back-to-top {
   position: fixed;
   right: max(16px, calc((100vw - 600px) / 2 + 16px));
@@ -3297,6 +3385,331 @@ input[type='search']::-webkit-search-decoration {
 .records-back svg {
   width: 18px;
   height: 18px;
+}
+
+/* 04. 明细：全年汇总 */
+.records-year-link {
+  display: block;
+  margin: auto auto 0;
+  padding-top: 18px;
+}
+
+.year-page {
+  padding-top: 8px;
+}
+
+.year-head {
+  margin-bottom: 8px;
+}
+
+.year-head h2 {
+  font-size: 18px;
+}
+
+.year-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 10px;
+}
+
+.year-label {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.year-nav .text-btn {
+  margin-left: auto;
+}
+
+.year-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  color: var(--hero-text);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(var(--accent-rgb), 0.34) 0%, rgba(var(--accent-rgb), 0) 55%),
+    linear-gradient(145deg, #383029 0%, var(--hero-deep) 100%);
+  box-shadow: 0 18px 38px rgba(var(--shadow-rgb), 0.22);
+}
+
+.year-eyebrow {
+  color: rgba(var(--hero-rgb), 0.65);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+
+.year-total {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(36px, 11vw, 46px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-sub {
+  display: block;
+  margin-top: 6px;
+  color: rgba(var(--hero-rgb), 0.62);
+  font-size: 13px;
+}
+
+.year-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--hero-rgb), 0.14);
+}
+
+.year-hero-stats div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.year-hero-stats span {
+  color: rgba(var(--hero-rgb), 0.65);
+  font-size: 11px;
+}
+
+.year-hero-stats b {
+  overflow: hidden;
+  color: rgba(var(--hero-rgb), 0.88);
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.year-card {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-soft);
+}
+
+.year-card .card-head {
+  margin-bottom: 16px;
+}
+
+.year-bars {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 4px;
+  height: 150px;
+}
+
+.year-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.year-bar-track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 118px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--surface-muted);
+}
+
+.year-bar-fill {
+  display: block;
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  opacity: 0.55;
+  transition: height 0.25s var(--ease-out), opacity 0.15s ease;
+}
+
+.year-bar.active .year-bar-fill {
+  opacity: 1;
+}
+
+.year-bar.empty .year-bar-fill {
+  background: var(--line-strong);
+  opacity: 0.6;
+}
+
+.year-bar-month {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-bar.active .year-bar-month {
+  color: var(--accent-strong);
+  font-weight: 650;
+}
+
+.year-month-detail {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.year-month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.year-month-head strong {
+  font-size: 14px;
+}
+
+.year-month-head span {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-month-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.year-month-cats span {
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-category-list {
+  display: grid;
+  gap: 13px;
+}
+
+.year-category-row {
+  display: grid;
+  gap: 6px;
+}
+
+.year-category-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.year-category-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 550;
+}
+
+.year-category-value {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-stage-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.year-stage-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 6px 0;
+  border-top: 1px solid var(--line);
+}
+
+.year-stage-row:first-child {
+  border-top: 0;
+}
+
+.year-stage-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.year-stage-badge {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.year-stage-meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.year-stage-amount {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 34px 18px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: rgba(255, 253, 249, 0.55);
+  text-align: center;
+}
+
+.year-empty p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.year-empty span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.year-empty .secondary-btn {
+  margin-top: 4px;
 }
 
 /* 06. 动画、响应式与通用工具类 */

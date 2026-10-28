@@ -12,6 +12,11 @@ const routes = [
     component: () => import('../views/RecordsView.vue')
   },
   {
+    path: '/year',
+    name: 'year',
+    component: () => import('../views/YearSummaryView.vue')
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/'
   }

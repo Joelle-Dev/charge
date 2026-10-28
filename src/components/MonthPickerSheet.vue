@@ -41,7 +41,7 @@
 import { computed, ref, watch } from 'vue';
 import SheetFrame from './SheetFrame.vue';
 import { useLedger } from '../composables/useLedger';
-import { currentMonthKey, monthKey } from '../utils/months';
+import { currentMonthKey } from '../utils/months';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const props = defineProps({
@@ -49,17 +49,8 @@ const props = defineProps({
 });
 const emit = defineEmits(['select']);
 
-const { currentExpenses } = useLedger();
+const { currentStageMonthStats } = useLedger();
 const pickerYear = ref(Number(props.selectedMonth.split('-')[0]));
-
-const monthStats = computed(() => {
-  const stats = new Map();
-  for (const expense of currentExpenses.value) {
-    const key = monthKey(new Date(expense.spentAt));
-    stats.set(key, (stats.get(key) || 0) + 1);
-  }
-  return stats;
-});
 
 const monthCells = computed(() =>
   Array.from({ length: 12 }, (_, index) => {
@@ -67,7 +58,7 @@ const monthCells = computed(() =>
     return {
       key,
       label: `${index + 1}月`,
-      count: monthStats.value.get(key) || 0
+      count: currentStageMonthStats.value.get(key)?.count || 0
     };
   })
 );

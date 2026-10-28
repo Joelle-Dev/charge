@@ -8,7 +8,7 @@
     <div class="hero-top">
       <span class="eyebrow">当前阶段</span>
       <div class="hero-side">
-        <span class="hero-count">{{ currentExpenses.length }} 笔</span>
+        <span class="hero-count">{{ currentStageStats.count }} 笔</span>
         <span class="hero-mood"><CatMood :mood="mood" /></span>
       </div>
     </div>
@@ -21,7 +21,7 @@
     <div class="hero-amount">
       <span class="currency">¥</span><span>{{ formatMoney(total) }}</span>
     </div>
-    <div class="hero-sub">{{ currentExpenses.length ? '这个阶段的总支出' : '还没有支出，说一句试试' }}</div>
+    <div class="hero-sub">{{ currentStageStats.count ? '这个阶段的总支出' : '还没有支出，说一句试试' }}</div>
 
     <div v-if="budget > 0" class="budget-block">
       <div class="budget-line">
@@ -58,7 +58,7 @@ import PawIcon from './PawIcon.vue';
 import { useLedger } from '../composables/useLedger';
 import { formatMoney } from '../utils/format';
 
-const { currentStage, currentExpenses, total, currentCatTitle } = useLedger();
+const { currentStage, currentStageStats, total, currentCatTitle } = useLedger();
 
 const budget = computed(() => Number(currentStage.value?.budget) || 0);
 const remaining = computed(() => budget.value - total.value);
@@ -68,7 +68,7 @@ const progress = computed(() => {
 });
 
 const moodState = computed(() => {
-  if (!currentExpenses.value.length) {
+  if (!currentStageStats.value.count) {
     return { mood: 'watch', text: '说一句，果冻帮你记下' };
   }
   if (!budget.value) {

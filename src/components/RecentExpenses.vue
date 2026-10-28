@@ -3,10 +3,10 @@
     <div class="section-head">
       <div class="section-title">
         <h2>最近支出</h2>
-        <span v-if="currentExpenses.length" class="section-count">仅显示最近 3 笔</span>
+        <span v-if="currentStageStats.count" class="section-count">仅显示最近 3 笔</span>
       </div>
-      <div v-if="currentExpenses.length" class="section-actions">
-        <span class="section-count">共 {{ currentExpenses.length }} 笔</span>
+      <div v-if="currentStageStats.count" class="section-actions">
+        <span class="section-count">共 {{ currentStageStats.count }} 笔</span>
         <button class="text-btn" type="button" @click="openRecords">
           查看全部
         </button>
@@ -39,11 +39,11 @@ import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
 import { haptic } from '../utils/haptics';
 
-const { currentExpenses } = useLedger();
+const { recentExpenses, currentStageStats } = useLedger();
 const sheets = useSheets();
 const router = useRouter();
 
-const recent = computed(() => currentExpenses.value.slice(0, 3));
+const recent = computed(() => recentExpenses.value);
 
 function openRecords() {
   haptic('light');
