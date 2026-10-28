@@ -102,17 +102,6 @@
           <path d="M22 20H2"></path>
         </svg>
       </button>
-      <button class="settings-action" type="button" @click="exportBackup">
-        <span>
-          导出完整备份
-          <small>JSON，包含阶段、支出、分类和成就</small>
-        </span>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v12"></path>
-          <path d="m7 10 5 5 5-5"></path>
-          <path d="M5 21h14"></path>
-        </svg>
-      </button>
       <button class="settings-action" type="button" @click="showImport = true">
         <span>
           导入数据
@@ -161,7 +150,6 @@ import { useSheets } from '../composables/useSheets';
 import { useAchievements } from '../composables/useAchievements';
 import { usePwaInstall } from '../composables/usePwaInstall';
 import { exportStageCsv } from '../utils/csv';
-import { backupFilename, buildBackup, downloadTextFile } from '../utils/backup';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
 
@@ -175,12 +163,11 @@ const {
   currentCatTitle,
   setCategories,
   clearStageExpenses,
-  getAllExpenses,
   loadStageExpenses,
   isCategoryUsed
 } = useLedger();
 const sheets = useSheets();
-const { unlockedIds, unlockedCount } = useAchievements();
+const { unlockedCount } = useAchievements();
 const { standalone, isIos, promptInstall } = usePwaInstall();
 
 const newCategory = ref('');
@@ -190,25 +177,6 @@ const showImport = ref(false);
 watch(show, (visible) => {
   if (!visible) showImport.value = false;
 });
-
-async function exportBackup() {
-  const allExpenses = await getAllExpenses();
-  if (!stages.value.length && !allExpenses.length) {
-    showToast('还没有数据可以备份');
-    return;
-  }
-
-  const payload = buildBackup({
-    stages: stages.value,
-    expenses: allExpenses,
-    categories: categories.value,
-    currentStageId: currentStage.value?.id || null,
-    achievementUnlocked: unlockedIds.value
-  });
-  downloadTextFile(JSON.stringify(payload, null, 2), backupFilename());
-  haptic('success');
-  showToast('已导出完整备份');
-}
 
 function onImported() {
   showImport.value = false;

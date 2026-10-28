@@ -170,10 +170,6 @@ async function loadSearchIndex(stageId) {
   return searchChunksForStage(chunks);
 }
 
-async function getAllExpenses() {
-  return getAll('expenses');
-}
-
 async function refreshStageViews() {
   const stage = currentStage.value;
   if (!stage) {
@@ -653,7 +649,6 @@ export function useLedger() {
     loadRecentExpenses,
     loadRecentAllExpenses,
     loadSearchIndex,
-    getAllExpenses,
     init,
     switchStage,
     createStage,

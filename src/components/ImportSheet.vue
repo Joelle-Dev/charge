@@ -69,7 +69,7 @@
           </div>
         </div>
         <p v-if="mode === 'replace'" class="import-danger-note">
-          覆盖恢复会清空当前全部阶段、支出和分类，建议先导出完整备份。
+          覆盖恢复会清空当前全部阶段、支出和分类，且无法撤销。
         </p>
       </template>
 
