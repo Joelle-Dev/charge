@@ -67,7 +67,13 @@
       <span>手动</span>
     </button>
 
-    <button class="action-secondary" type="button" @click="sheets.openSettings()">
+    <button
+      class="action-secondary"
+      :class="{ active: isSettings }"
+      type="button"
+      :aria-current="isSettings ? 'page' : undefined"
+      @click="openSettings"
+    >
       <span class="action-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="3"></circle>
@@ -93,6 +99,7 @@ const router = useRouter();
 
 const isHome = computed(() => route.path === '/');
 const isRecords = computed(() => route.path === '/records' || route.path === '/year');
+const isSettings = computed(() => route.path === '/settings');
 
 const LONG_PRESS_MS = 320;
 let pressTimer = null;
@@ -112,6 +119,10 @@ function goHome() {
 function openRecords() {
   if (!requireStage()) return;
   if (route.path !== '/records') router.push('/records');
+}
+
+function openSettings() {
+  if (route.path !== '/settings') router.push('/settings');
 }
 
 function onMicPointerDown(event) {

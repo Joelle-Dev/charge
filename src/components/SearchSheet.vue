@@ -126,7 +126,14 @@ import { categoryColor, dayKey, dayLabel, formatMoney } from '../utils/format';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
-const { currentStage, currentStageStats, categoryGroups, loadSearchIndex } = useLedger();
+const {
+  currentStage,
+  currentStageStats,
+  categoryGroups,
+  loadRecentExpenses,
+  loadExpensesByIds,
+  searchExpenses
+} = useLedger();
 const { removeExpense } = useExpenseActions();
 
 const query = ref('');
@@ -134,9 +141,12 @@ const selectedCategory = ref('all');
 const searchInput = ref(null);
 const sheetRef = ref(null);
 const sheetMaxHeight = ref('90dvh');
-const allRows = ref([]);
+const results = ref([]);
+const totalMatches = ref(0);
 const loading = ref(false);
-const visibleLimit = ref(100);
+const resultLimit = ref(200);
+let searchToken = 0;
+let searchTimer = null;
 
 function syncSheetHeight() {
   const viewportHeight = window.visualViewport?.height || window.innerHeight;
@@ -145,22 +155,7 @@ function syncSheetHeight() {
 
 const filterCategories = computed(() => categoryGroups.value.map((group) => group.category));
 
-const matchedExpenses = computed(() => {
-  const keyword = query.value.trim().toLowerCase();
-  return allRows.value.filter((expense) => {
-    if (selectedCategory.value !== 'all' && expense.category !== selectedCategory.value) return false;
-    if (!keyword) return true;
-    return [
-      expense.note || '',
-      expense.category || '',
-      String(expense.amount),
-      formatMoney(expense.amount)
-    ].some((value) => String(value).toLowerCase().includes(keyword));
-  });
-});
-
-const totalMatches = computed(() => matchedExpenses.value.length);
-const filteredExpenses = computed(() => matchedExpenses.value.slice(0, visibleLimit.value));
+const filteredExpenses = computed(() => results.value);
 
 const filteredGroups = computed(() => {
   const groups = new Map();
@@ -176,43 +171,110 @@ const filteredGroups = computed(() => {
   return [...groups.values()];
 });
 
-async function loadRows() {
-  if (!currentStage.value) {
-    allRows.value = [];
+function cancelPendingSearch() {
+  searchToken += 1;
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+  }
+}
+
+function resetSearchState() {
+  cancelPendingSearch();
+  results.value = [];
+  totalMatches.value = 0;
+  loading.value = false;
+  resultLimit.value = 200;
+}
+
+async function runSearch() {
+  cancelPendingSearch();
+  const token = searchToken;
+  const stage = currentStage.value;
+
+  if (!stage) {
+    results.value = [];
+    totalMatches.value = 0;
+    loading.value = false;
     return;
   }
+
+  const keyword = query.value.trim();
+  const category = selectedCategory.value === 'all' ? '' : selectedCategory.value;
   loading.value = true;
+
   try {
-    allRows.value = await loadSearchIndex(currentStage.value.id);
+    if (!keyword && !category) {
+      const rows = await loadRecentExpenses(stage.id, resultLimit.value);
+      if (token !== searchToken) return;
+      results.value = rows;
+      totalMatches.value = currentStageStats.value.count || 0;
+    } else {
+      const found = await searchExpenses({
+        stageId: stage.id,
+        query: keyword,
+        category,
+        limit: resultLimit.value,
+        onProgress: (message) => {
+          if (token === searchToken) totalMatches.value = message.count;
+        }
+      });
+      if (token !== searchToken) return;
+      const rows = await loadExpensesByIds(found.ids);
+      if (token !== searchToken) return;
+      results.value = rows;
+      totalMatches.value = found.count;
+    }
+  } catch (err) {
+    if (err?.code !== 'SEARCH_CANCELLED' && token === searchToken) {
+      console.error(err);
+      results.value = [];
+      totalMatches.value = 0;
+    }
   } finally {
-    loading.value = false;
+    if (token === searchToken) loading.value = false;
   }
+}
+
+function scheduleSearch() {
+  if (!show.value) return;
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchTimer = null;
+    runSearch();
+  }, 200);
 }
 
 watch(show, (visible) => {
   if (!visible) {
-    allRows.value = [];
+    query.value = '';
+    selectedCategory.value = 'all';
+    resetSearchState();
     return;
   }
 
   query.value = '';
   selectedCategory.value = 'all';
-  visibleLimit.value = 100;
+  resultLimit.value = 200;
   syncSheetHeight();
-  loadRows();
+  runSearch();
 });
 
 watch(
   () => currentStage.value?.id,
   () => {
+    if (!show.value) return;
     selectedCategory.value = 'all';
-    if (show.value) loadRows();
+    resultLimit.value = 200;
+    runSearch();
   }
 );
 
 watch([query, selectedCategory], () => {
-  visibleLimit.value = 100;
+  if (!show.value) return;
+  resultLimit.value = 200;
   sheetRef.value?.scrollToTop?.();
+  scheduleSearch();
 });
 
 function focusSearch() {
@@ -225,13 +287,15 @@ function clearQuery() {
 }
 
 function loadMore() {
-  visibleLimit.value += 100;
+  resultLimit.value += 200;
+  runSearch();
 }
 
 async function removeSearchExpense(expense) {
   const removed = await removeExpense(expense);
   if (removed) {
-    allRows.value = allRows.value.filter((row) => row.id !== expense.id);
+    results.value = results.value.filter((row) => row.id !== expense.id);
+    totalMatches.value = Math.max(0, totalMatches.value - 1);
   }
 }
 

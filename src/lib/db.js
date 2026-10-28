@@ -89,6 +89,32 @@ export async function getAllByIndex(storeName, indexName, query = null) {
   return result;
 }
 
+export async function getAllByRange(storeName, range) {
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const result = await requestToPromise(tx.objectStore(storeName).getAll(range));
+  await transactionDone(tx);
+  return result;
+}
+
+export async function countRange(storeName, range) {
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const result = await requestToPromise(tx.objectStore(storeName).count(range));
+  await transactionDone(tx);
+  return result;
+}
+
+export async function getMany(storeName, keys) {
+  if (!keys.length) return [];
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readonly');
+  const store = tx.objectStore(storeName);
+  const results = await Promise.all(keys.map((key) => requestToPromise(store.get(key))));
+  await transactionDone(tx);
+  return results;
+}
+
 export async function countByIndex(storeName, indexName, query = null) {
   const db = await openDB();
   const tx = db.transaction(storeName, 'readonly');
@@ -217,6 +243,32 @@ export async function deleteRecord(storeName, key) {
   const tx = db.transaction(storeName, 'readwrite');
   tx.objectStore(storeName).delete(key);
   await transactionDone(tx);
+}
+
+export async function deleteByIndexRange(storeName, indexName, range) {
+  const db = await openDB();
+  const tx = db.transaction(storeName, 'readwrite');
+  const store = tx.objectStore(storeName);
+  const index = store.index(indexName);
+  let deleted = 0;
+
+  await new Promise((resolve, reject) => {
+    const request = index.openCursor(range);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      cursor.delete();
+      deleted += 1;
+      cursor.continue();
+    };
+  });
+
+  await transactionDone(tx);
+  return deleted;
 }
 
 export async function deleteMany(storeName, keys) {

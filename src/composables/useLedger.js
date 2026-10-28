@@ -7,11 +7,13 @@ import {
   putMany,
   deleteRecord,
   deleteMany,
-  clearStores,
+  deleteByIndexRange,
   getSetting,
   setSetting,
   getAllByIndex,
-  getPageByIndex
+  getPageByIndex,
+  getMany,
+  countRange
 } from '../lib/db';
 import { PRESET_CATEGORIES, DEFAULT_CATEGORY } from '../lib/parser';
 import { toDateInput, uid } from '../utils/format';
@@ -19,20 +21,26 @@ import { currentMonthKey } from '../utils/months';
 import { catTitleForCategory } from '../utils/titles';
 import { buildTemplates, mergeTemplates } from '../utils/templates';
 import {
+  SEARCH_VERSION,
   applySearchChunkChanges,
-  compactExpense,
+  compactSearchEntry,
   searchChunkKey,
-  searchChunkMonth,
-  searchChunksForStage
+  searchChunkMonth
 } from '../lib/searchIndex';
+import {
+  rebuildSearchIndex,
+  rebuildDerivedDataInWorker,
+  searchExpenses as runWorkerSearch
+} from '../lib/searchClient';
 import {
   STATS_VERSION,
   createStatsState,
-  loadStatsState,
-  rebuildDerivedData,
-  applyExpenseDelta,
-  statKeysForExpense,
-  statsEntriesAndDeletesForKeys,
+  loadHomeStats,
+  loadStageMonths,
+  loadDays,
+  backfillRecordDays,
+  applyRuntimeExpenseDelta,
+  recomputeBoundsFromExpenses,
   buildAchievementStatsFromState,
   buildStageSummaryFromState,
   availableYearsFromState
@@ -49,6 +57,17 @@ const recentExpenses = ref([]);
 const recentTemplates = ref([]);
 
 let initPromise = null;
+let statsRebuildPromise = null;
+
+const REBUILD_PERCENT = {
+  start: 1,
+  clear: 3,
+  read: 60,
+  stats: 65,
+  writeStats: 80,
+  buildSearch: 90,
+  writeSearch: 100
+};
 
 const EMPTY_STAGE_STATS = { count: 0, total: 0, categories: {}, minDate: '', maxDate: '' };
 
@@ -69,6 +88,8 @@ const currentStageStats = computed(() => (
 
 const total = computed(() => currentStageStats.value.total || 0);
 
+const globalStats = computed(() => statsState.global);
+
 const categoryGroups = computed(() => (
   Object.entries(currentStageStats.value.categories || {})
     .map(([category, value]) => ({ category, amount: value.amount || 0 }))
@@ -77,11 +98,7 @@ const categoryGroups = computed(() => (
 
 const currentCatTitle = computed(() => catTitleForCategory(categoryGroups.value[0]?.category || ''));
 
-const todayStats = computed(() => {
-  const stageId = currentStage.value?.id;
-  if (!stageId) return { count: 0, total: 0 };
-  return statsState.stageDays.get(`${stageId}|${toDateInput(new Date())}`) || { count: 0, total: 0 };
-});
+const todayStats = ref({ count: 0, total: 0 });
 
 const achievementStats = computed(() => (
   buildAchievementStatsFromState(statsState, stages.value)
@@ -105,7 +122,34 @@ function setStatsState(state) {
   statsState.stages = state.stages;
   statsState.days = state.days;
   statsState.months = state.months;
-  statsState.stageDays = state.stageDays;
+  statsState.monthsStageId = state.monthsStageId ?? null;
+  statsState.daysLoaded = Boolean(state.daysLoaded);
+}
+
+async function refreshTodayStats() {
+  const stage = currentStage.value;
+  if (!stage) {
+    todayStats.value = { count: 0, total: 0 };
+    return;
+  }
+  const today = toDateInput(new Date());
+  const startDate = new Date(`${today}T00:00:00`);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 1);
+  const items = await getAllByIndex(
+    'expenses',
+    'stageId_spentAt',
+    IDBKeyRange.bound([stage.id, startDate.toISOString()], [stage.id, endDate.toISOString()], false, true)
+  );
+  todayStats.value = {
+    count: items.length,
+    total: items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+  };
+}
+
+async function ensureDaysLoaded() {
+  if (statsState.daysLoaded) return;
+  await loadDays(statsState);
 }
 
 function monthBounds(month) {
@@ -145,11 +189,6 @@ async function loadYearExpenses(year) {
   return items.sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
 }
 
-async function loadStageExpenses(stageId) {
-  const items = await getAllByIndex('expenses', 'stageId', stageId);
-  return items.sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
-}
-
 async function loadRecentExpenses(stageId, limit = 3) {
   if (!stageId) return [];
   return getPageByIndex(
@@ -164,10 +203,43 @@ async function loadRecentAllExpenses(limit = 200) {
   return getPageByIndex('expenses', 'spentAt', null, { direction: 'prev', limit });
 }
 
-async function loadSearchIndex(stageId) {
-  if (!stageId) return [];
-  const chunks = await getAllByIndex('searchChunks', 'stageId', stageId);
-  return searchChunksForStage(chunks);
+let searchIndexPromise = null;
+
+async function ensureSearchIndex(force = false) {
+  if (!force && searchIndexPromise) return searchIndexPromise;
+
+  const storedVersion = force ? null : await getSetting('searchVersion', null);
+  if (!force && storedVersion === SEARCH_VERSION) {
+    searchIndexPromise = Promise.resolve();
+    return searchIndexPromise;
+  }
+
+  if (!force && storedVersion === null) {
+    const existing = await countRange('searchChunks', IDBKeyRange.lowerBound(''));
+    if (existing > 0) {
+      await setSetting('searchVersion', SEARCH_VERSION);
+      searchIndexPromise = Promise.resolve();
+      return searchIndexPromise;
+    }
+  }
+
+  searchIndexPromise = rebuildSearchIndex().catch((err) => {
+    searchIndexPromise = null;
+    throw err;
+  });
+  return searchIndexPromise;
+}
+
+async function loadExpensesByIds(ids) {
+  if (!ids?.length) return [];
+  const items = await getMany('expenses', ids);
+  return items.filter(Boolean);
+}
+
+async function searchExpenses(options) {
+  await ensureSearchIndex();
+  const result = await runWorkerSearch(options);
+  return result;
 }
 
 async function refreshStageViews() {
@@ -175,7 +247,12 @@ async function refreshStageViews() {
   if (!stage) {
     recentExpenses.value = [];
     recentTemplates.value = [];
+    todayStats.value = { count: 0, total: 0 };
     return;
+  }
+
+  if (statsState.monthsStageId !== '*' && statsState.monthsStageId !== stage.id) {
+    await loadStageMonths(statsState, stage.id);
   }
 
   const [recent, currentRecent, allRecent] = await Promise.all([
@@ -184,6 +261,7 @@ async function refreshStageViews() {
     loadRecentAllExpenses(200)
   ]);
 
+  await refreshTodayStats();
   recentExpenses.value = recent;
   recentTemplates.value = mergeTemplates(
     buildTemplates(currentRecent, 3),
@@ -192,23 +270,28 @@ async function refreshStageViews() {
   );
 }
 
-async function persistStatKeys(keys) {
-  const { entries, deletes } = statsEntriesAndDeletesForKeys(statsState, keys);
-  if (entries.length) await putMany('stats', entries);
-  if (deletes.length) await deleteMany('stats', deletes);
+async function maybeRecomputeBounds(removed) {
+  const affected = new Set();
+  for (const expense of removed) {
+    const day = toDateInput(new Date(expense.spentAt));
+    const stage = statsState.stages.get(expense.stageId);
+    const globalBoundary = day === statsState.global.minDate || day === statsState.global.maxDate;
+    const stageBoundary = stage && (day === stage.minDate || day === stage.maxDate);
+    if (globalBoundary || stageBoundary) affected.add(expense.stageId);
+  }
+  for (const stageId of affected) {
+    await recomputeBoundsFromExpenses(statsState, stageId);
+  }
 }
 
 async function applyStatsChanges(removed = [], added = []) {
-  const keys = new Set();
   for (const expense of removed) {
-    for (const key of statKeysForExpense(expense)) keys.add(key);
-    applyExpenseDelta(statsState, expense, -1);
+    await applyRuntimeExpenseDelta(statsState, expense, -1);
   }
   for (const expense of added) {
-    for (const key of statKeysForExpense(expense)) keys.add(key);
-    applyExpenseDelta(statsState, expense, 1);
+    await applyRuntimeExpenseDelta(statsState, expense, 1);
   }
-  await persistStatKeys(keys);
+  if (removed.length) await maybeRecomputeBounds(removed);
 }
 
 async function updateSearchChunks(removed = [], added = []) {
@@ -231,7 +314,7 @@ async function updateSearchChunks(removed = [], added = []) {
   };
 
   for (const expense of removed) ensureGroup(expense).removeIds.push(expense.id);
-  for (const expense of added) ensureGroup(expense).addRows.push(compactExpense(expense));
+  for (const expense of added) ensureGroup(expense).addRows.push(compactSearchEntry(expense));
 
   for (const group of groups.values()) {
     let existing = await getRecord('searchChunks', group.key);
@@ -246,7 +329,7 @@ async function updateSearchChunks(removed = [], added = []) {
         key: group.key,
         stageId: group.stageId,
         month: group.month,
-        rows: items.map(compactExpense)
+        rows: items.map(compactSearchEntry)
       };
     }
 
@@ -269,6 +352,7 @@ async function updateSearchChunks(removed = [], added = []) {
 }
 
 async function commitExpenseChanges({ put = [], remove = [] } = {}) {
+  if (statsRebuildPromise) await statsRebuildPromise;
   await setSetting('statsDirty', true);
 
   if (remove.length) {
@@ -279,14 +363,15 @@ async function commitExpenseChanges({ put = [], remove = [] } = {}) {
   }
 
   await applyStatsChanges(remove, put);
+  try {
+    await ensureSearchIndex();
+  } catch (err) {
+    console.error('搜索索引未就绪', err);
+  }
   await updateSearchChunks(remove, put);
   await setSetting('statsDirty', false);
   await refreshStageViews();
   dataVersion.value += 1;
-}
-
-function stageExpenseIds(stageId) {
-  return getAllByIndex('expenses', 'stageId', stageId).then((items) => items.map((item) => item.id));
 }
 
 async function reloadStages() {
@@ -302,11 +387,28 @@ async function ensureCurrentStage() {
 }
 
 async function rebuildAndApplyStats() {
-  const state = await rebuildDerivedData();
-  setStatsState(state);
+  statsRebuildPromise = rebuildDerivedDataInWorker({
+    onProgress: (phase) => {
+      const percent = REBUILD_PERCENT[phase];
+      loadingHint.value = percent
+        ? `正在整理账本数据… ${percent}%`
+        : '正在整理账本数据…';
+    }
+  });
+  try {
+    await statsRebuildPromise;
+  } finally {
+    statsRebuildPromise = null;
+  }
+
   await setSetting('statsVersion', STATS_VERSION);
   await setSetting('statsDirty', false);
-  return state;
+  const hadDays = statsState.daysLoaded;
+  setStatsState(await loadHomeStats());
+  await backfillRecordDays(statsState);
+  if (hadDays) await loadDays(statsState);
+  searchIndexPromise = Promise.resolve();
+  return statsState;
 }
 
 async function init() {
@@ -332,10 +434,14 @@ async function init() {
         loadingHint.value = '正在整理账本数据，首次打开可能需要几十秒…';
         await rebuildAndApplyStats();
       } else {
-        setStatsState(await loadStatsState());
+        setStatsState(await loadHomeStats());
+        await backfillRecordDays(statsState);
       }
 
       await refreshStageViews();
+      ensureSearchIndex().catch((err) => {
+        console.error('搜索索引初始化失败', err);
+      });
     } catch (err) {
       console.error(err);
       showToast('本地数据加载失败，请刷新重试');
@@ -345,6 +451,28 @@ async function init() {
     }
   })();
   return initPromise;
+}
+
+async function reloadAfterImport() {
+  const storedCategories = await getSetting('categories', null);
+  if (Array.isArray(storedCategories) && storedCategories.length) {
+    categories.value = storedCategories.includes(DEFAULT_CATEGORY)
+      ? [...storedCategories]
+      : [...storedCategories, DEFAULT_CATEGORY];
+  }
+
+  await reloadStages();
+  currentStageId.value = await getSetting('currentStageId', null);
+  await ensureCurrentStage();
+
+  const hadDays = statsState.daysLoaded;
+  setStatsState(await loadHomeStats());
+  await backfillRecordDays(statsState);
+  if (hadDays) await loadDays(statsState);
+  searchIndexPromise = Promise.resolve();
+
+  await refreshStageViews();
+  dataVersion.value += 1;
 }
 
 async function switchStage(stageId) {
@@ -407,8 +535,7 @@ async function restoreStage(stage) {
 
 async function deleteStage(stage) {
   await setSetting('statsDirty', true);
-  const ids = await stageExpenseIds(stage.id);
-  if (ids.length) await deleteMany('expenses', ids);
+  await deleteByIndexRange('expenses', 'stageId', stage.id);
   await deleteRecord('stages', stage.id);
   await reloadStages();
   await ensureCurrentStage();
@@ -462,8 +589,7 @@ async function deleteExpense(expenseId) {
 
 async function clearStageExpenses(stageId) {
   await setSetting('statsDirty', true);
-  const ids = await stageExpenseIds(stageId);
-  if (ids.length) await deleteMany('expenses', ids);
+  await deleteByIndexRange('expenses', 'stageId', stageId);
   await rebuildAndApplyStats();
   await refreshStageViews();
   dataVersion.value += 1;
@@ -474,123 +600,6 @@ async function setCategories(next) {
   if (!list.includes(DEFAULT_CATEGORY)) list = [...list, DEFAULT_CATEGORY];
   categories.value = list;
   await setSetting('categories', list);
-}
-
-async function putManyChunked(storeName, values, chunkSize = 1000) {
-  for (let index = 0; index < values.length; index += chunkSize) {
-    await putMany(storeName, values.slice(index, index + chunkSize));
-  }
-}
-
-async function importBackup(prepared, mode = 'merge') {
-  await setSetting('statsDirty', true);
-
-  if (mode === 'replace') {
-    await clearStores(['stages', 'expenses', 'stats']);
-  }
-
-  await putManyChunked('stages', prepared.stages);
-  await putManyChunked('expenses', prepared.expenses);
-
-  categories.value = prepared.categories;
-  await setSetting('categories', prepared.categories);
-
-  currentStageId.value = prepared.currentStageId;
-  await setSetting('currentStageId', prepared.currentStageId);
-
-  await reloadStages();
-  await ensureCurrentStage();
-  await rebuildAndApplyStats();
-  await refreshStageViews();
-  dataVersion.value += 1;
-
-  return {
-    stages: prepared.stages.length,
-    expenses: prepared.expenses.length
-  };
-}
-
-async function importCsv({
-  stageId = null,
-  stageName = '',
-  budget = null,
-  expenses: rows = [],
-  categories: incomingCategories = [],
-  skipDuplicates = true
-} = {}) {
-  if (!rows.length) {
-    return { imported: 0, skipped: 0, createdStage: false };
-  }
-
-  const now = Date.now();
-  let stage = stages.value.find((item) => item.id === stageId) || null;
-  const createdStage = !stage;
-  if (!stage) {
-    const name = String(stageName || '').trim() || '导入数据';
-    stage = {
-      id: uid('stage'),
-      name,
-      budget: Number(budget) > 0 ? Math.round(Number(budget) * 100) / 100 : null,
-      archived: false,
-      createdAt: now,
-      updatedAt: now
-    };
-  }
-
-  const existing = createdStage ? [] : await getAllByIndex('expenses', 'stageId', stage.id);
-  const signatures = new Set(
-    existing.map((expense) => `${expense.spentAt}|${Number(expense.amount).toFixed(2)}|${expense.category}|${expense.note}`)
-  );
-
-  const records = [];
-  let skipped = 0;
-  for (const row of rows) {
-    const signature = `${row.spentAt}|${Number(row.amount).toFixed(2)}|${row.category}|${row.note}`;
-    if (skipDuplicates && signatures.has(signature)) {
-      skipped += 1;
-      continue;
-    }
-    signatures.add(signature);
-    records.push({
-      id: uid('expense'),
-      stageId: stage.id,
-      amount: row.amount,
-      category: row.category,
-      note: row.note,
-      spentAt: row.spentAt,
-      createdAt: now
-    });
-  }
-
-  if (!records.length) {
-    return { imported: 0, skipped, createdStage: false, stageName: stage.name };
-  }
-
-  await setSetting('statsDirty', true);
-  if (createdStage) await putRecord('stages', stage);
-  await putManyChunked('expenses', records);
-
-  const nextCategories = [...new Set([
-    ...categories.value,
-    ...incomingCategories,
-    DEFAULT_CATEGORY
-  ])];
-  categories.value = nextCategories;
-  await setSetting('categories', nextCategories);
-
-  await reloadStages();
-  await ensureCurrentStage();
-  await rebuildAndApplyStats();
-  await refreshStageViews();
-  dataVersion.value += 1;
-
-  return {
-    imported: records.length,
-    skipped,
-    createdStage,
-    stageName: stage.name,
-    stageId: stage.id
-  };
 }
 
 function stageStats(stageId) {
@@ -630,6 +639,7 @@ export function useLedger() {
     archivedStages,
     currentStage,
     currentStageStats,
+    globalStats,
     total,
     todayStats,
     currentCatTitle,
@@ -645,11 +655,14 @@ export function useLedger() {
     latestMonthForStage,
     loadMonthExpenses,
     loadYearExpenses,
-    loadStageExpenses,
     loadRecentExpenses,
     loadRecentAllExpenses,
-    loadSearchIndex,
+    ensureSearchIndex,
+    searchExpenses,
+    loadExpensesByIds,
+    ensureDaysLoaded,
     init,
+    reloadAfterImport,
     switchStage,
     createStage,
     updateStage,
@@ -661,8 +674,6 @@ export function useLedger() {
     updateExpense,
     deleteExpense,
     clearStageExpenses,
-    setCategories,
-    importBackup,
-    importCsv
+    setCategories
   };
 }

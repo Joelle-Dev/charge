@@ -11,7 +11,7 @@ let initPromise = null;
 let watcherStarted = false;
 
 export function useAchievements() {
-  const { achievementStats } = useLedger();
+  const { achievementStats, ensureDaysLoaded } = useLedger();
 
   const stats = computed(() => achievementStats.value);
   const currentAchievements = computed(() => getAchievementState(stats.value));
@@ -53,9 +53,25 @@ export function useAchievements() {
     });
   }
 
+  async function reloadAchievements() {
+    const stored = await getSetting('achievementUnlocked', null);
+    if (Array.isArray(stored)) {
+      unlockedIds.value = stored;
+      return;
+    }
+    unlockedIds.value = currentAchievements.value
+      .filter((item) => item.unlocked)
+      .map((item) => item.id);
+  }
+
   async function initAchievements() {
     if (initPromise) return initPromise;
     initPromise = (async () => {
+      try {
+        await ensureDaysLoaded();
+      } catch (err) {
+        console.error(err);
+      }
       const stored = await getSetting('achievementUnlocked', null);
       if (!Array.isArray(stored)) {
         await persist(currentAchievements.value.filter((item) => item.unlocked).map((item) => item.id));
@@ -85,6 +101,7 @@ export function useAchievements() {
     unlockedIds,
     unlockedCount,
     setUnlocked,
-    initAchievements
+    initAchievements,
+    reloadAchievements
   };
 }

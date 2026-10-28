@@ -1,5 +1,5 @@
 <template>
-  <ExpenseRecords show-back @back="goHome" />
+  <ExpenseRecords />
 </template>
 
 <script setup>
@@ -10,10 +10,6 @@ import { useLedger } from '../composables/useLedger';
 
 const router = useRouter();
 const { ready, currentStage } = useLedger();
-
-function goHome() {
-  router.replace('/');
-}
 
 onMounted(() => {
   window.scrollTo({ top: 0 });

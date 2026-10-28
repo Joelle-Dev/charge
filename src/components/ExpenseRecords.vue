@@ -3,11 +3,6 @@
     <div class="expense-sticky">
       <div class="section-head">
         <div class="section-title">
-          <button v-if="showBack" class="records-back" type="button" aria-label="返回首页" @click="$emit('back')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m15 18-6-6 6-6"></path>
-            </svg>
-          </button>
           <h2>支出明细</h2>
           <span class="section-count">{{ monthExpenses.length }} 笔</span>
         </div>
@@ -258,11 +253,6 @@ import {
 } from '../utils/format';
 import { addMonths, currentMonthKey, monthLabel } from '../utils/months';
 import { haptic } from '../utils/haptics';
-
-defineProps({
-  showBack: { type: Boolean, default: false }
-});
-defineEmits(['back']);
 
 const {
   currentStage,

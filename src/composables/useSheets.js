@@ -4,7 +4,6 @@ const showStages = ref(false);
 const showStageForm = ref(false);
 const showVoice = ref(false);
 const showExpenseForm = ref(false);
-const showSettings = ref(false);
 const showSearch = ref(false);
 const showAchievements = ref(false);
 const showSummary = ref(false);
@@ -46,18 +45,12 @@ function openSearch() {
   showSearch.value = true;
 }
 
-function openSettings() {
-  showSettings.value = true;
-}
-
 function openAchievements() {
-  showSettings.value = false;
   showAchievements.value = true;
 }
 
 function openSummary(stage) {
   showStages.value = false;
-  showSettings.value = false;
   summaryStage.value = stage;
   showSummary.value = true;
 }
@@ -68,7 +61,6 @@ export function useSheets() {
     showStageForm,
     showVoice,
     showExpenseForm,
-    showSettings,
     showSearch,
     showAchievements,
     showSummary,
@@ -84,7 +76,6 @@ export function useSheets() {
     requestVoiceStop,
     openExpenseForm,
     openSearch,
-    openSettings,
     openAchievements,
     openSummary
   };

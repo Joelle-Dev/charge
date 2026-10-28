@@ -35,6 +35,7 @@
 </template>
 
 <script setup>
+import { watch } from 'vue';
 import SheetFrame from './SheetFrame.vue';
 import CatMood from './CatMood.vue';
 import AchievementIcon from './AchievementIcon.vue';
@@ -42,6 +43,10 @@ import { useAchievements } from '../composables/useAchievements';
 import { useLedger } from '../composables/useLedger';
 
 const show = defineModel('show', { type: Boolean, default: false });
-const { stats, achievements, unlockedCount } = useAchievements();
+const { stats, achievements, unlockedCount, initAchievements } = useAchievements();
 const { currentCatTitle } = useLedger();
+
+watch(show, (visible) => {
+  if (visible) initAchievements().catch((err) => console.error(err));
+}, { immediate: true });
 </script>

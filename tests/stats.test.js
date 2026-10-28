@@ -48,7 +48,6 @@ test('stats state aggregates global, stage, month and day buckets', () => {
   assert.equal(state.days.get('2026-01-02').total, 100);
   assert.equal(state.months.get('s1|2026-01').count, 2);
   assert.equal(state.months.get('s1|2026-02').total, 100);
-  assert.equal(state.stageDays.get('s1|2026-01-02').count, 2);
 });
 
 test('stats deltas remove records and clean empty buckets', () => {
@@ -65,7 +64,6 @@ test('stats deltas remove records and clean empty buckets', () => {
   assert.equal(state.stages.size, 0);
   assert.equal(state.days.size, 0);
   assert.equal(state.months.size, 0);
-  assert.equal(state.stageDays.size, 0);
 });
 
 test('stats keys cover all affected buckets', () => {
@@ -74,8 +72,7 @@ test('stats keys cover all affected buckets', () => {
     'global',
     'stage:s1',
     'day:2026-01-02',
-    'month:s1:2026-01',
-    'stageDay:s1:2026-01-02'
+    'month:s1:2026-01'
   ]);
 });
 

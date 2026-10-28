@@ -17,7 +17,6 @@
     <SearchSheet v-model:show="showSearch" />
     <AchievementsSheet v-model:show="showAchievements" />
     <StageSummarySheet v-model:show="showSummary" />
-    <SettingsSheet v-model:show="showSettings" />
   </div>
 </template>
 
@@ -32,7 +31,6 @@ import ExpenseFormSheet from './components/ExpenseFormSheet.vue';
 import SearchSheet from './components/SearchSheet.vue';
 import AchievementsSheet from './components/AchievementsSheet.vue';
 import StageSummarySheet from './components/StageSummarySheet.vue';
-import SettingsSheet from './components/SettingsSheet.vue';
 import { useLedger } from './composables/useLedger';
 import { useSheets } from './composables/useSheets';
 import { useAchievements } from './composables/useAchievements';
@@ -47,16 +45,19 @@ const {
   showExpenseForm,
   showSearch,
   showAchievements,
-  showSummary,
-  showSettings
+  showSummary
 } = sheets;
+
+function scheduleAchievements() {
+  initAchievements().catch((err) => console.error(err));
+}
 
 onMounted(async () => {
   await init();
-  try {
-    await initAchievements();
-  } catch (err) {
-    console.error(err);
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(scheduleAchievements, { timeout: 5000 });
+  } else {
+    window.setTimeout(scheduleAchievements, 5000);
   }
 
   const action = new URLSearchParams(window.location.search).get('action');

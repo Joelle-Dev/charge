@@ -1,21 +1,23 @@
 <template>
   <SheetFrame v-model:show="show" title="导入数据" max-height="92dvh">
     <p class="sheet-intro">
-      支持完整备份 JSON 和支出 CSV。导入前会先预览，确认后才会写入账本。
+      支持完整备份（换机）和支出 CSV。导入前会先预览，确认后才会写入账本。
     </p>
 
     <input
       ref="fileInput"
       type="file"
-      accept=".json,.csv,application/json,text/csv"
+      accept=".scbackup,.csv,text/csv"
       hidden
       @change="onFileChange"
     >
-    <button class="secondary-btn import-pick" type="button" @click="fileInput?.click()">
-      {{ preview ? '重新选择文件' : '选择 JSON / CSV 文件' }}
+    <button class="secondary-btn import-pick" type="button" :disabled="parsing || busy || exportingCurrent" @click="fileInput?.click()">
+      {{ preview ? '重新选择文件' : '选择备份或 CSV 文件' }}
     </button>
 
     <p v-if="error" class="form-error import-error">{{ error }}</p>
+    <p v-if="parsing" class="import-hint">正在解析文件，请稍候…</p>
+    <p v-if="busy && progressText" class="import-hint">{{ progressText }}</p>
 
     <div v-if="preview" class="import-preview">
       <div class="import-file">
@@ -24,8 +26,14 @@
       </div>
 
       <div class="import-stats">
-        <span v-if="preview.format === 'json'">
-          <b>{{ preview.normalized.stages.length }}</b> 个阶段
+        <span v-if="preview.format === 'backup'">
+          <b>{{ preview.manifest.stages.length }}</b> 个阶段
+        </span>
+        <span v-if="preview.format === 'backup'">
+          <b>{{ preview.manifest.categories?.length || 0 }}</b> 个分类
+        </span>
+        <span v-if="preview.format === 'backup'">
+          <b>{{ preview.manifest.achievementUnlocked?.length || 0 }}</b> 个成就
         </span>
         <span>
           <b>{{ validCount }}</b> 笔支出
@@ -36,28 +44,20 @@
         <span v-if="dateRange">{{ dateRange }}</span>
       </div>
 
-      <div v-if="preview.errors.length" class="import-warnings">
-        <strong>{{ preview.errors.length }} 条记录无法导入，将被忽略</strong>
+      <div v-if="preview.errorCount" class="import-warnings">
+        <strong>{{ preview.errorCount }} 条记录无法导入，将被忽略</strong>
         <ul>
           <li v-for="(item, index) in preview.errors.slice(0, 5)" :key="index">
             {{ typeof item === 'string' ? item : `第 ${item.line} 行：${item.message}` }}
           </li>
         </ul>
-        <span v-if="preview.errors.length > 5">还有 {{ preview.errors.length - 5 }} 条…</span>
+        <span v-if="preview.errorCount > 5">还有 {{ preview.errorCount - 5 }} 条…</span>
       </div>
 
-      <template v-if="preview.format === 'json'">
-        <div class="field">
+      <template v-if="preview.format === 'backup'">
+        <div v-if="existingData" class="field">
           <span class="field-label">导入方式</span>
           <div class="chip-wrap">
-            <button
-              class="chip"
-              :class="{ selected: mode === 'merge' }"
-              type="button"
-              @click="mode = 'merge'"
-            >
-              合并到现有数据
-            </button>
             <button
               class="chip"
               :class="{ selected: mode === 'replace' }"
@@ -66,13 +66,36 @@
             >
               覆盖恢复
             </button>
+            <button
+              class="chip"
+              :class="{ selected: mode === 'merge' }"
+              type="button"
+              @click="mode = 'merge'"
+            >
+              合并导入
+            </button>
           </div>
         </div>
+
         <p v-if="mode === 'replace'" class="import-danger-note">
-          覆盖恢复会清空当前全部阶段、支出和分类，且无法撤销。
+          覆盖恢复会清空当前阶段、支出、分类和成就，且无法撤销。
         </p>
-        <p v-else-if="currentStage" class="import-hint">
-          支出会合并到当前阶段「{{ currentStage.name }}」，不会新建阶段。
+        <p v-else class="import-hint">
+          保留现有数据，备份里的阶段会作为新阶段导入；同一份备份重复导入会产生重复数据。
+        </p>
+
+        <button
+          v-if="existingData"
+          class="text-btn import-export-current"
+          type="button"
+          :disabled="busy || exportingCurrent"
+          @click="exportCurrentBackup"
+        >
+          {{ exportingCurrent ? '正在导出当前数据…' : '先导出当前数据' }}
+        </button>
+
+        <p v-if="!existingData" class="import-hint">
+          新手机还没有数据，将直接恢复完整备份。
         </p>
       </template>
 
@@ -106,99 +129,110 @@
     </div>
 
     <div v-if="preview" class="form-actions">
-      <button class="primary-btn" type="button" :disabled="!canImport || busy" @click="confirmImport">
+      <button class="primary-btn" type="button" :disabled="!canImport || busy || exportingCurrent" @click="confirmImport">
         {{ busy ? '导入中…' : confirmText }}
       </button>
       <button class="secondary-btn" type="button" :disabled="busy" @click="reset">取消</button>
     </div>
 
     <p class="sheet-note">
-      JSON 会恢复阶段、支出、分类和成就；CSV 只导入支出。文件只在本机解析，不会上传。
+      完整备份包含全部阶段、支出、分类和成就；CSV 只导入支出。文件只在本机解析，不会上传。
     </p>
   </SheetFrame>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { showConfirmDialog, showToast } from 'vant';
+import { closeToast, showConfirmDialog, showLoadingToast, showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
 import { useAchievements } from '../composables/useAchievements';
 import { useLedger } from '../composables/useLedger';
-import { parseBackup, prepareBackupImport } from '../utils/backup';
-import { parseStageCsv } from '../utils/csv';
-import { formatMoney, toDateInput } from '../utils/format';
+import {
+  clearParsedCsv,
+  clearPendingBackup,
+  exportBackupInWorker,
+  importBackupFile,
+  importParsedCsv,
+  parseBackupFile,
+  parseCsvFile,
+  saveBlob
+} from '../lib/dataClient';
+import { BACKUP_MAX_SIZE, isBackupFile } from '../lib/backupFormat';
+import { formatMoney } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
 
 const show = defineModel('show', { type: Boolean, default: false });
-const emit = defineEmits(['imported']);
+const emit = defineEmits(['imported', 'backupExported']);
 
 const {
   stages,
-  categories,
   currentStage,
-  importBackup,
-  importCsv
+  ensureSearchIndex,
+  reloadAfterImport
 } = useLedger();
-const { unlockedIds, setUnlocked } = useAchievements();
+const { initAchievements, reloadAchievements } = useAchievements();
 
 const fileInput = ref(null);
 const preview = ref(null);
 const error = ref('');
 const busy = ref(false);
-const mode = ref('merge');
+const parsing = ref(false);
+const exportingCurrent = ref(false);
+const progressText = ref('');
+const mode = ref('replace');
 const targetStageId = ref('__new__');
 const newStageName = ref('导入数据');
 const skipDuplicates = ref(true);
+let parseToken = 0;
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_CSV_SIZE = 50 * 1024 * 1024;
+
+const existingData = computed(() => stages.value.length > 0);
 
 const validCount = computed(() => {
   if (!preview.value) return 0;
-  return preview.value.format === 'json'
-    ? preview.value.normalized.expenses.length
-    : preview.value.parsed.expenses.length;
+  if (preview.value.format === 'backup') return preview.value.manifest.counts.expenses;
+  return preview.value.summary.count;
 });
 
 const validTotal = computed(() => {
   if (!preview.value) return 0;
-  const items = preview.value.format === 'json'
-    ? preview.value.normalized.expenses
-    : preview.value.parsed.expenses;
-  return items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  if (preview.value.format === 'backup') return preview.value.manifest.stats?.total || 0;
+  return preview.value.summary.total;
 });
 
 const dateRange = computed(() => {
   if (!preview.value) return '';
-  const items = preview.value.format === 'json'
-    ? preview.value.normalized.expenses
-    : preview.value.parsed.expenses;
-  if (!items.length) return '';
-  const dates = items.map((item) => new Date(item.spentAt)).filter((date) => !Number.isNaN(date.getTime()));
-  if (!dates.length) return '';
-  const from = toDateInput(new Date(Math.min(...dates.map((date) => date.getTime()))));
-  const to = toDateInput(new Date(Math.max(...dates.map((date) => date.getTime()))));
+  if (preview.value.format === 'backup') {
+    const min = preview.value.manifest.stats?.minDate;
+    const max = preview.value.manifest.stats?.maxDate;
+    if (!min || !max) return '';
+    return min === max ? min : `${min} 至 ${max}`;
+  }
+  const { from, to } = preview.value.summary;
+  if (!from) return '';
   return from === to ? from : `${from} 至 ${to}`;
 });
 
 const formatLabel = computed(() => (
-  preview.value?.format === 'json' ? '完整备份 JSON' : '支出 CSV'
+  preview.value?.format === 'backup' ? '完整备份' : '支出 CSV'
 ));
 
 const canImport = computed(() => {
   if (!preview.value) return false;
-  if (preview.value.format === 'json') {
-    return preview.value.normalized.stages.length > 0 ||
-      preview.value.normalized.expenses.length > 0;
+  if (preview.value.format === 'backup') {
+    return preview.value.manifest.counts.expenses > 0 ||
+      preview.value.manifest.stages.length > 0;
   }
-  if (!preview.value.parsed.expenses.length) return false;
+  if (!preview.value.summary?.count) return false;
   if (targetStageId.value === '__new__' && !newStageName.value.trim()) return false;
   return true;
 });
 
 const confirmText = computed(() => {
-  if (preview.value?.format === 'json') {
-    return mode.value === 'merge' ? '合并导入' : '覆盖恢复';
+  if (preview.value?.format === 'backup') {
+    return mode.value === 'replace' ? '覆盖恢复' : '合并导入';
   }
   return `导入 ${validCount.value} 笔`;
 });
@@ -209,82 +243,228 @@ function formatSize(size) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function phaseLabel(phase, elapsed) {
+  const labels = {
+    start: '正在准备整理…',
+    clear: '正在清理旧索引…',
+    read: '正在读取账本…',
+    stats: '正在生成统计…',
+    writeStats: '正在写入统计…',
+    buildSearch: '正在建立搜索索引…',
+    writeSearch: '正在写入搜索索引…',
+    stages: '正在恢复阶段…'
+  };
+  const base = labels[phase] || '正在整理数据…';
+  return elapsed ? `${base} ${Math.round(elapsed / 1000)}s` : base;
+}
+
 function reset() {
+  parseToken += 1;
   preview.value = null;
   error.value = '';
-  mode.value = 'merge';
+  mode.value = 'replace';
   targetStageId.value = '__new__';
   newStageName.value = '导入数据';
   skipDuplicates.value = true;
   busy.value = false;
+  parsing.value = false;
+  exportingCurrent.value = false;
+  progressText.value = '';
+  clearParsedCsv();
+  clearPendingBackup();
   if (fileInput.value) fileInput.value.value = '';
+}
+
+async function parseCsvPreview(file, token) {
+  parsing.value = true;
+  try {
+    const summary = await parseCsvFile(file);
+    if (token !== parseToken) return;
+    if (!summary.count) {
+      error.value = 'CSV 里没有可导入的支出';
+      return;
+    }
+
+    if (currentStage.value) {
+      targetStageId.value = currentStage.value.id;
+      newStageName.value = currentStage.value.name;
+    } else {
+      targetStageId.value = '__new__';
+      newStageName.value = summary.stageName || '导入数据';
+    }
+    skipDuplicates.value = true;
+    preview.value = {
+      format: 'csv',
+      fileName: file.name,
+      size: file.size,
+      summary,
+      errors: summary.errors || [],
+      errorCount: summary.errorCount || 0
+    };
+  } catch (err) {
+    if (token === parseToken) {
+      console.error(err);
+      error.value = err?.message || '解析 CSV 失败，请检查文件';
+    }
+  } finally {
+    if (token === parseToken) parsing.value = false;
+  }
+}
+
+async function parseBackupPreview(file, token) {
+  if (file.size > BACKUP_MAX_SIZE) {
+    error.value = '备份文件过大';
+    return;
+  }
+
+  parsing.value = true;
+  try {
+    const result = await parseBackupFile(file);
+    if (token !== parseToken) return;
+    mode.value = 'replace';
+    preview.value = {
+      format: 'backup',
+      fileName: file.name,
+      size: file.size,
+      manifest: result.manifest,
+      errors: [],
+      errorCount: 0
+    };
+  } catch (err) {
+    if (token === parseToken) {
+      console.error(err);
+      error.value = err?.message || '解析完整备份失败';
+    }
+  } finally {
+    if (token === parseToken) parsing.value = false;
+  }
 }
 
 async function onFileChange(event) {
   const file = event.target.files?.[0];
   event.target.value = '';
-  if (!file) return;
+  if (!file || parsing.value || busy.value) return;
 
+  const token = ++parseToken;
   error.value = '';
   preview.value = null;
+  progressText.value = '';
+  clearParsedCsv();
+  clearPendingBackup();
 
-  if (file.size > MAX_FILE_SIZE) {
+  if (isBackupFile(file.name)) {
+    await parseBackupPreview(file, token);
+    return;
+  }
+
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (extension === 'json') {
+    error.value = '只支持 .scbackup 完整备份或 CSV 文件';
+    return;
+  }
+  if (file.size > MAX_CSV_SIZE) {
     error.value = '文件超过 50MB，请拆分后再导入';
     return;
   }
 
-  let text = '';
+  await parseCsvPreview(file, token);
+}
+
+async function exportCurrentBackup() {
+  if (exportingCurrent.value || busy.value) return;
+  exportingCurrent.value = true;
+  showLoadingToast({ message: '正在导出当前数据…', forbidClick: true, duration: 0 });
   try {
-    text = await file.text();
+    await initAchievements().catch(() => {});
+    const result = await exportBackupInWorker();
+    closeToast();
+    if (result.empty) {
+      showToast('当前没有数据可以导出');
+      return;
+    }
+    saveBlob(result.blob, result.filename);
+    haptic('success');
+    showToast('已导出当前数据');
+    emit('backupExported');
   } catch (err) {
-    error.value = '读取文件失败，请重试';
-    return;
+    closeToast();
+    console.error(err);
+    showToast('导出失败，请重试');
+  } finally {
+    exportingCurrent.value = false;
   }
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  const isJson = extension === 'json' || text.trim().startsWith('{');
+}
 
-  if (isJson) {
-    const result = parseBackup(text);
-    if (result.error) {
-      error.value = result.error;
-      return;
+async function importBackup() {
+  if (mode.value === 'replace' && existingData.value) {
+    try {
+      await showConfirmDialog({
+        title: '覆盖恢复',
+        message: `将清空现有 ${stages.value.length} 个阶段和全部支出，然后恢复备份。建议先导出当前数据。`,
+        confirmButtonText: '覆盖恢复',
+        confirmButtonColor: DANGER_COLOR
+      });
+    } catch (err) {
+      return false;
     }
-    if (!result.data.stages.length && !result.data.expenses.length) {
-      error.value = '备份里没有可导入的数据';
-      return;
+  }
+
+  progressText.value = '正在准备恢复…';
+  await ensureSearchIndex();
+  const result = await importBackupFile({ mode: mode.value }, {
+    onProgress: (message) => {
+      if (message.phase === 'validate') {
+        progressText.value = `正在校验备份… ${message.written}/${message.total}`;
+      } else if (message.phase === 'expenses') {
+        progressText.value = `正在写入支出… ${message.written}/${message.total}`;
+      } else if (message.phase === 'export') {
+        return;
+      } else {
+        progressText.value = phaseLabel(message.phase, message.elapsed);
+      }
     }
-    preview.value = {
-      format: 'json',
-      fileName: file.name,
-      size: file.size,
-      normalized: result.data,
-      errors: result.errors || []
-    };
-    mode.value = 'merge';
-    return;
-  }
+  });
 
-  const result = parseStageCsv(text);
-  if (result.error) {
-    error.value = result.error;
-    return;
-  }
+  await reloadAfterImport();
+  await reloadAchievements();
+  haptic('success');
+  showToast(
+    mode.value === 'replace'
+      ? `已恢复 ${result.stages} 个阶段、${result.imported} 笔支出`
+      : `已合并 ${result.stages} 个阶段、${result.imported} 笔支出`
+  );
+  return true;
+}
 
-  if (currentStage.value) {
-    targetStageId.value = currentStage.value.id;
-    newStageName.value = currentStage.value.name;
+async function importCsv() {
+  const summary = preview.value.summary;
+  progressText.value = '正在准备导入…';
+  await ensureSearchIndex();
+  const result = await importParsedCsv({
+    stageId: targetStageId.value === '__new__' ? null : targetStageId.value,
+    stageName: newStageName.value,
+    budget: summary.budget,
+    categories: summary.categories,
+    skipDuplicates: skipDuplicates.value
+  }, {
+    onProgress: (message) => {
+      if (message.phase === 'dedup') {
+        progressText.value = `正在检查重复支出… ${message.checked}/${message.total} 个月`;
+      } else if (message.phase === 'write') {
+        progressText.value = `正在写入支出… ${message.written}/${message.total} 笔`;
+      } else {
+        progressText.value = phaseLabel(message.phase, message.elapsed);
+      }
+    }
+  });
+
+  await reloadAfterImport();
+  haptic('success');
+  if (result.imported) {
+    showToast(`已导入 ${result.imported} 笔${result.skipped ? `，跳过 ${result.skipped} 笔重复` : ''}`);
   } else {
-    targetStageId.value = '__new__';
-    newStageName.value = result.stageName || '导入数据';
+    showToast(result.skipped ? `没有新支出，跳过 ${result.skipped} 笔重复` : '没有可导入的支出');
   }
-  skipDuplicates.value = true;
-  preview.value = {
-    format: 'csv',
-    fileName: file.name,
-    size: file.size,
-    parsed: result,
-    errors: result.errors
-  };
 }
 
 async function confirmImport() {
@@ -293,56 +473,15 @@ async function confirmImport() {
   error.value = '';
 
   try {
-    if (preview.value.format === 'json') {
-      const prepared = prepareBackupImport(preview.value.normalized, {
-        mode: mode.value,
-        existingStages: stages.value,
-        existingCategories: categories.value,
-        existingAchievements: unlockedIds.value,
-        existingCurrentStageId: currentStage.value?.id || null,
-        mergeIntoStageId: currentStage.value?.id || null
-      });
-
-      if (mode.value === 'replace') {
-        try {
-          await showConfirmDialog({
-            title: '覆盖恢复',
-            message: '将清空当前全部阶段、支出和分类，然后用备份恢复。确定继续？',
-            confirmButtonText: '覆盖恢复',
-            confirmButtonColor: DANGER_COLOR
-          });
-        } catch (err) {
-          busy.value = false;
-          return;
-        }
-      }
-
-      await importBackup(prepared, mode.value);
-      await setUnlocked(prepared.achievementUnlocked, mode.value);
-      haptic('success');
-      if (mode.value === 'merge' && currentStage.value) {
-        showToast(`已导入 ${prepared.counts.expenses} 笔到「${currentStage.value.name}」`);
-      } else {
-        showToast(`已导入 ${prepared.counts.stages} 个阶段、${prepared.counts.expenses} 笔支出`);
-      }
+    let imported = true;
+    if (preview.value.format === 'backup') {
+      imported = await importBackup();
     } else {
-      const parsed = preview.value.parsed;
-      const categoriesFromRows = [...new Set(parsed.expenses.map((item) => item.category))];
-      const result = await importCsv({
-        stageId: targetStageId.value === '__new__' ? null : targetStageId.value,
-        stageName: newStageName.value,
-        budget: parsed.budget,
-        expenses: parsed.expenses,
-        categories: categoriesFromRows,
-        skipDuplicates: skipDuplicates.value
-      });
-
-      haptic('success');
-      if (result.imported) {
-        showToast(`已导入 ${result.imported} 笔${result.skipped ? `，跳过 ${result.skipped} 笔重复` : ''}`);
-      } else {
-        showToast(result.skipped ? `没有新支出，跳过 ${result.skipped} 笔重复` : '没有可导入的支出');
-      }
+      await importCsv();
+    }
+    if (!imported) {
+      busy.value = false;
+      return;
     }
 
     emit('imported');
@@ -350,7 +489,7 @@ async function confirmImport() {
     reset();
   } catch (err) {
     console.error(err);
-    error.value = '导入失败，请检查文件后重试';
+    error.value = err?.message || '导入失败，请检查文件后重试';
   } finally {
     busy.value = false;
   }
