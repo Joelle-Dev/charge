@@ -2,33 +2,22 @@ import { ref } from 'vue';
 
 const showStages = ref(false);
 const showStageForm = ref(false);
-const showVoice = ref(false);
 const showSearch = ref(false);
 const showAchievements = ref(false);
 const showSummary = ref(false);
 const editingStage = ref(null);
+const stageDraftName = ref('');
 const summaryStage = ref(null);
-const voiceAutostart = ref(false);
-const voiceStopTick = ref(0);
 
 function openStages() {
   showStages.value = true;
 }
 
-function openStageForm(stage = null) {
+function openStageForm(stage = null, presetName = '') {
   editingStage.value = stage || null;
+  stageDraftName.value = stage ? '' : presetName;
   showStages.value = false;
   showStageForm.value = true;
-}
-
-function openVoice(autoStart = false) {
-  if (showStageForm.value) showStageForm.value = false;
-  voiceAutostart.value = autoStart;
-  showVoice.value = true;
-}
-
-function requestVoiceStop() {
-  voiceStopTick.value += 1;
 }
 
 function openSearch() {
@@ -49,18 +38,14 @@ export function useSheets() {
   return {
     showStages,
     showStageForm,
-    showVoice,
     showSearch,
     showAchievements,
     showSummary,
     editingStage,
+    stageDraftName,
     summaryStage,
-    voiceAutostart,
-    voiceStopTick,
     openStages,
     openStageForm,
-    openVoice,
-    requestVoiceStop,
     openSearch,
     openAchievements,
     openSummary

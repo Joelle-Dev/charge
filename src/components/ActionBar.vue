@@ -61,16 +61,18 @@ import { useRoute, useRouter } from 'vue-router';
 import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useSheets } from '../composables/useSheets';
+import { useVoiceEntry } from '../composables/useVoiceEntry';
 import { haptic } from '../utils/haptics';
 
 const { currentStage } = useLedger();
 const panes = useLedgerPanes();
 const sheets = useSheets();
+const voice = useVoiceEntry();
 const route = useRoute();
 const router = useRouter();
 
 const isRecord = computed(() => (
-  route.path === '/' || route.path === '/records' || route.path === '/year'
+  route.path === '/' || route.path === '/records' || route.path === '/history' || route.path === '/year'
 ));
 const isSettings = computed(() => route.path === '/settings');
 
@@ -108,7 +110,7 @@ function onMicPointerDown(event) {
     longPress = true;
     pressStart = null;
     haptic('medium');
-    if (requireStage()) sheets.openVoice(true);
+    if (requireStage()) voice.openVoice(true);
   }, LONG_PRESS_MS);
 }
 
@@ -125,7 +127,7 @@ function onMicPointerUp() {
   pressStart = null;
   if (longPress) {
     setTimeout(() => {
-      sheets.requestVoiceStop();
+      voice.requestVoiceStop();
     }, 80);
     setTimeout(() => {
       longPress = false;
@@ -144,6 +146,6 @@ function onMicClick(event) {
     event.preventDefault();
     return;
   }
-  if (requireStage()) sheets.openVoice(false);
+  if (requireStage()) voice.openVoice(false);
 }
 </script>

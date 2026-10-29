@@ -1,8 +1,27 @@
 <template>
-  <SheetFrame v-model:show="show" title="说一笔" max-height="92dvh">
-    <p class="sheet-intro">记入「{{ currentStage?.name || '当前阶段' }}」。说完会先展示解析结果，确认后才入账。</p>
+  <section class="voice-page">
+    <header class="voice-page-head">
+      <button class="records-back" type="button" aria-label="返回" @click="leave">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 18-6-6 6-6"></path>
+        </svg>
+      </button>
+      <div class="voice-page-title">
+        <span class="voice-page-eyebrow">语音记账</span>
+        <h1>说一笔</h1>
+      </div>
+      <span v-if="currentStage" class="voice-stage-pill">
+        <span class="voice-stage-dot" aria-hidden="true"></span>
+        {{ currentStage.name }}
+      </span>
+    </header>
 
-    <div class="voice-stage">
+    <div class="voice-page-body">
+      <p class="voice-page-intro">果冻先听你说，确认后再入账。</p>
+
+      <section class="voice-hero">
+        <div class="voice-hero-glow" aria-hidden="true"></div>
+        <div class="voice-stage">
       <button
         v-if="supported"
         class="voice-orb"
@@ -25,18 +44,24 @@
       </div>
       <div class="voice-status">{{ statusText }}</div>
       <div class="voice-hint">{{ hintText }}</div>
-    </div>
+        </div>
+      </section>
 
-    <div class="field transcript">
-      <span class="field-label">识别文字 <span>可以修改后再解析</span></span>
-      <textarea
-        v-model="text"
-        class="textarea"
-        rows="3"
-        placeholder="例如：午饭吃了 35，打车 25，昨天门票 120"
-      ></textarea>
-      <span v-if="recording" class="transcript-live"><i></i>聆听中</span>
-    </div>
+      <section class="voice-transcript-card">
+        <div class="voice-card-head">
+          <span class="voice-card-title">识别文字</span>
+          <span class="voice-card-hint">可以修改后再解析</span>
+        </div>
+        <div class="field transcript">
+          <textarea
+            v-model="text"
+            class="textarea"
+            rows="3"
+            placeholder="例如：午饭吃了 35，打车 25，昨天门票 120"
+          ></textarea>
+          <span v-if="recording" class="transcript-live"><i></i>聆听中</span>
+        </div>
+      </section>
 
     <div class="voice-actions">
       <button class="secondary-btn" type="button" @click="parseText">解析文字</button>
@@ -48,7 +73,12 @@
     <p v-if="error" class="voice-error">{{ error }}</p>
     <p v-else-if="!secure" class="voice-error">语音识别需要 HTTPS 或 localhost 环境。可以直接输入文字。</p>
 
-    <div v-if="parsedEntries.length" class="parsed-list">
+      <section v-if="parsedEntries.length" class="voice-results">
+        <div class="voice-results-head">
+          <h2>解析结果</h2>
+          <span>{{ parsedEntries.length }} 笔</span>
+        </div>
+        <div class="parsed-list">
       <div v-for="(entry, index) in parsedEntries" :key="entry.key" class="parsed-card">
         <div class="parsed-head">
           <span class="parsed-head-left">
@@ -89,39 +119,39 @@
       </div>
     </div>
 
-    <div v-if="parsedEntries.length" class="parsed-actions">
-      <button class="primary-btn" type="button" :disabled="saving" @click="saveParsed">
-        {{ saving ? '入账中…' : `全部入账 · ¥${formatMoney(parsedTotal)}` }}
-      </button>
-      <button class="secondary-btn" type="button" @click="parseText">重新解析</button>
+        <div class="parsed-actions">
+          <button class="primary-btn" type="button" :disabled="saving" @click="saveParsed">
+            {{ saving ? '入账中…' : `全部入账 · ¥${formatMoney(parsedTotal)}` }}
+          </button>
+          <button class="secondary-btn" type="button" @click="parseText">重新解析</button>
+        </div>
+      </section>
+
+      <p class="sheet-note">语音识别由浏览器和系统服务提供。若不便说话，可直接输入文字。</p>
     </div>
 
-    <p class="sheet-note">语音识别由浏览器和系统服务提供。若不便说话，可直接输入文字。</p>
-
-    <template #overlay>
-      <div v-if="showStamp" class="paw-stamp" aria-hidden="true">
-        <PawIcon />
-        <span>果冻记好了</span>
-      </div>
-    </template>
-  </SheetFrame>
+    <div v-if="showStamp" class="paw-stamp" aria-hidden="true">
+      <PawIcon />
+      <span>果冻记好了</span>
+    </div>
+  </section>
 </template>
 
 <script setup>
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
-import DateTimeField from './DateTimeField.vue';
-import SheetFrame from './SheetFrame.vue';
-import PawIcon from './PawIcon.vue';
+import { useRouter } from 'vue-router';
+import DateTimeField from '../components/DateTimeField.vue';
+import PawIcon from '../components/PawIcon.vue';
 import { parseExpenses } from '../lib/parser';
 import { useLedger } from '../composables/useLedger';
-import { useSheets } from '../composables/useSheets';
+import { useVoiceEntry } from '../composables/useVoiceEntry';
 import { applyDateToIso, formatMoney, toDateInput, uid } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
-const show = defineModel('show', { type: Boolean, default: false });
-const sheets = useSheets();
-const { currentStage, categories, addExpenses } = useLedger();
+const router = useRouter();
+const voice = useVoiceEntry();
+const { ready, currentStage, categories, addExpenses } = useLedger();
 
 const RecognitionCtor = typeof window !== 'undefined'
   ? (window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -163,8 +193,8 @@ const statusText = computed(() => {
 });
 
 const hintText = supported
-  ? '可以连续说多笔，稍作停顿即可分开；说完再点一下'
-  : '可以直接输入或粘贴文字，解析后记入';
+  ? '可以连续说多笔，说完再点一下'
+  : '可以直接输入文字，解析后记入';
 
 const parsedTotal = computed(() =>
   parsedEntries.value.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0)
@@ -445,8 +475,8 @@ async function saveParsed() {
     showStamp.value = true;
     haptic('success');
     await new Promise((resolve) => setTimeout(resolve, 420));
-    show.value = false;
     showToast(`果冻记下 ${count} 笔`);
+    leave();
   } catch (err) {
     console.error(err);
     showToast('入账失败，请重试');
@@ -455,20 +485,30 @@ async function saveParsed() {
   }
 }
 
-watch(show, async (visible) => {
-  if (visible) {
-    reset();
-    if (sheets.voiceAutostart.value && supported) {
-      await nextTick();
-      startRecording();
-    }
-  } else {
-    cleanup();
+function leave() {
+  cleanup();
+  if (window.history.length > 1) router.back();
+  else router.replace('/');
+}
+
+onMounted(() => {
+  reset();
+  if (voice.voiceAutostart.value) {
+    voice.voiceAutostart.value = false;
+    if (supported) nextTick(startRecording);
   }
 });
 
 watch(
-  () => sheets.voiceStopTick.value,
+  [ready, currentStage],
+  ([isReady, stage]) => {
+    if (isReady && !stage) router.replace('/');
+  },
+  { immediate: true }
+);
+
+watch(
+  () => voice.voiceStopTick.value,
   () => {
     pendingStop = true;
     if (recording.value) {

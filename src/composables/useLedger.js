@@ -19,7 +19,6 @@ import { PRESET_CATEGORIES, DEFAULT_CATEGORY } from '../lib/parser';
 import { toDateInput, uid } from '../utils/format';
 import { currentMonthKey } from '../utils/months';
 import { catTitleForCategory } from '../utils/titles';
-import { buildTemplates, mergeTemplates } from '../utils/templates';
 import {
   SEARCH_VERSION,
   applySearchChunkChanges,
@@ -42,8 +41,7 @@ import {
   applyRuntimeExpenseDelta,
   recomputeBoundsFromExpenses,
   buildAchievementStatsFromState,
-  buildStageSummaryFromState,
-  availableYearsFromState
+  buildStageSummaryFromState
 } from '../lib/stats';
 
 const stages = ref([]);
@@ -53,8 +51,6 @@ const ready = ref(false);
 const loadingHint = ref('正在读取本地账本…');
 const dataVersion = ref(0);
 const statsState = reactive(createStatsState());
-const recentExpenses = ref([]);
-const recentTemplates = ref([]);
 
 let initPromise = null;
 let statsRebuildPromise = null;
@@ -104,7 +100,6 @@ const achievementStats = computed(() => (
   buildAchievementStatsFromState(statsState, stages.value)
 ));
 
-const dataYears = computed(() => availableYearsFromState(statsState));
 
 const currentStageMonthStats = computed(() => {
   const stageId = currentStage.value?.id;
@@ -160,14 +155,6 @@ function monthBounds(month) {
   ];
 }
 
-function yearBounds(year) {
-  return [
-    new Date(year, 0, 1).toISOString(),
-    new Date(year + 1, 0, 1).toISOString()
-  ];
-}
-
-
 async function loadMonthExpenses(stageId, month) {
   if (!stageId || !month) return [];
   const [start, end] = monthBounds(month);
@@ -175,16 +162,6 @@ async function loadMonthExpenses(stageId, month) {
     'expenses',
     'stageId_spentAt',
     IDBKeyRange.bound([stageId, start], [stageId, end], false, true)
-  );
-  return items.sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
-}
-
-async function loadYearExpenses(year) {
-  const [start, end] = yearBounds(year);
-  const items = await getAllByIndex(
-    'expenses',
-    'spentAt',
-    IDBKeyRange.bound(start, end, false, true)
   );
   return items.sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
 }
@@ -197,10 +174,6 @@ async function loadRecentExpenses(stageId, limit = 3) {
     IDBKeyRange.bound([stageId, ''], [stageId, '\uffff']),
     { direction: 'prev', limit }
   );
-}
-
-async function loadRecentAllExpenses(limit = 200) {
-  return getPageByIndex('expenses', 'spentAt', null, { direction: 'prev', limit });
 }
 
 let searchIndexPromise = null;
@@ -245,8 +218,6 @@ async function searchExpenses(options) {
 async function refreshStageViews() {
   const stage = currentStage.value;
   if (!stage) {
-    recentExpenses.value = [];
-    recentTemplates.value = [];
     todayStats.value = { count: 0, total: 0 };
     return;
   }
@@ -255,19 +226,7 @@ async function refreshStageViews() {
     await loadStageMonths(statsState, stage.id);
   }
 
-  const [recent, currentRecent, allRecent] = await Promise.all([
-    loadRecentExpenses(stage.id, 3),
-    loadRecentExpenses(stage.id, 200),
-    loadRecentAllExpenses(200)
-  ]);
-
   await refreshTodayStats();
-  recentExpenses.value = recent;
-  recentTemplates.value = mergeTemplates(
-    buildTemplates(currentRecent, 3),
-    buildTemplates(allRecent, 3),
-    3
-  );
 }
 
 async function maybeRecomputeBounds(removed) {
@@ -602,6 +561,27 @@ async function setCategories(next) {
   await setSetting('categories', list);
 }
 
+async function renameCategory(from, to) {
+  const oldName = String(from || '').trim();
+  const newName = String(to || '').trim();
+  if (!oldName || !newName || oldName === newName) return false;
+  if (oldName === DEFAULT_CATEGORY) throw new Error('默认分类不能改名');
+  if (categories.value.includes(newName)) throw new Error('这个分类已经有了');
+
+  const expenses = await getAll('expenses');
+  const affected = expenses.filter(
+    (expense) => (expense.category || DEFAULT_CATEGORY) === oldName
+  );
+  if (affected.length) {
+    const updatedAt = Date.now();
+    const put = affected.map((expense) => ({ ...expense, category: newName, updatedAt }));
+    await commitExpenseChanges({ remove: affected, put });
+  }
+
+  await setCategories(categories.value.map((item) => (item === oldName ? newName : item)));
+  return true;
+}
+
 function stageStats(stageId) {
   return statsState.stages.get(stageId) || EMPTY_STAGE_STATS;
 }
@@ -643,20 +623,15 @@ export function useLedger() {
     total,
     todayStats,
     currentCatTitle,
-    recentTemplates,
-    recentExpenses,
     categoryGroups,
     achievementStats,
-    dataYears,
     currentStageMonthStats,
     stageStats,
     stageSummary,
     isCategoryUsed,
     latestMonthForStage,
     loadMonthExpenses,
-    loadYearExpenses,
     loadRecentExpenses,
-    loadRecentAllExpenses,
     ensureSearchIndex,
     searchExpenses,
     loadExpensesByIds,
@@ -674,6 +649,7 @@ export function useLedger() {
     updateExpense,
     deleteExpense,
     clearStageExpenses,
-    setCategories
+    setCategories,
+    renameCategory
   };
 }

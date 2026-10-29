@@ -62,7 +62,7 @@ import { DANGER_COLOR } from '../utils/theme';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
-const { editingStage } = sheets;
+const { editingStage, stageDraftName } = sheets;
 const {
   createStage,
   updateStage,
@@ -77,11 +77,11 @@ const budget = ref('');
 const error = ref('');
 
 watch(
-  [show, editingStage],
+  [show, editingStage, stageDraftName],
   ([visible]) => {
     if (!visible) return;
     const stage = editingStage.value;
-    name.value = stage?.name || '';
+    name.value = stage?.name || stageDraftName.value || '';
     budget.value = stage?.budget ? String(stage.budget) : '';
     error.value = '';
   }

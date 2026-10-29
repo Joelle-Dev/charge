@@ -34,13 +34,14 @@
 </template>
 
 <script setup>
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import HomeView from './HomeView.vue';
 import ExpenseRecords from '../components/ExpenseRecords.vue';
 import RecordPane from '../components/RecordPane.vue';
 import RecordPullHandle from '../components/RecordPullHandle.vue';
 import RecordCurtain from '../components/RecordCurtain.vue';
+import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { LEDGER_PANES, useLedgerPanes } from '../composables/useLedgerPanes';
 import {
@@ -54,6 +55,7 @@ import { haptic } from '../utils/haptics';
 const CLICK_SUPPRESS_MS = 360;
 
 const route = useRoute();
+const { ready, currentStage } = useLedger();
 const { activePane, paneRequest } = useLedgerPanes();
 const { curtainOpen, curtainPull, curtainDragging, beginCurtainPull, updateCurtainPull, endCurtainPull, resetRecord } = useRecordEntry();
 
@@ -83,8 +85,9 @@ let pagerEl = null;
 
 onMounted(() => {
   window.scrollTo({ top: 0 });
-  activePane.value = 'record';
-  nextTick(() => scrollToPane('record', 'auto'));
+  const initialPane = activePane.value;
+  scrollToPaneInstant(initialPane);
+  requestAnimationFrame(() => scrollToPaneInstant(initialPane));
   pagerEl = pagerRef.value;
   pagerEl?.addEventListener('wheel', onPagerWheel, { passive: false });
   document.addEventListener('pointerdown', onPointerDown, true);
@@ -94,6 +97,17 @@ onMounted(() => {
   document.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
   document.addEventListener('touchcancel', onTouchCancel, { capture: true, passive: true });
 });
+
+watch(
+  [ready, currentStage],
+  ([isReady, stage]) => {
+    if (!isReady || stage) return;
+    activePane.value = 'home';
+    scrollToPaneInstant('home');
+    requestAnimationFrame(() => scrollToPaneInstant('home'));
+  },
+  { immediate: true }
+);
 
 onUnmounted(() => {
   pagerEl?.removeEventListener('wheel', onPagerWheel);
@@ -122,6 +136,18 @@ function scrollToPane(pane, behavior = 'smooth') {
   if (index < 0) return;
   const width = el.clientWidth || window.innerWidth;
   el.scrollTo({ left: width * index, behavior });
+}
+
+function scrollToPaneInstant(pane) {
+  const el = pagerRef.value;
+  if (!el) return;
+  const index = LEDGER_PANES.indexOf(pane);
+  if (index < 0) return;
+  const width = el.clientWidth || window.innerWidth;
+  const previousBehavior = el.style.scrollBehavior;
+  el.style.scrollBehavior = 'auto';
+  el.scrollLeft = width * index;
+  el.style.scrollBehavior = previousBehavior;
 }
 
 function onPagerWheel(event) {

@@ -12,9 +12,19 @@ const routes = [
     component: () => import('../views/RecordsView.vue')
   },
   {
+    path: '/history',
+    name: 'history',
+    component: () => import('../views/HistoryView.vue')
+  },
+  {
     path: '/year',
-    name: 'year',
-    component: () => import('../views/YearSummaryView.vue')
+    redirect: '/history'
+  },
+  {
+    path: '/voice',
+    name: 'voice',
+    meta: { immersive: true },
+    component: () => import('../views/VoiceView.vue')
   },
   {
     path: '/settings',

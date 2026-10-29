@@ -15,7 +15,7 @@ import { monthKey } from '../utils/months.js';
 import { catTitleForCategory } from '../utils/titles.js';
 import { buildSearchChunks, SEARCH_VERSION, SEARCH_BUILDING_VERSION } from './searchIndex.js';
 
-export const STATS_VERSION = 2;
+export const STATS_VERSION = 3;
 
 function emptyGlobal() {
   return { key: 'global', count: 0, total: 0, minDate: '', maxDate: '', recordDays: 0 };
@@ -74,8 +74,17 @@ export function statsEntriesFromState(state) {
   return [
     state.global,
     ...state.stages.values(),
-    ...state.days.values(),
-    ...state.months.values()
+    ...[...state.days.values()].map((bucket) => ({
+      ...bucket,
+      key: `day:${bucket.key}`
+    })),
+    ...[...state.months.values()].map((bucket) => {
+      const [stageId, month] = bucket.key.split('|');
+      return {
+        ...bucket,
+        key: `month:${stageId}:${month}`
+      };
+    })
   ];
 }
 
@@ -212,13 +221,13 @@ export function statsEntriesAndDeletesForKeys(state, keys) {
       else deletes.push(key);
     } else if (key.startsWith('day:')) {
       const bucket = state.days.get(key.slice(4));
-      if (bucket) entries.push(bucket);
+      if (bucket) entries.push({ ...bucket, key });
       else deletes.push(key);
     } else if (key.startsWith('month:')) {
       const rest = key.slice(6);
       const split = rest.lastIndexOf(':');
       const bucket = state.months.get(`${rest.slice(0, split)}|${rest.slice(split + 1)}`);
-      if (bucket) entries.push(bucket);
+      if (bucket) entries.push({ ...bucket, key });
       else deletes.push(key);
     }
   }
@@ -230,11 +239,6 @@ export function buildStatsFromExpenses(expenses = []) {
   const state = createStatsState();
   for (const expense of expenses) applyExpenseDelta(state, expense, 1);
   return state;
-}
-
-export async function loadStatsState() {
-  const entries = await getAll('stats');
-  return statsStateFromEntries(entries);
 }
 
 export async function loadHomeStats() {
@@ -401,6 +405,29 @@ export async function recomputeBoundsFromExpenses(state, stageId) {
   await putMany('stats', puts);
 }
 
+
+export async function loadDayStats() {
+  const entries = await getAll('stats');
+  const days = new Map();
+  let global = null;
+
+  for (const entry of entries) {
+    if (!entry?.key) continue;
+    if (entry.key === 'global') {
+      global = entry;
+      continue;
+    }
+    const key = entry.key.startsWith('day:') ? entry.key.slice(4) : entry.key;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) days.set(key, entry);
+  }
+
+  return {
+    days,
+    minDate: global?.minDate || '',
+    maxDate: global?.maxDate || ''
+  };
+}
+
 export async function rebuildDerivedData(onProgress) {
   const startedAt = typeof performance !== 'undefined' ? performance.now() : 0;
   const mark = (phase) => {
@@ -441,10 +468,6 @@ export async function rebuildDerivedData(onProgress) {
   return state;
 }
 
-export async function rebuildStats() {
-  return rebuildDerivedData();
-}
-
 export function stageStatsFromState(state, stageId) {
   return state.stages.get(stageId) || emptyStage(stageId);
 }
@@ -463,25 +486,6 @@ export function globalStatsFromState(state) {
   return state.global;
 }
 
-export function availableYearsFromState(state) {
-  const years = new Set();
-  const min = state.global?.minDate;
-  const max = state.global?.maxDate;
-  if (min && max) {
-    const start = Number(min.slice(0, 4));
-    const end = Number(max.slice(0, 4));
-    if (Number.isFinite(start) && Number.isFinite(end)) {
-      for (let year = end; year >= start; year -= 1) years.add(year);
-    }
-  } else if (state.daysLoaded) {
-    for (const day of state.days.keys()) {
-      const year = Number(day.slice(0, 4));
-      if (Number.isFinite(year)) years.add(year);
-    }
-  }
-  if (!years.size) years.add(new Date().getFullYear());
-  return [...years].sort((a, b) => b - a);
-}
 
 function dayDiff(fromKey, toKey) {
   const [fromYear, fromMonth, fromDay] = fromKey.split('-').map(Number);

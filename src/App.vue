@@ -1,6 +1,6 @@
 <template>
-  <div class="app-shell">
-    <AppHeader />
+  <div class="app-shell" :class="{ 'is-immersive': isImmersive }">
+    <AppHeader v-if="!isImmersive" />
     <main class="main">
       <RouterView v-slot="{ Component }">
         <Transition name="page-fade" mode="out-in">
@@ -8,11 +8,10 @@
         </Transition>
       </RouterView>
     </main>
-    <ActionBar />
+    <ActionBar v-if="!isImmersive" />
 
     <StageSheet v-model:show="showStages" />
     <StageFormSheet v-model:show="showStageForm" />
-    <VoiceSheet v-model:show="showVoice" />
     <SearchSheet v-model:show="showSearch" />
     <AchievementsSheet v-model:show="showAchievements" />
     <StageSummarySheet v-model:show="showSummary" />
@@ -20,28 +19,31 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
 import ActionBar from './components/ActionBar.vue';
 import StageSheet from './components/StageSheet.vue';
 import StageFormSheet from './components/StageFormSheet.vue';
-import VoiceSheet from './components/VoiceSheet.vue';
 import SearchSheet from './components/SearchSheet.vue';
 import AchievementsSheet from './components/AchievementsSheet.vue';
 import StageSummarySheet from './components/StageSummarySheet.vue';
 import { useLedger } from './composables/useLedger';
 import { useRecordEntry } from './composables/useRecordEntry';
 import { useSheets } from './composables/useSheets';
+import { useVoiceEntry } from './composables/useVoiceEntry';
 import { useAchievements } from './composables/useAchievements';
 
 const { init, currentStage } = useLedger();
 const { initAchievements } = useAchievements();
 const sheets = useSheets();
 const record = useRecordEntry();
+const voice = useVoiceEntry();
+const route = useRoute();
+const isImmersive = computed(() => Boolean(route.meta.immersive));
 const {
   showStages,
   showStageForm,
-  showVoice,
   showSearch,
   showAchievements,
   showSummary
@@ -67,7 +69,7 @@ onMounted(async () => {
     sheets.openStageForm();
     return;
   }
-  if (action === 'voice') sheets.openVoice();
+  if (action === 'voice') voice.openVoice();
   if (action === 'manual') record.openRecord();
 });
 </script>

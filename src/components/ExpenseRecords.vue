@@ -1,12 +1,35 @@
 <template>
-  <section class="expense-section">
+  <section class="expense-section" aria-label="支出明细">
     <div class="expense-sticky">
-      <div class="section-head">
-        <div class="section-title">
-          <h2>支出明细</h2>
-          <span class="section-count">{{ monthExpenses.length }} 笔</span>
-        </div>
-        <div class="section-actions">
+      <div class="month-nav">
+        <button class="month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6"></path>
+          </svg>
+        </button>
+        <button class="month-label" type="button" @click="showMonthPicker = true">
+          {{ monthLabel(selectedMonth) }}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6"></path>
+          </svg>
+        </button>
+        <button class="month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </button>
+        <div class="month-nav-actions">
+          <button
+            class="section-icon"
+            type="button"
+            aria-label="历史支出"
+            @click="goHistory"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.5"></circle>
+              <path d="M12 7.5V12l3 2"></path>
+            </svg>
+          </button>
           <button
             v-if="currentStageStats.count"
             class="section-icon"
@@ -19,72 +42,14 @@
               <path d="m16 16 4 4"></path>
             </svg>
           </button>
-          <button
-            v-if="viewMode === 'list' && filteredGroups.length"
-            class="text-btn"
-            type="button"
-            @click="toggleAll"
-          >
-            {{ allExpanded ? '收起' : '展开全部' }}
-          </button>
-          <button v-if="currentStageStats.count" class="text-btn" type="button" @click="exportCsv">导出</button>
         </div>
       </div>
 
-      <div class="month-nav">
-        <button class="month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m15 18-6-6 6-6"></path>
-          </svg>
-        </button>
-        <button class="month-label" type="button" @click="showMonthPicker = true">
-          {{ monthLabel(selectedMonth) }}
-        </button>
-        <button class="month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m9 18 6-6-6-6"></path>
-          </svg>
-        </button>
-        <span class="month-total">¥{{ formatMoney(monthTotal) }}</span>
-        <div class="view-switch" aria-label="明细视图">
-          <button
-            type="button"
-            :class="{ active: viewMode === 'calendar' }"
-            @click="setView('calendar')"
-          >
-            日历
-          </button>
-          <button
-            type="button"
-            :class="{ active: viewMode === 'list' }"
-            @click="setView('list')"
-          >
-            列表
-          </button>
+      <div class="month-summary">
+        <div class="month-summary-left">
+          <span class="month-total">¥{{ formatMoney(monthTotal) }}</span>
+          <span class="month-count">{{ monthExpenses.length }} 笔</span>
         </div>
-      </div>
-
-      <div v-if="filterCategories.length > 1" class="filter-row">
-        <button
-          class="filter-chip"
-          :class="{ active: selectedCategory === 'all' }"
-          type="button"
-          @click="selectedCategory = 'all'"
-        >
-          <PawIcon class="filter-paw" />
-          全部
-        </button>
-        <button
-          v-for="category in filterCategories"
-          :key="category"
-          class="filter-chip"
-          :class="{ active: selectedCategory === category }"
-          type="button"
-          @click="selectedCategory = category"
-        >
-          <PawIcon class="filter-paw" :style="{ '--swatch': categoryColor(category) }" />
-          {{ category }}
-        </button>
       </div>
     </div>
 
@@ -141,15 +106,9 @@
             <button class="text-btn" type="button" @click="editInList">去列表修改</button>
           </div>
         </div>
-
-        <button class="text-btn records-year-link" type="button" @click="goYearSummary">
-          查看全年汇总
-        </button>
       </div>
 
       <div v-else class="list-view">
-        <TodayEmptyCard v-if="showTodayEmpty" />
-
         <div v-if="!monthExpenses.length" class="list-empty">
           <p>这个月还没有支出</p>
           <button class="text-btn" type="button" @click="addForSelectedDay">补记这天</button>
@@ -188,24 +147,57 @@
           </div>
         </div>
 
-        <div v-if="monthExpenses.length" class="list-end">
-          <PawIcon class="list-end-paw" />
-          <span>已经到底啦 · 这个月共 {{ monthExpenses.length }} 笔</span>
-        </div>
 
-        <button class="text-btn records-year-link" type="button" @click="goYearSummary">
-          查看全年汇总
-        </button>
       </div>
     </template>
 
     <div v-else class="list-empty">
       <p>还没有支出</p>
       <span>点下面的麦克风，说一句就记上</span>
-      <button class="text-btn records-year-link" type="button" @click="goYearSummary">
-        查看全年汇总
-      </button>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="showActions"
+        class="records-actions"
+        aria-label="明细操作"
+      >
+        <button
+          class="records-action"
+          type="button"
+          :aria-label="viewMode === 'calendar' ? '切换到列表' : '切换到日历'"
+          @click="toggleCalendar"
+        >
+          <svg
+            v-if="viewMode === 'calendar'"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M8 6h12M8 12h12M8 18h12"></path>
+            <path d="M4 6h.01M4 12h.01M4 18h.01"></path>
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect>
+            <path d="M8 3v4M16 3v4M3.5 10h17"></path>
+          </svg>
+          <span>{{ viewMode === 'calendar' ? '列表' : '日历' }}</span>
+        </button>
+      </div>
+    </Teleport>
 
     <MonthPickerSheet
       v-model:show="showMonthPicker"
@@ -213,36 +205,21 @@
       @select="selectMonth"
     />
 
-    <button
-      class="back-to-top"
-      :class="{ visible: showBackToTop }"
-      type="button"
-      aria-label="回到顶部"
-      @click="backToTop"
-    >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 19V5"></path>
-        <path d="m5 12 7-7 7 7"></path>
-      </svg>
-    </button>
   </section>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { showToast } from 'vant';
-import PawIcon from './PawIcon.vue';
+import { useRoute, useRouter } from 'vue-router';
 import ExpenseRow from './ExpenseRow.vue';
-import TodayEmptyCard from './TodayEmptyCard.vue';
 import ExpenseCalendar from './ExpenseCalendar.vue';
 import MonthPickerSheet from './MonthPickerSheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
+import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useSheets } from '../composables/useSheets';
 import { useRecordsView } from '../composables/useRecordsView';
-import { exportStageCsv } from '../utils/csv';
 import {
   categoryColor,
   dayKey,
@@ -258,8 +235,6 @@ import { haptic } from '../utils/haptics';
 const {
   currentStage,
   currentStageStats,
-  todayStats,
-  categoryGroups,
   dataVersion,
   latestMonthForStage,
   loadMonthExpenses
@@ -267,19 +242,19 @@ const {
 const { removeExpense } = useExpenseActions();
 const record = useRecordEntry();
 const sheets = useSheets();
+const { activePane } = useLedgerPanes();
+const route = useRoute();
 const router = useRouter();
 const {
   viewMode,
   selectedMonth,
   selectedDate,
-  selectedCategory,
   stageId
 } = useRecordsView();
 
 const todayKey = toDateInput(new Date());
 const currentMonth = currentMonthKey();
 const showMonthPicker = ref(false);
-const showBackToTop = ref(false);
 const expandedKeys = ref(new Set());
 const loadedMonthExpenses = ref([]);
 const calendarViewRef = ref(null);
@@ -299,18 +274,16 @@ if (!selectedMonth.value || stageId.value !== currentStage.value?.id) {
   selectedMonth.value = currentStage.value
     ? latestMonthForStage(currentStage.value.id)
     : currentMonth;
-  selectedCategory.value = 'all';
   selectedDate.value = '';
 }
 
-const filterCategories = computed(() => categoryGroups.value.map((group) => group.category));
-
-const monthExpenses = computed(() => {
-  if (selectedCategory.value === 'all') return loadedMonthExpenses.value;
-  return loadedMonthExpenses.value.filter((expense) => expense.category === selectedCategory.value);
-});
+const monthExpenses = computed(() => loadedMonthExpenses.value);
 
 const monthTotal = computed(() => sumAmounts(monthExpenses.value));
+
+const showActions = computed(() => (
+  route.path === '/records' || (route.path === '/' && activePane.value === 'records')
+));
 
 const filteredGroups = computed(() => {
   const groups = new Map();
@@ -331,19 +304,6 @@ const selectedDayExpenses = computed(() =>
 );
 const selectedDayTotal = computed(() => sumAmounts(selectedDayExpenses.value));
 const selectedDayLabel = computed(() => dayLabel(selectedDate.value));
-
-const showTodayEmpty = computed(() =>
-  viewMode.value === 'list' &&
-  currentStageStats.value.count > 0 &&
-  selectedMonth.value === currentMonth &&
-  todayStats.value.count === 0 &&
-  selectedCategory.value === 'all'
-);
-
-const allExpanded = computed(() =>
-  filteredGroups.value.length > 0 &&
-  filteredGroups.value.every((group) => expandedKeys.value.has(group.key))
-);
 
 function emptyDateForMonth(month) {
   return month === currentMonth ? todayKey : `${month}-01`;
@@ -396,12 +356,6 @@ function toggleDay(key) {
   expandedKeys.value = next;
 }
 
-function toggleAll() {
-  expandedKeys.value = allExpanded.value
-    ? new Set()
-    : new Set(filteredGroups.value.map((group) => group.key));
-}
-
 function setView(mode) {
   if (viewMode.value === mode) return;
   closeDayPopover();
@@ -411,6 +365,16 @@ function setView(mode) {
     const first = monthExpenses.value[0];
     expandedKeys.value = new Set(first ? [dayKey(new Date(first.spentAt))] : []);
   }
+}
+
+function toggleCalendar() {
+  setView(viewMode.value === 'calendar' ? 'list' : 'calendar');
+}
+
+function goHistory() {
+  closeDayPopover();
+  haptic('light');
+  router.push('/history');
 }
 
 function closeDayPopover() {
@@ -509,22 +473,6 @@ function selectMonth(month) {
   haptic('light');
 }
 
-function exportCsv() {
-  if (!currentStage.value) return;
-  if (!monthExpenses.value.length) {
-    showToast('这个月还没有支出');
-    return;
-  }
-  const ok = exportStageCsv(currentStage.value, monthExpenses.value, {
-    month: selectedMonth.value
-  });
-  showToast(ok ? `已导出 ${monthLabel(selectedMonth.value)}` : '这个月还没有支出');
-}
-
-function onScroll() {
-  showBackToTop.value = window.scrollY > 480;
-}
-
 function onDocumentPointerDown(event) {
   if (!dayPopover.show) return;
   if (calendarViewRef.value?.contains(event.target)) return;
@@ -533,15 +481,6 @@ function onDocumentPointerDown(event) {
 
 function onResize() {
   if (dayPopover.show) positionDayPopover();
-}
-
-function backToTop() {
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function goYearSummary() {
-  haptic('light');
-  router.push('/year');
 }
 
 watch(
@@ -564,7 +503,6 @@ watch(
 
     if (id !== stageId.value) {
       stageId.value = id || null;
-      selectedCategory.value = 'all';
       selectedDate.value = '';
       const latest = id ? latestMonthForStage(id) : currentMonth;
       if (month !== latest) {
@@ -585,19 +523,12 @@ watch(
   { immediate: true }
 );
 
-watch(selectedCategory, () => {
-  closeDayPopover();
-  settleSelection(false);
-});
-
 onMounted(() => {
-  window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onResize);
   document.addEventListener('pointerdown', onDocumentPointerDown);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', onScroll);
   window.removeEventListener('resize', onResize);
   document.removeEventListener('pointerdown', onDocumentPointerDown);
 });

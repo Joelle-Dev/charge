@@ -1,9 +1,8 @@
 import { ref } from 'vue';
 
-const viewMode = ref('calendar');
+const viewMode = ref('list');
 const selectedMonth = ref('');
 const selectedDate = ref('');
-const selectedCategory = ref('all');
 const stageId = ref(null);
 
 export function useRecordsView() {
@@ -11,7 +10,6 @@ export function useRecordsView() {
     viewMode,
     selectedMonth,
     selectedDate,
-    selectedCategory,
     stageId
   };
 }

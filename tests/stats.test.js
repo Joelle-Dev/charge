@@ -6,7 +6,10 @@ import {
   buildStageSummaryFromState,
   buildStatsFromExpenses,
   createStatsState,
-  statKeysForExpense
+  statKeysForExpense,
+  statsEntriesAndDeletesForKeys,
+  statsEntriesFromState,
+  statsStateFromEntries
 } from '../src/lib/stats.js';
 
 function expense(id, stageId, amount, category, date) {
@@ -98,4 +101,34 @@ test('stage summary is built from stats without expense records', () => {
   assert.equal(summary.topCategories[0].category, '餐饮');
   assert.equal(summary.catTitle, '干饭猫');
   assert.equal(summary.remaining, 0);
+});
+
+
+test('stats entries use storage key prefixes and round-trip', () => {
+  const state = buildStatsFromExpenses(expenses);
+  const entries = statsEntriesFromState(state);
+  const day = entries.find((entry) => entry.key === 'day:2026-01-02');
+  const month = entries.find((entry) => entry.key === 'month:s1:2026-01');
+
+  assert.equal(day.total, 100);
+  assert.equal(month.total, 100);
+
+  const restored = statsStateFromEntries(entries);
+  assert.equal(restored.days.get('2026-01-02').count, 2);
+  assert.equal(restored.months.get('s1|2026-01').total, 100);
+});
+
+test('stats delta keys keep storage key prefixes', () => {
+  const state = buildStatsFromExpenses(expenses);
+  const result = statsEntriesAndDeletesForKeys(state, [
+    'day:2026-01-02',
+    'month:s1:2026-01',
+    'day:2020-01-01'
+  ]);
+
+  assert.deepEqual(result.entries.map((entry) => entry.key), [
+    'day:2026-01-02',
+    'month:s1:2026-01'
+  ]);
+  assert.deepEqual(result.deletes, ['day:2020-01-01']);
 });

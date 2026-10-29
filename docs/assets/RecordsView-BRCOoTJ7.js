@@ -1,0 +1,1 @@
+import{x as s,v as c,o as n,p as u,H as _,l as p}from"./index-D4Brv2tK.js";import{_ as i}from"./ExpenseRecords-BzI2tUve.js";const f={__name:"RecordsView",setup(m){const r=_(),{ready:t,currentStage:a}=p();return s(()=>{window.scrollTo({top:0})}),c([t,a],([e,o])=>{e&&!o&&r.replace("/")},{immediate:!0}),(e,o)=>(n(),u(i))}};export{f as default};
