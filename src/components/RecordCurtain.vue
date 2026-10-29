@@ -21,6 +21,34 @@
         </button>
       </header>
 
+      <div class="record-note-field">
+        <svg class="record-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 5h14v10H9l-4 4V5Z"></path>
+          <path d="M8 9h8M8 12h5"></path>
+        </svg>
+        <input
+          ref="noteInput"
+          v-model="note"
+          class="record-note-input"
+          type="text"
+          maxlength="40"
+          placeholder="备注（可选）"
+          aria-label="备注"
+          enterkeyhint="done"
+          @keydown.enter.prevent="blurNote"
+          @keydown.esc.prevent="blurNote"
+        >
+        <button
+          v-if="note"
+          class="record-note-clear"
+          type="button"
+          aria-label="清空备注"
+          @click="clearNote"
+        >
+          ×
+        </button>
+      </div>
+
       <div class="record-category-strip" aria-label="选择分类">
         <button
           v-for="category in categoryOptions"
@@ -46,8 +74,6 @@
 
       <div class="record-amount-meta">
         <span>今天 {{ todayStats.count }} 笔 · ¥{{ formatMoney(todayStats.total) }}</span>
-        <span v-if="editingExpense">原备注与时间保持不变</span>
-        <span v-else-if="draftNote">备注：{{ draftNote }}</span>
       </div>
 
       <NumberKeypad
@@ -130,10 +156,11 @@ const { categories, currentStage, todayStats, addExpense, updateExpense } = useL
 const { removeExpense: removeExpenseAction } = useExpenseActions();
 
 const panelRef = ref(null);
+const noteInput = ref(null);
 const amount = ref('');
 const selectedCategory = ref('');
 const date = ref(toDateInput(new Date()));
-const baseNote = ref('');
+const note = ref('');
 const showDatePicker = ref(false);
 const dateDraft = ref([]);
 const saving = ref(false);
@@ -152,7 +179,6 @@ const categoryOptions = computed(() => {
 
 const amountDisplay = computed(() => formatAmountInput(amount.value));
 const canSave = computed(() => isValidAmount(amount.value) && Boolean(selectedCategory.value));
-const draftNote = computed(() => String(expenseDraft.value?.note || '').trim());
 
 const dateLabel = computed(() => {
   const today = toDateInput(new Date());
@@ -208,7 +234,7 @@ function initialize() {
     ? amountToInput(expense.amount)
     : amountToInput(draft?.amount || '');
   selectedCategory.value = expense?.category || draft?.category || defaultCategory();
-  baseNote.value = expense?.note || draft?.note || '';
+  note.value = expense?.note || draft?.note || '';
   date.value = draft?.date ||
     (expense?.spentAt ? toDateInput(expense.spentAt) : toDateInput(now));
   if (!expense && draft?.spentAt) date.value = toDateInput(draft.spentAt);
@@ -244,6 +270,15 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeydown);
   window.removeEventListener('resize', measurePanel);
 });
+
+function blurNote() {
+  noteInput.value?.blur();
+}
+
+function clearNote() {
+  note.value = '';
+  noteInput.value?.focus();
+}
 
 function onDigit(digit) {
   amount.value = appendDigit(amount.value, digit);
@@ -303,6 +338,7 @@ async function save() {
       await updateExpense(expense, {
         amount: value,
         category: selectedCategory.value,
+        note: note.value.trim(),
         spentAt: applyDateToIso(expense.spentAt, date.value)
       });
       rememberCategory(selectedCategory.value);
@@ -323,14 +359,14 @@ async function save() {
     await addExpense({
       amount: value,
       category: selectedCategory.value,
-      note: baseNote.value,
+      note: note.value.trim(),
       spentAt: spentAt.toISOString()
     });
     rememberCategory(selectedCategory.value);
     haptic('success');
     showToast('喵，已记下这笔');
     amount.value = '';
-    baseNote.value = '';
+    note.value = '';
     expenseDraft.value = null;
   } catch (err) {
     console.error(err);
@@ -354,6 +390,9 @@ async function removeCurrent() {
 function onKeydown(event) {
   if (!curtainOpen.value || showDatePicker.value) return;
 
+  const tag = event.target?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
   if (event.key === 'Escape') {
     closeCurtain();
     return;
@@ -374,8 +413,7 @@ function onKeydown(event) {
     return;
   }
   if (event.key === 'Enter') {
-    const tag = event.target?.tagName;
-    if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (tag === 'BUTTON') return;
     if (canSave.value && !saving.value) {
       event.preventDefault();
       save();

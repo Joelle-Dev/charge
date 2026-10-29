@@ -34,7 +34,7 @@
       stroke-linejoin="round"
       aria-hidden="true"
     >
-      <path d="m7 10 5 5 5-5"></path>
+      <path d="m6 9 6 6 6-6"></path>
     </svg>
   </button>
 </template>

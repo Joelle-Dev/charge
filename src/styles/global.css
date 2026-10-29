@@ -4275,47 +4275,113 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .record-pane {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-bottom: 12px;
+  gap: 13px;
+  padding-bottom: 10px;
+}
+
+.record-pane::before {
+  content: "";
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  z-index: 0;
+  width: min(320px, 82%);
+  height: 230px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(216, 132, 124, 0.13) 0%,
+    rgba(216, 132, 124, 0.05) 42%,
+    rgba(216, 132, 124, 0) 72%
+  );
+  pointer-events: none;
+}
+
+.record-pane > * {
+  position: relative;
+  z-index: 1;
 }
 
 .record-pane-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
-  padding: 8px 4px 0;
+  gap: 12px;
+  padding: 4px 4px 0;
+}
+
+.record-summary-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.record-summary-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex: none;
 }
 
 .record-eyebrow {
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  font-size: 10px;
   font-weight: 650;
   letter-spacing: 0.04em;
-  color: var(--muted);
 }
 
-.record-pane-title h1 {
-  margin: 3px 0 4px;
-  font-size: 26px;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+.record-eyebrow-leaf {
+  width: 11px;
+  height: 11px;
+  color: var(--accent);
 }
 
-.record-pane-title p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--muted);
+.record-summary-title {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .record-month-total {
-  flex: none;
-  font-size: 24px;
+  color: var(--ink);
+  font-size: 27px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
   white-space: nowrap;
+}
+
+.record-total-currency {
+  margin-right: 1px;
+  color: var(--muted);
+  font-size: 0.52em;
+  font-weight: 650;
+  vertical-align: 0.22em;
+}
+
+.record-summary-count {
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 .record-loading {
@@ -4333,8 +4399,8 @@ input[type='search']::-webkit-search-decoration {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 17px;
-  padding: 4px 0 12px;
+  gap: 15px;
+  padding: 2px 0 10px;
 }
 
 .record-trunk {
@@ -4355,21 +4421,45 @@ input[type='search']::-webkit-search-decoration {
 
 .record-trunk path {
   fill: none;
-  stroke: #c9a47c;
+  stroke: url(#record-trunk-gradient);
   stroke-width: 4.6;
   stroke-linecap: round;
-  opacity: 0.55;
+  opacity: 0.62;
 }
 
 .record-trunk-root {
   position: absolute;
   left: 50%;
   bottom: -4px;
-  width: 44px;
-  height: 10px;
+  width: 46px;
+  height: 11px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(201, 164, 124, 0.42), rgba(201, 164, 124, 0) 70%);
+  background: radial-gradient(ellipse at center, rgba(201, 164, 124, 0.44), rgba(201, 164, 124, 0) 70%);
+  box-shadow:
+    0 0 0 3px rgba(201, 164, 124, 0.08),
+    0 0 0 8px rgba(201, 164, 124, 0.04);
+}
+
+.record-trunk-root::before,
+.record-trunk-root::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  width: 17px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(184, 139, 98, 0.34);
+}
+
+.record-trunk-root::before {
+  left: -12px;
+  transform: rotate(-9deg);
+}
+
+.record-trunk-root::after {
+  right: -12px;
+  transform: rotate(9deg);
 }
 
 .record-branch {
@@ -4419,17 +4509,24 @@ input[type='search']::-webkit-search-decoration {
   position: relative;
   z-index: 1;
   min-width: 0;
-  padding: 12px 13px 11px;
+  padding: 11px 12px 10px;
   border: 1px solid color-mix(in srgb, var(--swatch) 14%, var(--line));
-  border-radius: 22px 30px 22px 30px;
+  border-radius: 20px 27px 20px 27px;
   background:
+    linear-gradient(
+      108deg,
+      transparent 52%,
+      color-mix(in srgb, var(--swatch) 9%, transparent) 100%
+    ),
     radial-gradient(
       120% 140% at 10% 0%,
       color-mix(in srgb, var(--swatch) 20%, transparent) 0%,
       transparent 58%
     ),
     color-mix(in srgb, var(--swatch) 7%, var(--surface));
-  box-shadow: 0 8px 22px rgba(var(--shadow-rgb), 0.08);
+  box-shadow:
+    0 7px 19px rgba(var(--shadow-rgb), 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -4444,125 +4541,177 @@ input[type='search']::-webkit-search-decoration {
   border-radius: 30px 22px 30px 22px;
 }
 
-.record-branch.expanded .record-leaf {
+.record-branch.active .record-leaf {
   border-color: color-mix(in srgb, var(--swatch) 36%, var(--line));
-  box-shadow: 0 10px 26px rgba(var(--shadow-rgb), 0.11);
-}
-
-.record-leaf-head {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
+  box-shadow:
+    0 10px 26px rgba(var(--shadow-rgb), 0.11),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
 }
 
 .record-leaf-main {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 7px;
-  align-items: baseline;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   min-width: 0;
   padding: 0;
   border: 0;
   background: none;
   color: var(--ink);
   text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.12s ease;
 }
 
-.record-leaf-name {
+.record-leaf-main:active {
+  transform: scale(0.985);
+}
+
+.record-leaf-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.record-leaf-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.record-leaf-category {
+  position: relative;
   overflow: hidden;
+  padding-left: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.record-leaf-category::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--swatch) 16%, transparent);
+}
+
+.record-expense-date {
+  overflow: hidden;
+  padding-left: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
 }
 
 .record-leaf-amount {
-  font-size: 17px;
-  font-weight: 750;
+  flex: none;
+  align-self: center;
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: -0.02em;
   text-align: right;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.record-leaf-meta {
-  grid-column: 1 / -1;
-  font-size: 11px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
+.record-leaf-note {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 4px;
+  padding-left: 10px;
+  color: var(--muted-soft);
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: left;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
-.record-leaf-toggle {
+.record-expense-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px dashed color-mix(in srgb, var(--swatch) 24%, var(--line));
+}
+
+.expense-action {
   display: grid;
   place-items: center;
-  flex: none;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.58);
-  color: var(--muted);
-  transition: background 0.15s ease, color 0.15s ease;
+  box-shadow:
+    0 3px 8px rgba(var(--shadow-rgb), 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
+  cursor: pointer;
+  touch-action: manipulation;
+  animation: expense-action-pop 0.18s var(--ease-out) both;
+  transition: transform 0.12s ease;
 }
 
-.record-leaf-toggle svg {
-  width: 15px;
-  height: 15px;
-  transition: transform 0.18s var(--ease-out);
+.expense-action svg {
+  width: 14px;
+  height: 14px;
 }
 
-.record-leaf-toggle.expanded svg {
-  transform: rotate(180deg);
-}
-
-.record-leaf-toggle:active {
-  background: var(--accent-soft);
+.expense-action-edit {
   color: var(--accent-strong);
+  background: var(--accent-soft);
 }
 
-.record-leaf-cluster {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 9px;
-  padding-top: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--swatch) 16%, var(--line));
+.expense-action-delete {
+  color: var(--danger);
+  background: var(--danger-soft);
+  animation-delay: 40ms;
 }
 
-.record-expense-leaf {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  max-width: 100%;
-  padding: 5px 9px;
-  border: 0;
-  border-radius: 12px 16px 12px 16px;
-  background: rgba(255, 255, 255, 0.62);
-  color: var(--ink-soft);
-  font-size: 11px;
+.expense-action:active {
+  transform: scale(0.88);
 }
 
-.record-expense-note {
-  max-width: 96px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+@keyframes expense-action-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.7);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.record-expense-amount {
-  font-weight: 700;
-  color: var(--swatch);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.record-expense-more {
-  align-self: center;
-  font-size: 10px;
-  color: var(--muted);
+@keyframes record-pull-pulse {
+  0%, 58% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  66% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
 }
 
 .record-empty {
@@ -4626,7 +4775,7 @@ input[type='search']::-webkit-search-decoration {
   width: 44px;
   height: 44px;
   padding: 0;
-  border: 1px solid var(--line-strong);
+  border: 0;
   border-radius: 50%;
   background: var(--surface);
   color: var(--accent-strong);
@@ -4664,8 +4813,8 @@ input[type='search']::-webkit-search-decoration {
 .record-pull-ring {
   position: absolute;
   inset: 0;
-  width: 44px;
-  height: 44px;
+  width: 100%;
+  height: 100%;
   transform: rotate(-90deg);
   pointer-events: none;
 }
@@ -4700,6 +4849,31 @@ input[type='search']::-webkit-search-decoration {
 
 .record-pull-handle.is-arrow-up .record-pull-arrow {
   transform: rotate(180deg);
+}
+
+.record-pull-handle::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
+  border-radius: 50%;
+  opacity: 0;
+  animation: record-pull-pulse 3.6s ease-out infinite;
+  pointer-events: none;
+}
+
+.record-pull-handle.is-open::after,
+.record-pull-handle.is-dragging::after,
+.record-pull-handle.is-hidden::after {
+  animation: none;
+  opacity: 0;
+}
+
+.record-pull-handle:focus-visible,
+.record-leaf-main:focus-visible,
+.expense-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .record-curtain-body {
@@ -4745,6 +4919,71 @@ input[type='search']::-webkit-search-decoration {
 
 .record-delete-btn:active {
   transform: scale(0.96);
+}
+
+.record-note-field {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 7px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.record-note-field:focus-within {
+  background: var(--surface);
+  box-shadow:
+    inset 0 0 0 1px var(--accent),
+    0 0 0 3px rgba(var(--accent-rgb), 0.08);
+}
+
+.record-note-icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+
+.record-note-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.record-note-input::placeholder {
+  color: var(--placeholder);
+}
+
+.record-note-clear {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.record-note-clear:active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
 }
 
 .record-category-strip {
@@ -4930,37 +5169,46 @@ input[type='search']::-webkit-search-decoration {
     --trunk-width: 20px;
   }
 
+  .record-summary-title {
+    font-size: 17px;
+  }
+
+  .record-month-total {
+    font-size: 24px;
+  }
+
+  .record-summary-count {
+    font-size: 9.5px;
+  }
+
   .record-leaf {
-    padding: 10px 11px 9px;
+    padding: 9px 10px 8px;
   }
 
-  .record-leaf-main {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1px;
+  .record-leaf-category {
+    font-size: 12.5px;
   }
 
-  .record-leaf-name {
-    font-size: 14px;
+  .record-expense-date {
+    font-size: 9px;
   }
 
   .record-leaf-amount {
-    grid-row: 2;
-    grid-column: 1;
-    font-size: 16px;
-    text-align: left;
+    font-size: 14px;
   }
 
-  .record-leaf-meta {
-    grid-row: 3;
+  .record-leaf-note {
+    font-size: 9.5px;
   }
 
-  .record-leaf-toggle {
-    width: 26px;
-    height: 26px;
+  .expense-action {
+    width: 28px;
+    height: 28px;
   }
 
-  .record-expense-note {
-    max-width: 70px;
+  .expense-action svg {
+    width: 13px;
+    height: 13px;
   }
 
   .record-curtain-body {
@@ -4969,11 +5217,6 @@ input[type='search']::-webkit-search-decoration {
   }
 
   .record-pull-handle {
-    width: 42px;
-    height: 42px;
-  }
-
-  .record-pull-ring {
     width: 42px;
     height: 42px;
   }

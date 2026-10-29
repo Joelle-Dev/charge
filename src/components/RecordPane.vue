@@ -1,12 +1,22 @@
 <template>
   <section class="record-pane">
     <header class="record-pane-head">
-      <div class="record-pane-title">
-        <span class="record-eyebrow">{{ monthTitle }}</span>
-        <h1>本月支出</h1>
-        <p>{{ expenseCount ? `${groups.length} 类 · ${expenseCount} 笔` : '这个月还没有支出' }}</p>
+      <div class="record-summary-main">
+        <span class="record-eyebrow">
+          <svg class="record-eyebrow-leaf" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.5 15.5C10 15 15 10 15.5 4.5 10 5 5 10 4.5 15.5Z"></path>
+            <path d="M5.5 14.5c2.8-2.8 5.5-4.6 8.5-6"></path>
+          </svg>
+          {{ monthTitle }}
+        </span>
+        <span class="record-summary-title">支出</span>
       </div>
-      <strong class="record-month-total">¥{{ formatMoney(total) }}</strong>
+      <div class="record-summary-side">
+        <span v-if="expenseCount" class="record-summary-count">{{ expenseCount }} 笔</span>
+        <strong class="record-month-total">
+          <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
+        </strong>
+      </div>
     </header>
 
     <div v-if="loading" class="record-loading">
@@ -14,26 +24,32 @@
       正在看看这个月…
     </div>
 
-    <div v-else-if="groups.length" class="record-tree">
+    <div v-else-if="leaves.length" class="record-tree">
       <div class="record-trunk" aria-hidden="true">
         <svg viewBox="0 0 22 100" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="record-trunk-gradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#d7b892"></stop>
+              <stop offset="100%" stop-color="#b88b62"></stop>
+            </linearGradient>
+          </defs>
           <path d="M11 0 C 7 18, 15 34, 10 52 C 6 70, 14 84, 11 100"></path>
         </svg>
         <span class="record-trunk-root"></span>
       </div>
 
       <article
-        v-for="(group, index) in groups"
-        :key="group.category"
+        v-for="(expense, index) in leaves"
+        :key="expense.id"
         class="record-branch"
         :class="[
           index % 2 === 0 ? 'is-left' : 'is-right',
-          { expanded: isExpanded(group.category) }
+          { active: activeExpenseId === expense.id }
         ]"
         :style="{
-          '--swatch': group.color,
-          '--branch-width': group.branchWidth,
-          '--branch-delay': `${index * 45}ms`
+          '--swatch': expense.color,
+          '--branch-width': expense.branchWidth,
+          '--branch-delay': `${Math.min(index, 8) * 35}ms`
         }"
       >
         <svg class="record-branch-arm" viewBox="0 0 26 34" preserveAspectRatio="none" aria-hidden="true">
@@ -41,38 +57,48 @@
         </svg>
 
         <div class="record-leaf">
-          <div class="record-leaf-head">
-            <div class="record-leaf-main">
-              <span class="record-leaf-name">{{ group.category }}</span>
-              <span class="record-leaf-amount">¥{{ formatMoney(group.total) }}</span>
-              <span class="record-leaf-meta">{{ group.percent }}% · {{ group.items.length }} 笔</span>
-            </div>
+          <button
+            class="record-leaf-main"
+            type="button"
+            :aria-expanded="activeExpenseId === expense.id"
+            :aria-label="`${expense.category}，${expenseDate(expense)}${expense.noteText ? `，${expense.noteText}` : ''}，¥${formatMoney(expense.amount)}`"
+            @click="toggleExpenseActions(expense)"
+          >
+            <span class="record-leaf-top">
+              <span class="record-leaf-content">
+                <span class="record-leaf-category">{{ expense.category }}</span>
+                <span class="record-expense-date">{{ expenseDate(expense) }}</span>
+              </span>
+              <span class="record-leaf-amount">¥{{ formatMoney(expense.amount) }}</span>
+            </span>
+            <span v-if="expense.noteText" class="record-leaf-note" :title="expense.noteText">{{ expense.noteText }}</span>
+          </button>
+
+          <div v-if="activeExpenseId === expense.id" class="record-expense-actions">
             <button
-              class="record-leaf-toggle"
-              :class="{ expanded: isExpanded(group.category) }"
+              class="expense-action expense-action-edit"
               type="button"
-              :aria-expanded="isExpanded(group.category)"
-              :aria-label="isExpanded(group.category) ? `收起${group.category}明细` : `展开${group.category}明细`"
-              @click="toggle(group.category)"
+              aria-label="编辑这笔支出"
+              @click="editExpense(expense)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m6 9 6 6 6-6"></path>
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
               </svg>
             </button>
-          </div>
-
-          <div v-if="isExpanded(group.category)" class="record-leaf-cluster">
-            <span
-              v-for="expense in group.visibleItems"
-              :key="expense.id"
-              class="record-expense-leaf"
+            <button
+              class="expense-action expense-action-delete"
+              type="button"
+              aria-label="删除这笔支出"
+              @click="deleteExpense(expense)"
             >
-              <span class="record-expense-note">{{ expense.note || expense.category }}</span>
-              <span class="record-expense-amount">¥{{ formatMoney(expense.amount) }}</span>
-            </span>
-            <span v-if="group.hiddenCount" class="record-expense-more">
-              还有 {{ group.hiddenCount }} 笔
-            </span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 7h16"></path>
+                <path d="M9 7V5h6v2"></path>
+                <path d="M7 7l1 12h8l1-12"></path>
+                <path d="M10 11v4M14 11v4"></path>
+              </svg>
+            </button>
           </div>
         </div>
       </article>
@@ -86,51 +112,40 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
+import { useRecordEntry } from '../composables/useRecordEntry';
 import { categoryColor, formatMoney, sumAmounts } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { currentMonthKey, monthLabel } from '../utils/months';
 
 const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
+const { removeExpense: removeExpenseAction } = useExpenseActions();
+const record = useRecordEntry();
 
 const month = ref(currentMonthKey());
 const monthTitle = computed(() => monthLabel(month.value));
 const expenses = ref([]);
 const loading = ref(true);
-const expanded = ref(new Set());
+const activeExpenseId = ref(null);
 let loadToken = 0;
 
 const total = computed(() => sumAmounts(expenses.value));
 const expenseCount = computed(() => expenses.value.length);
 
-const groups = computed(() => {
-  const map = new Map();
-  for (const expense of expenses.value) {
-    const category = expense.category || '其他';
-    if (!map.has(category)) {
-      map.set(category, { category, total: 0, items: [] });
-    }
-    const group = map.get(category);
-    group.total += Number(expense.amount) || 0;
-    group.items.push(expense);
-  }
-
-  const sum = total.value || 1;
-  return [...map.values()]
-    .sort((a, b) => b.total - a.total)
-    .map((group) => {
-      const percent = Math.round((group.total / sum) * 100);
-      const visibleItems = group.items.slice(0, 4);
-      return {
-        ...group,
-        percent,
-        color: categoryColor(group.category),
-        branchWidth: (2 + Math.min(1, percent / 100) * 5).toFixed(1),
-        visibleItems,
-        hiddenCount: group.items.length - visibleItems.length
-      };
-    });
+const leaves = computed(() => {
+  if (!expenses.value.length) return [];
+  const max = Math.max(1, ...expenses.value.map((expense) => Number(expense.amount) || 0));
+  return expenses.value.map((expense) => {
+    const amount = Number(expense.amount) || 0;
+    return {
+      ...expense,
+      color: categoryColor(expense.category),
+      branchWidth: (2 + Math.min(1, amount / max) * 5).toFixed(1),
+      noteText: cleanNote(expense.note)
+    };
+  });
 });
 
 async function loadMonth() {
@@ -164,16 +179,48 @@ watch(
   { immediate: true }
 );
 
-function isExpanded(category) {
-  return expanded.value.has(category);
+onMounted(() => {
+  document.addEventListener('pointerdown', onDocumentPointerDown, true);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', onDocumentPointerDown, true);
+});
+
+function onDocumentPointerDown(event) {
+  if (!activeExpenseId.value) return;
+  if (event.target?.closest?.('.record-branch')) return;
+  activeExpenseId.value = null;
 }
 
-function toggle(category) {
-  const next = new Set(expanded.value);
-  if (next.has(category)) next.delete(category);
-  else next.add(category);
-  expanded.value = next;
+function toggleExpenseActions(expense) {
   haptic('light');
+  activeExpenseId.value = activeExpenseId.value === expense.id ? null : expense.id;
+}
+
+function editExpense(expense) {
+  haptic('light');
+  activeExpenseId.value = null;
+  record.openRecord(expense);
+}
+
+async function deleteExpense(expense) {
+  activeExpenseId.value = null;
+  await removeExpenseAction(expense);
+}
+
+function cleanNote(value) {
+  return String(value || '')
+    .replace(/(?:19|20)\d{2}\s*年\s*/g, '')
+    .replace(/^(?:19|20)\d{2}[-/.]/, '')
+    .trim();
+}
+
+function expenseDate(expense) {
+  const date = new Date(expense.spentAt);
+  return Number.isFinite(date.getTime())
+    ? `${date.getMonth() + 1}月${date.getDate()}日`
+    : '—';
 }
 
 </script>
