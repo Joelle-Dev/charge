@@ -3,8 +3,8 @@ import { createRouter, createWebHashHistory } from 'vue-router';
 const routes = [
   {
     path: '/',
-    name: 'home',
-    component: () => import('../views/HomeView.vue')
+    name: 'record',
+    component: () => import('../views/RecordView.vue')
   },
   {
     path: '/records',
@@ -22,8 +22,13 @@ const routes = [
     component: () => import('../views/SettingsView.vue')
   },
   {
+    path: '/setting',
+    redirect: '/settings'
+  },
+  {
     path: '/:pathMatch(.*)*',
-    redirect: '/'
+    name: 'not-found',
+    component: () => import('../views/NotFoundView.vue')
   }
 ];
 

@@ -2,40 +2,22 @@
   <nav class="actionbar" aria-label="记账与导航">
     <button
       class="action-secondary"
-      :class="{ active: isHome }"
+      :class="{ active: isRecord }"
       type="button"
-      :aria-current="isHome ? 'page' : undefined"
-      @click="goHome"
+      :aria-current="isRecord ? 'page' : undefined"
+      @click="openRecordTab"
     >
       <span class="action-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m3 10 9-7 9 7"></path>
-          <path d="M5 9v11h14V9"></path>
-          <path d="M9 20v-6h6v6"></path>
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
         </svg>
       </span>
-      <span>首页</span>
+      <span>记账</span>
     </button>
 
     <button
-      class="action-secondary"
-      :class="{ active: isRecords }"
-      type="button"
-      :aria-current="isRecords ? 'page' : undefined"
-      @click="openRecords"
-    >
-      <span class="action-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="16" rx="3"></rect>
-          <path d="M8 2v4M16 2v4M3 9h18"></path>
-          <path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01"></path>
-        </svg>
-      </span>
-      <span>明细</span>
-    </button>
-
-    <button
-      class="mic-slot"
+      class="action-secondary voice-tab"
       type="button"
       aria-label="说一笔"
       @pointerdown="onMicPointerDown"
@@ -45,26 +27,14 @@
       @click="onMicClick"
       @contextmenu.prevent
     >
-      <span class="mic-main">
-        <span class="mic-main-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <rect x="9" y="2.5" width="6" height="11" rx="3"></rect>
-            <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"></path>
-            <path d="M12 18v3"></path>
-          </svg>
-        </span>
-      </span>
-      <span class="mic-caption">说一笔</span>
-    </button>
-
-    <button class="action-secondary" type="button" @click="openManual">
       <span class="action-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 20h9"></path>
-          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <rect x="9" y="2.5" width="6" height="11" rx="3"></rect>
+          <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"></path>
+          <path d="M12 18v3"></path>
         </svg>
       </span>
-      <span>手动</span>
+      <span>说一笔</span>
     </button>
 
     <button
@@ -89,16 +59,19 @@
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLedger } from '../composables/useLedger';
+import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useSheets } from '../composables/useSheets';
 import { haptic } from '../utils/haptics';
 
 const { currentStage } = useLedger();
+const panes = useLedgerPanes();
 const sheets = useSheets();
 const route = useRoute();
 const router = useRouter();
 
-const isHome = computed(() => route.path === '/');
-const isRecords = computed(() => route.path === '/records' || route.path === '/year');
+const isRecord = computed(() => (
+  route.path === '/' || route.path === '/records' || route.path === '/year'
+));
 const isSettings = computed(() => route.path === '/settings');
 
 const LONG_PRESS_MS = 320;
@@ -112,13 +85,9 @@ function requireStage() {
   return false;
 }
 
-function goHome() {
+function openRecordTab() {
+  panes.goToPane('record');
   if (route.path !== '/') router.push('/');
-}
-
-function openRecords() {
-  if (!requireStage()) return;
-  if (route.path !== '/records') router.push('/records');
 }
 
 function openSettings() {
@@ -176,9 +145,5 @@ function onMicClick(event) {
     return;
   }
   if (requireStage()) sheets.openVoice(false);
-}
-
-function openManual() {
-  if (requireStage()) sheets.openExpenseForm();
 }
 </script>

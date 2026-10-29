@@ -181,7 +181,7 @@
                 v-for="expense in group.items"
                 :key="expense.id"
                 :expense="expense"
-                @edit="sheets.openExpenseForm"
+                @edit="record.openRecord"
                 @delete="removeExpense"
               />
             </div>
@@ -239,6 +239,7 @@ import ExpenseCalendar from './ExpenseCalendar.vue';
 import MonthPickerSheet from './MonthPickerSheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
+import { useRecordEntry } from '../composables/useRecordEntry';
 import { useSheets } from '../composables/useSheets';
 import { useRecordsView } from '../composables/useRecordsView';
 import { exportStageCsv } from '../utils/csv';
@@ -264,6 +265,7 @@ const {
   loadMonthExpenses
 } = useLedger();
 const { removeExpense } = useExpenseActions();
+const record = useRecordEntry();
 const sheets = useSheets();
 const router = useRouter();
 const {
@@ -494,7 +496,7 @@ async function editInList() {
 function addForSelectedDay() {
   closeDayPopover();
   haptic('light');
-  sheets.openExpenseForm(null, { date: selectedDate.value });
+  record.openRecord(null, { date: selectedDate.value });
 }
 
 function shiftMonth(delta) {

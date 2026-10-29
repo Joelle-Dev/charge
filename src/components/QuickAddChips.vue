@@ -23,15 +23,15 @@
 
 <script setup>
 import { useLedger } from '../composables/useLedger';
-import { useSheets } from '../composables/useSheets';
+import { useRecordEntry } from '../composables/useRecordEntry';
 import { categoryColor, formatMoney } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
 const { recentTemplates } = useLedger();
-const sheets = useSheets();
+const record = useRecordEntry();
 
 function useTemplate(template) {
   haptic('light');
-  sheets.openExpenseForm(null, template);
+  record.openRecord(null, template);
 }
 </script>

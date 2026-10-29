@@ -13,7 +13,6 @@
     <StageSheet v-model:show="showStages" />
     <StageFormSheet v-model:show="showStageForm" />
     <VoiceSheet v-model:show="showVoice" />
-    <ExpenseFormSheet v-model:show="showExpenseForm" />
     <SearchSheet v-model:show="showSearch" />
     <AchievementsSheet v-model:show="showAchievements" />
     <StageSummarySheet v-model:show="showSummary" />
@@ -27,22 +26,22 @@ import ActionBar from './components/ActionBar.vue';
 import StageSheet from './components/StageSheet.vue';
 import StageFormSheet from './components/StageFormSheet.vue';
 import VoiceSheet from './components/VoiceSheet.vue';
-import ExpenseFormSheet from './components/ExpenseFormSheet.vue';
 import SearchSheet from './components/SearchSheet.vue';
 import AchievementsSheet from './components/AchievementsSheet.vue';
 import StageSummarySheet from './components/StageSummarySheet.vue';
 import { useLedger } from './composables/useLedger';
+import { useRecordEntry } from './composables/useRecordEntry';
 import { useSheets } from './composables/useSheets';
 import { useAchievements } from './composables/useAchievements';
 
 const { init, currentStage } = useLedger();
 const { initAchievements } = useAchievements();
 const sheets = useSheets();
+const record = useRecordEntry();
 const {
   showStages,
   showStageForm,
   showVoice,
-  showExpenseForm,
   showSearch,
   showAchievements,
   showSummary
@@ -69,6 +68,6 @@ onMounted(async () => {
     return;
   }
   if (action === 'voice') sheets.openVoice();
-  if (action === 'manual') sheets.openExpenseForm();
+  if (action === 'manual') record.openRecord();
 });
 </script>

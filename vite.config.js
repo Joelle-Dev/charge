@@ -40,9 +40,9 @@ export default defineConfig(({ mode }) => {
               icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
             },
             {
-              name: '手动记一笔',
-              short_name: '手动记账',
-              description: '打开手动记账',
+              name: '记一笔',
+              short_name: '记账',
+              description: '打开记账页',
               url: `${startUrl}?action=manual`,
               icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
             },

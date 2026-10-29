@@ -121,11 +121,11 @@ import ExpenseRow from './ExpenseRow.vue';
 import PawIcon from './PawIcon.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
-import { useSheets } from '../composables/useSheets';
+import { useRecordEntry } from '../composables/useRecordEntry';
 import { categoryColor, dayKey, dayLabel, formatMoney } from '../utils/format';
 
 const show = defineModel('show', { type: Boolean, default: false });
-const sheets = useSheets();
+const record = useRecordEntry();
 const {
   currentStage,
   currentStageStats,
@@ -301,6 +301,6 @@ async function removeSearchExpense(expense) {
 
 function editExpense(expense) {
   show.value = false;
-  sheets.openExpenseForm(expense);
+  record.openRecord(expense);
 }
 </script>

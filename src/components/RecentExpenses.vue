@@ -20,7 +20,7 @@
         class="recent-expense"
         :expense="expense"
         show-date
-        @select="sheets.openExpenseForm"
+        @select="record.openRecord"
       />
     </div>
 
@@ -33,20 +33,20 @@
 
 <script setup>
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import ExpenseItem from './ExpenseItem.vue';
 import { useLedger } from '../composables/useLedger';
-import { useSheets } from '../composables/useSheets';
+import { useLedgerPanes } from '../composables/useLedgerPanes';
+import { useRecordEntry } from '../composables/useRecordEntry';
 import { haptic } from '../utils/haptics';
 
 const { recentExpenses, currentStageStats } = useLedger();
-const sheets = useSheets();
-const router = useRouter();
+const record = useRecordEntry();
+const { goToPane } = useLedgerPanes();
 
 const recent = computed(() => recentExpenses.value);
 
 function openRecords() {
   haptic('light');
-  router.push('/records');
+  goToPane('records');
 }
 </script>

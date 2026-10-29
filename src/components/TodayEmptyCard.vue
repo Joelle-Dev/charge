@@ -11,13 +11,13 @@
 
 <script setup>
 import CatMood from './CatMood.vue';
-import { useSheets } from '../composables/useSheets';
+import { useRecordEntry } from '../composables/useRecordEntry';
 import { haptic } from '../utils/haptics';
 
-const sheets = useSheets();
+const record = useRecordEntry();
 
 function addToday() {
   haptic('light');
-  sheets.openExpenseForm();
+  record.openRecord();
 }
 </script>

@@ -1059,8 +1059,8 @@ svg {
   bottom: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  align-items: end;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
   gap: 2px;
   width: min(100%, 600px);
   padding: 6px 14px calc(7px + var(--safe-bottom));
@@ -1118,6 +1118,10 @@ svg {
 .action-icon svg {
   width: 20px;
   height: 20px;
+}
+
+.voice-tab {
+  touch-action: none;
 }
 
 .mic-slot {
@@ -2247,6 +2251,72 @@ input[type='search']::-webkit-search-decoration {
   text-align: center;
   color: var(--muted-soft);
   font-size: 11px;
+}
+
+.not-found-page {
+  display: grid;
+  place-items: center;
+  min-height: calc(100dvh - var(--topbar-height) - 120px);
+  padding: 24px 0;
+}
+
+.not-found-card {
+  width: 100%;
+  padding: 28px 22px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  text-align: center;
+}
+
+.not-found-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.not-found-card h1 {
+  margin: 14px 0 0;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.not-found-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.not-found-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.not-found-actions .primary-btn,
+.not-found-actions .secondary-btn {
+  min-height: 42px;
+  padding: 0 16px;
+}
+
+.not-found-path {
+  margin-top: 14px !important;
+  color: var(--muted-soft) !important;
+  font-size: 11px !important;
+  word-break: break-all;
 }
 
 .import-file-input {
@@ -4151,4 +4221,790 @@ input[type='search']::-webkit-search-decoration {
   border-radius: 50%;
   background: var(--accent);
   animation: blink 1s ease-in-out infinite;
+}
+
+/* 07. 记账页：当月分类树与下拉帘幕 */
+.record-page {
+  height: calc(100dvh - var(--topbar-height));
+  margin-bottom: calc(-1 * (86px + var(--safe-bottom)));
+  overflow: hidden;
+}
+
+.record-pager {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.record-pager::-webkit-scrollbar {
+  display: none;
+}
+
+.record-pager.is-locked {
+  overflow-x: hidden;
+}
+
+.record-pager-pane {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: calc(86px + var(--safe-bottom));
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  -webkit-overflow-scrolling: touch;
+}
+
+.record-pager-center {
+  padding-top: 56px;
+}
+
+.record-pager-pane .expense-section {
+  min-height: 0;
+}
+
+.record-pager-pane .expense-sticky {
+  top: 0;
+}
+
+.record-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 12px;
+}
+
+.record-pane-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 4px 0;
+}
+
+.record-eyebrow {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.record-pane-title h1 {
+  margin: 3px 0 4px;
+  font-size: 26px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.record-pane-title p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.record-month-total {
+  flex: none;
+  font-size: 24px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.record-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34vh;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.record-tree {
+  --branch-gap: 26px;
+  --trunk-width: 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 17px;
+  padding: 4px 0 12px;
+}
+
+.record-trunk {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: var(--trunk-width);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.record-trunk svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.record-trunk path {
+  fill: none;
+  stroke: #c9a47c;
+  stroke-width: 4.6;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.record-trunk-root {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 44px;
+  height: 10px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(201, 164, 124, 0.42), rgba(201, 164, 124, 0) 70%);
+}
+
+.record-branch {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  min-height: 64px;
+  animation: record-branch-sprout 0.5s var(--ease-out) both;
+  animation-delay: var(--branch-delay, 0ms);
+}
+
+.record-branch.is-left {
+  --sprout-x: -10px;
+}
+
+.record-branch.is-right {
+  --sprout-x: 10px;
+}
+
+.record-branch-arm {
+  position: absolute;
+  top: 6px;
+  width: var(--branch-gap);
+  height: 34px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.record-branch.is-right .record-branch-arm {
+  left: 50%;
+}
+
+.record-branch.is-left .record-branch-arm {
+  right: 50%;
+}
+
+.record-branch-arm path {
+  fill: none;
+  stroke: var(--swatch);
+  stroke-width: var(--branch-width, 3);
+  stroke-linecap: round;
+  opacity: 0.62;
+}
+
+.record-leaf {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  padding: 12px 13px 11px;
+  border: 1px solid color-mix(in srgb, var(--swatch) 14%, var(--line));
+  border-radius: 22px 30px 22px 30px;
+  background:
+    radial-gradient(
+      120% 140% at 10% 0%,
+      color-mix(in srgb, var(--swatch) 20%, transparent) 0%,
+      transparent 58%
+    ),
+    color-mix(in srgb, var(--swatch) 7%, var(--surface));
+  box-shadow: 0 8px 22px rgba(var(--shadow-rgb), 0.08);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.record-branch.is-right .record-leaf {
+  grid-column: 2;
+  margin-left: var(--branch-gap);
+}
+
+.record-branch.is-left .record-leaf {
+  grid-column: 1;
+  margin-right: var(--branch-gap);
+  border-radius: 30px 22px 30px 22px;
+}
+
+.record-branch.expanded .record-leaf {
+  border-color: color-mix(in srgb, var(--swatch) 36%, var(--line));
+  box-shadow: 0 10px 26px rgba(var(--shadow-rgb), 0.11);
+}
+
+.record-leaf-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.record-leaf-main {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 7px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+.record-leaf-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.record-leaf-amount {
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-leaf-meta {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.record-leaf-toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.record-leaf-toggle svg {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.18s var(--ease-out);
+}
+
+.record-leaf-toggle.expanded svg {
+  transform: rotate(180deg);
+}
+
+.record-leaf-toggle:active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.record-leaf-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--swatch) 16%, var(--line));
+}
+
+.record-expense-leaf {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 100%;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 12px 16px 12px 16px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+
+.record-expense-note {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-expense-amount {
+  font-weight: 700;
+  color: var(--swatch);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.record-expense-more {
+  align-self: center;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.record-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 50px 18px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface-tint);
+  color: var(--muted);
+  text-align: center;
+}
+
+.record-empty strong {
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.record-empty span {
+  font-size: 12px;
+}
+
+.record-curtain {
+  position: fixed;
+  top: var(--topbar-height);
+  left: 0;
+  right: 0;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 600px);
+  height: calc(100dvh - var(--topbar-height));
+  margin: 0 auto;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--surface-soft);
+  box-shadow: 0 26px 60px rgba(var(--shadow-rgb), 0.22);
+  overflow: hidden;
+  pointer-events: none;
+  will-change: clip-path;
+  transition: clip-path 0.3s var(--ease-out);
+}
+
+.record-curtain.is-open,
+.record-curtain.is-dragging {
+  pointer-events: auto;
+}
+
+.record-curtain.is-dragging {
+  transition: none;
+}
+
+.record-pull-handle {
+  position: fixed;
+  top: calc(var(--topbar-height) + 8px);
+  left: 50%;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow:
+    0 8px 22px rgba(var(--shadow-rgb), 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  transform: translateX(-50%);
+  cursor: grab;
+  touch-action: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.record-pull-handle:active {
+  cursor: grabbing;
+  transform: translateX(-50%) scale(0.94);
+}
+
+.record-pull-handle.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(-4px);
+}
+
+.record-pull-handle.is-open {
+  background: var(--surface-soft);
+  box-shadow:
+    0 10px 26px rgba(var(--shadow-rgb), 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.record-pull-ring {
+  position: absolute;
+  inset: 0;
+  width: 44px;
+  height: 44px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.record-pull-ring-track,
+.record-pull-ring-fill {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.record-pull-ring-track {
+  stroke: var(--line-strong);
+}
+
+.record-pull-ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.12s linear;
+}
+
+.record-pull-handle.is-dragging .record-pull-ring-fill {
+  transition: none;
+}
+
+.record-pull-arrow {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.record-pull-handle.is-arrow-up .record-pull-arrow {
+  transform: rotate(180deg);
+}
+
+.record-curtain-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 9px;
+  min-height: 0;
+  padding: 56px 18px calc(12px + var(--safe-bottom));
+  overflow: hidden;
+}
+
+.record-curtain-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.record-curtain-eyebrow {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.record-curtain-heading p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.record-delete-btn {
+  flex: none;
+  min-height: 32px;
+  padding: 0 13px;
+  border: 1px solid #f3d3d0;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.record-delete-btn:active {
+  transform: scale(0.96);
+}
+
+.record-category-strip {
+  display: flex;
+  flex: none;
+  gap: 8px;
+  padding: 2px 0 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.record-category-strip .chip {
+  flex: none;
+}
+
+.record-amount-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  flex: none;
+  min-height: 62px;
+  padding: 8px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.record-currency {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--accent-strong);
+}
+
+.record-amount-value {
+  max-width: calc(100% - 40px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: clamp(36px, 12vw, 52px);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.record-amount-display.long .record-amount-value {
+  font-size: clamp(30px, 9.5vw, 44px);
+}
+
+.record-amount-display.xlong .record-amount-value {
+  font-size: clamp(24px, 7.5vw, 36px);
+}
+
+.record-amount-display.empty .record-amount-value {
+  color: var(--placeholder);
+}
+
+.record-amount-caret {
+  width: 2px;
+  height: 34px;
+  margin-left: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+  animation: record-caret 1s steps(1) infinite;
+}
+
+.record-amount-display.empty .record-amount-caret {
+  display: none;
+}
+
+.record-amount-meta {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3px 14px;
+  min-height: 15px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.number-keypad {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  height: clamp(224px, 38dvh, 312px);
+  margin-top: auto;
+}
+
+.keypad-key {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 2px 5px rgba(var(--shadow-rgb), 0.05);
+  transition: transform 0.12s ease, background 0.12s ease, filter 0.12s ease;
+}
+
+.keypad-key:active {
+  transform: scale(0.96);
+  background: var(--accent-soft);
+}
+
+.keypad-soft {
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.keypad-backspace {
+  color: var(--muted);
+}
+
+.keypad-backspace svg {
+  width: 26px;
+  height: 22px;
+}
+
+.keypad-date {
+  padding: 0 4px;
+  border-radius: 16px;
+  background: var(--accent-tint);
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--accent-soft);
+}
+
+.keypad-done {
+  grid-column: 4;
+  grid-row: 3 / span 2;
+  border-radius: 18px;
+  background:
+    radial-gradient(100% 120% at 22% 0%, rgba(233, 149, 141, 0.38) 0%, rgba(233, 149, 141, 0) 58%),
+    linear-gradient(140deg, #3c3129 0%, var(--hero-deep) 100%);
+  color: #fff8ef;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  box-shadow:
+    0 10px 22px rgba(var(--shadow-rgb), 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.keypad-done:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+
+@keyframes record-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes record-branch-sprout {
+  from {
+    opacity: 0;
+    transform: translateX(var(--sprout-x, 0));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 360px) {
+  .record-pager-center {
+    padding-top: 52px;
+  }
+
+  .record-tree {
+    --branch-gap: 20px;
+    --trunk-width: 20px;
+  }
+
+  .record-leaf {
+    padding: 10px 11px 9px;
+  }
+
+  .record-leaf-main {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+  }
+
+  .record-leaf-name {
+    font-size: 14px;
+  }
+
+  .record-leaf-amount {
+    grid-row: 2;
+    grid-column: 1;
+    font-size: 16px;
+    text-align: left;
+  }
+
+  .record-leaf-meta {
+    grid-row: 3;
+  }
+
+  .record-leaf-toggle {
+    width: 26px;
+    height: 26px;
+  }
+
+  .record-expense-note {
+    max-width: 70px;
+  }
+
+  .record-curtain-body {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .record-pull-handle {
+    width: 42px;
+    height: 42px;
+  }
+
+  .record-pull-ring {
+    width: 42px;
+    height: 42px;
+  }
+
+  .number-keypad {
+    gap: 6px;
+  }
+
+  .keypad-key {
+    border-radius: 14px;
+    font-size: 20px;
+  }
+}
+
+@media (max-height: 620px) {
+  .record-curtain-body {
+    gap: 6px;
+    padding-top: 52px;
+  }
+
+  .record-amount-display {
+    min-height: 52px;
+    padding-top: 2px;
+  }
+
+  .record-amount-value {
+    font-size: 34px;
+  }
+
+  .number-keypad {
+    height: clamp(188px, 36dvh, 240px);
+    gap: 6px;
+  }
 }
