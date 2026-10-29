@@ -156,6 +156,7 @@
       <span>点下面的麦克风，说一句就记上</span>
     </div>
 
+    <!-- 日历入口暂时隐藏，代码保留以便以后恢复
     <Teleport to="body">
       <div
         v-if="showActions"
@@ -198,6 +199,7 @@
         </button>
       </div>
     </Teleport>
+    -->
 
     <MonthPickerSheet
       v-model:show="showMonthPicker"

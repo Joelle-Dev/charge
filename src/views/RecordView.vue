@@ -20,8 +20,8 @@
         <RecordPane />
       </section>
 
-      <section class="record-pager-pane" data-pane="records" aria-label="明细">
-        <ExpenseRecords />
+      <section class="record-pager-pane" data-pane="records" aria-label="历史">
+        <HistoryView embedded :active="activePane === 'records'" />
       </section>
     </div>
 
@@ -37,7 +37,7 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import HomeView from './HomeView.vue';
-import ExpenseRecords from '../components/ExpenseRecords.vue';
+import HistoryView from './HistoryView.vue';
 import RecordPane from '../components/RecordPane.vue';
 import RecordPullHandle from '../components/RecordPullHandle.vue';
 import RecordCurtain from '../components/RecordCurtain.vue';
@@ -205,11 +205,18 @@ function centerPaneAtTop() {
   return (centerPaneRef.value?.scrollTop || 0) <= 1;
 }
 
+function onRecordPane() {
+  const el = pagerRef.value;
+  if (!el) return activePane.value === 'record';
+  const width = el.clientWidth || 1;
+  return Math.round(el.scrollLeft / width) === 1;
+}
+
 function onPointerDown(event) {
   if (event.pointerType === 'touch') return;
   if (event.button !== 0) return;
   if (route.name !== 'record') return;
-  if (activePane.value !== 'record') return;
+  if (!onRecordPane()) return;
   if (tracking || curtainOpen.value) return;
   if (event.target?.closest?.('.record-pull-handle, .van-popup, .van-overlay, .van-dialog')) return;
 
@@ -287,7 +294,7 @@ function onTouchStart(event) {
     return;
   }
   if (route.name !== 'record') return;
-  if (activePane.value !== 'record') return;
+  if (!onRecordPane()) return;
   if (curtainOpen.value || touchTracking) return;
   if (!centerPaneAtTop()) return;
   if (event.target?.closest?.('.record-pull-handle, .van-popup, .van-overlay, .van-dialog')) return;

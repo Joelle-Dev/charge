@@ -9,9 +9,29 @@
         </span>
         <span class="record-summary-title">本月支出</span>
       </div>
-      <strong class="record-month-total">
-        <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
-      </strong>
+      <div class="record-head-side">
+        <div class="record-view-switch" aria-label="记账视图">
+          <button
+            type="button"
+            :class="{ active: recordMode === 'tree' }"
+            :aria-pressed="recordMode === 'tree'"
+            @click="setRecordMode('tree')"
+          >
+            树形
+          </button>
+          <button
+            type="button"
+            :class="{ active: recordMode === 'list' }"
+            :aria-pressed="recordMode === 'list'"
+            @click="setRecordMode('list')"
+          >
+            列表
+          </button>
+        </div>
+        <strong class="record-month-total">
+          <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
+        </strong>
+      </div>
     </header>
 
     <div v-if="loading" class="record-loading">
@@ -19,7 +39,8 @@
       正在看看这个月…
     </div>
 
-    <div v-else-if="leaves.length" class="record-tree">
+    <template v-else-if="expenses.length">
+      <div v-if="recordMode === 'tree'" class="record-tree">
       <div class="record-trunk" aria-hidden="true">
         <svg viewBox="0 0 22 100" preserveAspectRatio="none">
           <defs>
@@ -97,7 +118,43 @@
           </div>
         </div>
       </article>
-    </div>
+      </div>
+
+      <div v-else class="record-list">
+        <div class="expense-list">
+          <div
+            v-for="group in groups"
+            :key="group.key"
+            class="day-group"
+            :data-day="group.key"
+            :class="{ expanded: isExpanded(group.key) }"
+          >
+            <button class="day-head" type="button" @click="toggleDay(group.key)">
+              <span class="day-main">
+                <span class="day-label">{{ group.label }}</span>
+                <span class="day-count">{{ group.items.length }} 笔</span>
+              </span>
+              <span class="day-side">
+                <span class="day-total">¥{{ formatMoney(group.total) }}</span>
+                <svg class="day-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m6 9 6 6 6-6"></path>
+                </svg>
+              </span>
+            </button>
+
+            <div v-if="isExpanded(group.key)" class="day-items">
+              <ExpenseRow
+                v-for="expense in group.items"
+                :key="expense.id"
+                :expense="expense"
+                @edit="editExpense"
+                @delete="deleteExpense"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <div v-else class="record-empty">
       <strong>这个月还没花钱</strong>
@@ -108,26 +165,55 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import ExpenseRow from './ExpenseRow.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
-import { categoryColor, formatMoney, sumAmounts } from '../utils/format';
+import { useRecordsView } from '../composables/useRecordsView';
+import { categoryColor, dayKey, dayLabel, formatMoney, sumAmounts } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { currentMonthKey, monthLabel } from '../utils/months';
 
 const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
 const { removeExpense: removeExpenseAction } = useExpenseActions();
 const record = useRecordEntry();
+const { recordMode } = useRecordsView();
 
 const month = ref(currentMonthKey());
 const monthTitle = computed(() => monthLabel(month.value));
 const expenses = ref([]);
 const loading = ref(true);
 const activeExpenseId = ref(null);
+const expandedKeys = ref(new Set());
 let loadToken = 0;
 
 const total = computed(() => sumAmounts(expenses.value));
 const expenseCount = computed(() => expenses.value.length);
+
+const groups = computed(() => {
+  const map = new Map();
+  for (const expense of expenses.value) {
+    const key = dayKey(new Date(expense.spentAt));
+    if (!map.has(key)) {
+      map.set(key, { key, label: dayLabel(key), total: 0, items: [] });
+    }
+    const group = map.get(key);
+    group.items.push(expense);
+    group.total += Number(expense.amount) || 0;
+  }
+  return [...map.values()];
+});
+
+watch(
+  () => groups.value[0]?.key,
+  (key) => {
+    if (!key || expandedKeys.value.has(key)) return;
+    const next = new Set(expandedKeys.value);
+    next.add(key);
+    expandedKeys.value = next;
+  },
+  { immediate: true }
+);
 
 const leaves = computed(() => {
   if (!expenses.value.length) return [];
@@ -191,6 +277,24 @@ function onDocumentPointerDown(event) {
 function toggleExpenseActions(expense) {
   haptic('light');
   activeExpenseId.value = activeExpenseId.value === expense.id ? null : expense.id;
+}
+
+function setRecordMode(mode) {
+  if (recordMode.value === mode) return;
+  activeExpenseId.value = null;
+  recordMode.value = mode;
+  haptic('light');
+}
+
+function isExpanded(key) {
+  return expandedKeys.value.has(key);
+}
+
+function toggleDay(key) {
+  const next = new Set(expandedKeys.value);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  expandedKeys.value = next;
 }
 
 function editExpense(expense) {

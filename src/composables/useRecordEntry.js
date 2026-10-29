@@ -22,8 +22,10 @@ function openRecord(expense = null, draft = null, options = {}) {
   curtainOpen.value = options.openCurtain !== false;
   curtainPull.value = curtainOpen.value ? 1 : 0;
 
-  if (current.path !== '/') router.push('/');
-  goToPane('record');
+  if (current.path !== '/') {
+    router.push('/');
+    goToPane('record');
+  }
 }
 
 function openCurtain() {

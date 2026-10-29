@@ -57,11 +57,12 @@
     </button>
     <button
       class="keypad-key keypad-done"
+      :class="{ 'is-close': doneClose }"
       type="button"
       :disabled="disabled"
       @click="$emit('done')"
     >
-      完成
+      {{ doneLabel }}
     </button>
 
     <button class="keypad-key keypad-digit keypad-soft" type="button" aria-label="两个零" @click="press('00')">
@@ -81,6 +82,8 @@ import { haptic } from '../utils/haptics';
 
 defineProps({
   dateLabel: { type: String, default: '今天' },
+  doneLabel: { type: String, default: '完成' },
+  doneClose: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false }
 });
 

@@ -1,7 +1,7 @@
 <template>
   <section class="history-page">
     <header class="history-head">
-      <button class="records-back" type="button" aria-label="返回" @click="goBack">
+      <button v-if="!embedded" class="records-back" type="button" aria-label="返回" @click="goBack">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6"></path>
         </svg>
@@ -134,6 +134,10 @@ import { addMonths, monthLabel } from '../utils/months';
 import { haptic } from '../utils/haptics';
 
 const router = useRouter();
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+  active: { type: Boolean, default: true }
+});
 const { ready, dataVersion } = useLedger();
 const today = toDateInput(new Date());
 
@@ -391,8 +395,9 @@ const selection = computed(() => {
 });
 
 watch(
-  [ready, dataVersion],
+  [ready, dataVersion, () => props.active],
   async () => {
+    if (props.embedded && !props.active) return;
     if (!ready.value) {
       loading.value = true;
       return;

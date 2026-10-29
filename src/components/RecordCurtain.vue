@@ -79,14 +79,16 @@
 
       <NumberKeypad
         :date-label="dateLabel"
-        :disabled="!canSave || saving"
+        :done-label="doneLabel"
+        :done-close="closeMode"
+        :disabled="doneDisabled"
         @digit="onDigit"
         @decimal="onDecimal"
         @double-zero="onDoubleZero"
         @backspace="onBackspace"
         @clear="onClear"
         @date="openDatePicker"
-        @done="save"
+        @done="handleDone"
       />
     </div>
 
@@ -188,6 +190,9 @@ const categoryOptions = computed(() => {
 
 const amountDisplay = computed(() => formatAmountInput(amount.value));
 const canSave = computed(() => isValidAmount(amount.value) && Boolean(selectedCategory.value));
+const closeMode = computed(() => !amount.value.trim() && !editingExpense.value);
+const doneLabel = computed(() => (closeMode.value ? '收起' : '完成'));
+const doneDisabled = computed(() => saving.value || (!closeMode.value && !canSave.value));
 
 const dateLabel = computed(() => {
   const today = toDateInput(new Date());
@@ -329,6 +334,15 @@ function confirmDate() {
   date.value = `${year}-${pad2(month)}-${pad2(day)}`;
   showDatePicker.value = false;
   haptic('light');
+}
+
+function handleDone() {
+  if (closeMode.value) {
+    haptic('light');
+    resetRecord();
+    return;
+  }
+  save();
 }
 
 async function save() {
