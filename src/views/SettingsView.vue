@@ -254,6 +254,7 @@ function goHome() {
 function onImported() {
   showImport.value = false;
   loadMeta();
+  router.push('/');
 }
 
 function openYearSummary() {

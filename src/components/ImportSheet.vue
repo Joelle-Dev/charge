@@ -4,16 +4,19 @@
       支持完整备份（换机）和支出 CSV。导入前会先预览，确认后才会写入账本。
     </p>
 
-    <input
-      ref="fileInput"
-      type="file"
-      accept=".scbackup,.csv,text/csv"
-      hidden
-      @change="onFileChange"
+    <label
+      class="secondary-btn import-pick"
+      :class="{ 'is-disabled': parsing || busy || exportingCurrent }"
     >
-    <button class="secondary-btn import-pick" type="button" :disabled="parsing || busy || exportingCurrent" @click="fileInput?.click()">
       {{ preview ? '重新选择文件' : '选择备份或 CSV 文件' }}
-    </button>
+      <input
+        ref="fileInput"
+        class="import-file-input"
+        type="file"
+        :disabled="parsing || busy || exportingCurrent"
+        @change="onFileChange"
+      >
+    </label>
 
     <p v-if="error" class="form-error import-error">{{ error }}</p>
     <p v-if="parsing" class="import-hint">正在解析文件，请稍候…</p>
@@ -157,7 +160,7 @@ import {
   parseCsvFile,
   saveBlob
 } from '../lib/dataClient';
-import { BACKUP_MAX_SIZE, isBackupFile } from '../lib/backupFormat';
+import { BACKUP_MAX_SIZE, isBackupFile, isBackupManifest } from '../lib/backupFormat';
 import { formatMoney } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
@@ -340,6 +343,32 @@ async function parseBackupPreview(file, token) {
   }
 }
 
+async function detectFileKind(file, extension) {
+  if (isBackupFile(file.name)) return 'backup';
+
+  let head = '';
+  try {
+    head = await file.slice(0, 8192).text();
+  } catch (err) {
+    return 'unknown';
+  }
+
+  const firstLine = head.split(/\r?\n/)[0]?.trim().replace(/^\uFEFF/, '');
+  if (firstLine) {
+    try {
+      const parsed = JSON.parse(firstLine);
+      if (isBackupManifest(parsed)) return 'backup';
+    } catch (err) {
+      // Not a backup manifest.
+    }
+  }
+
+  if (extension === 'csv') return 'csv';
+  if (head.includes('日期') && head.includes('金额')) return 'csv';
+  if (extension === 'json') return 'json';
+  return 'unknown';
+}
+
 async function onFileChange(event) {
   const file = event.target.files?.[0];
   event.target.value = '';
@@ -352,22 +381,34 @@ async function onFileChange(event) {
   clearParsedCsv();
   clearPendingBackup();
 
-  if (isBackupFile(file.name)) {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  const kind = await detectFileKind(file, extension);
+  if (token !== parseToken) return;
+
+  if (kind === 'backup') {
+    if (file.size > BACKUP_MAX_SIZE) {
+      error.value = '备份文件过大';
+      return;
+    }
     await parseBackupPreview(file, token);
     return;
   }
 
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  if (extension === 'json') {
-    error.value = '只支持 .scbackup 完整备份或 CSV 文件';
-    return;
-  }
-  if (file.size > MAX_CSV_SIZE) {
-    error.value = '文件超过 50MB，请拆分后再导入';
+  if (kind === 'csv') {
+    if (file.size > MAX_CSV_SIZE) {
+      error.value = '文件超过 50MB，请拆分后再导入';
+      return;
+    }
+    await parseCsvPreview(file, token);
     return;
   }
 
-  await parseCsvPreview(file, token);
+  if (kind === 'json') {
+    error.value = '完整备份请使用 .scbackup 文件';
+    return;
+  }
+
+  error.value = '无法识别文件，请选择完整备份或 CSV 文件';
 }
 
 async function exportCurrentBackup() {

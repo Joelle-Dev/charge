@@ -2249,8 +2249,27 @@ input[type='search']::-webkit-search-decoration {
   font-size: 11px;
 }
 
+.import-file-input {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .import-pick {
+  display: grid;
+  place-items: center;
   width: 100%;
+  cursor: pointer;
+  text-align: center;
+}
+
+.import-pick.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .import-preview {
