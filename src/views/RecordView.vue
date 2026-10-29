@@ -76,11 +76,17 @@ let touchPulling = false;
 let suppressClick = false;
 let suppressTimer = null;
 let scrollFrame = 0;
+let wheelLocked = false;
+let wheelAccum = 0;
+let wheelTimer = null;
+let pagerEl = null;
 
 onMounted(() => {
   window.scrollTo({ top: 0 });
   activePane.value = 'record';
   nextTick(() => scrollToPane('record', 'auto'));
+  pagerEl = pagerRef.value;
+  pagerEl?.addEventListener('wheel', onPagerWheel, { passive: false });
   document.addEventListener('pointerdown', onPointerDown, true);
   document.addEventListener('click', onClickCapture, true);
   document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
@@ -90,6 +96,9 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  pagerEl?.removeEventListener('wheel', onPagerWheel);
+  pagerEl = null;
+  clearTimeout(wheelTimer);
   document.removeEventListener('pointerdown', onPointerDown, true);
   document.removeEventListener('click', onClickCapture, true);
   document.removeEventListener('touchstart', onTouchStart, { capture: true });
@@ -113,6 +122,40 @@ function scrollToPane(pane, behavior = 'smooth') {
   if (index < 0) return;
   const width = el.clientWidth || window.innerWidth;
   el.scrollTo({ left: width * index, behavior });
+}
+
+function onPagerWheel(event) {
+  if (curtainOpen.value) return;
+  if (event.target?.closest?.('.van-popup, .van-overlay, .van-dialog')) return;
+  if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+
+  event.preventDefault();
+  if (wheelLocked) {
+    scheduleWheelUnlock();
+    return;
+  }
+
+  wheelAccum += event.deltaX;
+  if (Math.abs(wheelAccum) < 24) {
+    scheduleWheelUnlock();
+    return;
+  }
+
+  const currentIndex = LEDGER_PANES.indexOf(activePane.value);
+  const direction = wheelAccum > 0 ? 1 : -1;
+  const nextIndex = Math.max(0, Math.min(LEDGER_PANES.length - 1, currentIndex + direction));
+  wheelAccum = 0;
+  wheelLocked = true;
+  if (nextIndex !== currentIndex) scrollToPane(LEDGER_PANES[nextIndex]);
+  scheduleWheelUnlock();
+}
+
+function scheduleWheelUnlock() {
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => {
+    wheelLocked = false;
+    wheelAccum = 0;
+  }, 240);
 }
 
 function onPagerScroll() {

@@ -2,21 +2,16 @@
   <section class="record-pane">
     <header class="record-pane-head">
       <div class="record-summary-main">
-        <span class="record-eyebrow">
-          <svg class="record-eyebrow-leaf" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4.5 15.5C10 15 15 10 15.5 4.5 10 5 5 10 4.5 15.5Z"></path>
-            <path d="M5.5 14.5c2.8-2.8 5.5-4.6 8.5-6"></path>
-          </svg>
-          {{ monthTitle }}
+        <span class="record-summary-meta">
+          <span class="record-eyebrow">{{ monthTitle }}</span>
+          <span v-if="expenseCount" class="record-summary-dot" aria-hidden="true">·</span>
+          <span v-if="expenseCount" class="record-summary-count">{{ expenseCount }} 笔</span>
         </span>
-        <span class="record-summary-title">支出</span>
+        <span class="record-summary-title">本月支出</span>
       </div>
-      <div class="record-summary-side">
-        <span v-if="expenseCount" class="record-summary-count">{{ expenseCount }} 笔</span>
-        <strong class="record-month-total">
-          <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
-        </strong>
-      </div>
+      <strong class="record-month-total">
+        <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
+      </strong>
     </header>
 
     <div v-if="loading" class="record-loading">

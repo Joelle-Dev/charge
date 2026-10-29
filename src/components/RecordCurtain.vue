@@ -4,6 +4,7 @@
     class="record-curtain"
     :class="{ 'is-dragging': curtainDragging, 'is-open': curtainOpen }"
     :style="panelStyle"
+    @pointerdown="onCurtainPointerDown"
   >
     <div class="record-curtain-body" :inert="!curtainOpen">
       <header class="record-curtain-head">
@@ -135,7 +136,7 @@ import {
   toDateInput,
   toTimeInput
 } from '../utils/format';
-import { curtainVisibleHeight } from '../utils/pullGesture';
+import { curtainVisibleHeight, shouldOpenCurtain } from '../utils/pullGesture';
 import { haptic } from '../utils/haptics';
 
 const LAST_CATEGORY_KEY = 'shoucai:last-category';
@@ -150,6 +151,9 @@ const {
   recordSession,
   returnTo,
   closeCurtain,
+  beginCurtainPull,
+  updateCurtainPull,
+  endCurtainPull,
   resetRecord
 } = useRecordEntry();
 const { categories, currentStage, todayStats, addExpense, updateExpense } = useLedger();
@@ -169,6 +173,11 @@ const minDate = new Date(2000, 0, 1);
 const maxDate = new Date(2100, 11, 31);
 
 let previousOverflow = '';
+let closePointerId = null;
+let closeStartY = 0;
+let closeStartTime = 0;
+let closeTracking = false;
+let closePulling = false;
 
 const categoryOptions = computed(() => {
   if (!selectedCategory.value || categories.value.includes(selectedCategory.value)) {
@@ -267,6 +276,7 @@ watch(curtainOpen, (open) => {
 
 onUnmounted(() => {
   document.body.style.overflow = previousOverflow;
+  stopCurtainDrag();
   window.removeEventListener('keydown', onKeydown);
   window.removeEventListener('resize', measurePanel);
 });
@@ -385,6 +395,73 @@ async function removeCurrent() {
   closeCurtain();
   resetRecord();
   if (backPath) router.back();
+}
+
+function isInteractiveTarget(target) {
+  return Boolean(target?.closest?.('button, input, textarea, select, a, .record-category-strip, .number-keypad, .record-note-field, .van-popup'));
+}
+
+function onCurtainPointerDown(event) {
+  if (!curtainOpen.value || showDatePicker.value) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+  if (!event.isPrimary) return;
+  if (isInteractiveTarget(event.target)) return;
+
+  closePointerId = event.pointerId;
+  closeStartY = event.clientY;
+  closeStartTime = performance.now();
+  closeTracking = true;
+  closePulling = false;
+
+  window.addEventListener('pointermove', onCurtainPointerMove);
+  window.addEventListener('pointerup', onCurtainPointerUp);
+  window.addEventListener('pointercancel', onCurtainPointerCancel);
+}
+
+function onCurtainPointerMove(event) {
+  if (!closeTracking || event.pointerId !== closePointerId) return;
+  const delta = event.clientY - closeStartY;
+
+  if (!closePulling) {
+    if (delta > -6) return;
+    closePulling = true;
+    beginCurtainPull();
+  }
+
+  const progress = 1 + delta / (window.innerHeight * 0.55);
+  updateCurtainPull(progress);
+  if (event.cancelable) event.preventDefault();
+}
+
+function onCurtainPointerUp(event) {
+  if (!closeTracking || event.pointerId !== closePointerId) return;
+
+  if (closePulling) {
+    const duration = Math.max(1, performance.now() - closeStartTime);
+    const velocity = (curtainPull.value - 1) / duration;
+    endCurtainPull(shouldOpenCurtain(curtainPull.value, velocity, true));
+    haptic('light');
+  }
+
+  stopCurtainDrag();
+}
+
+function onCurtainPointerCancel(event) {
+  if (!closeTracking || event.pointerId !== closePointerId) return;
+  if (closePulling) {
+    const velocity = (curtainPull.value - 1) / Math.max(1, performance.now() - closeStartTime);
+    endCurtainPull(shouldOpenCurtain(curtainPull.value, velocity, true));
+  }
+  stopCurtainDrag();
+}
+
+function stopCurtainDrag() {
+  closeTracking = false;
+  closePulling = false;
+  closePointerId = null;
+  window.removeEventListener('pointermove', onCurtainPointerMove);
+  window.removeEventListener('pointerup', onCurtainPointerUp);
+  window.removeEventListener('pointercancel', onCurtainPointerCancel);
 }
 
 function onKeydown(event) {
