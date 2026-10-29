@@ -3711,15 +3711,60 @@ input[type='search']::-webkit-search-decoration {
   line-height: 1;
 }
 
-.record-eyebrow {
+.record-month-nav {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 1px;
+  min-width: 0;
+}
+
+.record-month-arrow {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.record-month-arrow:active {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.record-month-arrow svg {
+  width: 13px;
+  height: 13px;
+}
+
+.record-month-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 22px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
   color: var(--muted);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.04em;
-  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.record-month-label svg {
+  width: 12px;
+  height: 12px;
+  color: var(--placeholder);
+}
+
+.record-month-label:active {
+  color: var(--accent-strong);
 }
 
 .record-summary-title {
@@ -3741,11 +3786,10 @@ input[type='search']::-webkit-search-decoration {
   white-space: nowrap;
 }
 
-.record-head-side {
+.record-view-row {
   display: flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
+  margin: -6px 0;
 }
 
 .record-view-switch {

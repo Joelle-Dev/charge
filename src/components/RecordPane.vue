@@ -3,36 +3,54 @@
     <header class="record-pane-head">
       <div class="record-summary-main">
         <span class="record-summary-meta">
-          <span class="record-eyebrow">{{ monthTitle }}</span>
+          <span class="record-month-nav">
+            <button class="record-month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6"></path>
+              </svg>
+            </button>
+            <button class="record-month-label" type="button" @click="showMonthPicker = true">
+              {{ monthTitle }}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m6 9 6 6 6-6"></path>
+              </svg>
+            </button>
+            <button class="record-month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6"></path>
+              </svg>
+            </button>
+          </span>
           <span v-if="expenseCount" class="record-summary-dot" aria-hidden="true">·</span>
           <span v-if="expenseCount" class="record-summary-count">{{ expenseCount }} 笔</span>
         </span>
-        <span class="record-summary-title">本月支出</span>
+        <span class="record-summary-title">{{ isCurrentMonth ? '本月支出' : '月度支出' }}</span>
       </div>
-      <div class="record-head-side">
-        <div class="record-view-switch" aria-label="记账视图">
-          <button
-            type="button"
-            :class="{ active: recordMode === 'tree' }"
-            :aria-pressed="recordMode === 'tree'"
-            @click="setRecordMode('tree')"
-          >
-            树形
-          </button>
-          <button
-            type="button"
-            :class="{ active: recordMode === 'list' }"
-            :aria-pressed="recordMode === 'list'"
-            @click="setRecordMode('list')"
-          >
-            列表
-          </button>
-        </div>
-        <strong class="record-month-total">
-          <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
-        </strong>
-      </div>
+      <strong class="record-month-total">
+        <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
+      </strong>
     </header>
+
+    <div class="record-view-row">
+      <div class="record-view-switch" aria-label="记账视图">
+        <button
+          type="button"
+          :class="{ active: recordMode === 'tree' }"
+          :aria-pressed="recordMode === 'tree'"
+          @click="setRecordMode('tree')"
+        >
+          树形
+        </button>
+        <button
+          type="button"
+          :class="{ active: recordMode === 'list' }"
+          :aria-pressed="recordMode === 'list'"
+          @click="setRecordMode('list')"
+        >
+          列表
+        </button>
+      </div>
+    </div>
 
     <div v-if="loading" class="record-loading">
       <span class="loading-dot"></span>
@@ -160,27 +178,40 @@
       <strong>这个月还没花钱</strong>
       <span>果冻在等第一笔</span>
     </div>
+
+    <MonthPickerSheet
+      v-model:show="showMonthPicker"
+      :selected-month="month"
+      @select="selectMonth"
+    />
   </section>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import ExpenseRow from './ExpenseRow.vue';
+import MonthPickerSheet from './MonthPickerSheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
 import { categoryColor, dayKey, dayLabel, formatMoney, sumAmounts } from '../utils/format';
 import { haptic } from '../utils/haptics';
-import { currentMonthKey, monthLabel } from '../utils/months';
+import { addMonths, currentMonthKey, monthLabel, shortMonthLabel } from '../utils/months';
 
 const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
 const { removeExpense: removeExpenseAction } = useExpenseActions();
 const record = useRecordEntry();
-const { recordMode } = useRecordsView();
+const { recordMode, recordMonth } = useRecordsView();
 
-const month = ref(currentMonthKey());
-const monthTitle = computed(() => monthLabel(month.value));
+const month = ref(recordMonth.value || currentMonthKey());
+const monthTitle = computed(() => (
+  month.value.slice(0, 4) === String(new Date().getFullYear())
+    ? shortMonthLabel(month.value)
+    : monthLabel(month.value)
+));
+const isCurrentMonth = computed(() => month.value === currentMonthKey());
+const showMonthPicker = ref(false);
 const expenses = ref([]);
 const loading = ref(true);
 const activeExpenseId = ref(null);
@@ -244,7 +275,6 @@ async function loadMonth() {
   }
 
   loading.value = true;
-  month.value = currentMonthKey();
   try {
     const items = await loadMonthExpenses(stage.id, month.value);
     if (token !== loadToken) return;
@@ -255,9 +285,23 @@ async function loadMonth() {
 }
 
 watch(
-  [ready, dataVersion, () => currentStage.value?.id],
+  [ready, dataVersion, () => currentStage.value?.id, month],
   loadMonth,
   { immediate: true }
+);
+
+watch(month, (value) => {
+  recordMonth.value = value;
+  activeExpenseId.value = null;
+  expandedKeys.value = new Set();
+});
+
+watch(
+  () => currentStage.value?.id,
+  (id, previous) => {
+    if (!id || id === previous) return;
+    month.value = currentMonthKey();
+  }
 );
 
 onMounted(() => {
@@ -283,6 +327,18 @@ function setRecordMode(mode) {
   if (recordMode.value === mode) return;
   activeExpenseId.value = null;
   recordMode.value = mode;
+  haptic('light');
+}
+
+function shiftMonth(delta) {
+  month.value = addMonths(month.value, delta);
+  haptic('light');
+}
+
+function selectMonth(next) {
+  showMonthPicker.value = false;
+  if (next === month.value) return;
+  month.value = next;
   haptic('light');
 }
 
