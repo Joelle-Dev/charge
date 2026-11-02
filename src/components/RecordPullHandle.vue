@@ -4,7 +4,6 @@
     :class="{
       'is-open': curtainOpen,
       'is-dragging': curtainDragging,
-      'is-hidden': hidden,
       'is-arrow-up': arrowUp
     }"
     type="button"
@@ -40,17 +39,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted } from 'vue';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { shouldOpenCurtain } from '../utils/pullGesture';
 import { haptic } from '../utils/haptics';
 
-const props = defineProps({
-  scrollTop: { type: Number, default: 0 }
-});
-
-const RING_RADIUS = 19;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 const CLICK_SUPPRESS_MS = 360;
 
 const {
@@ -63,7 +56,6 @@ const {
   toggleCurtain
 } = useRecordEntry();
 
-const hidden = ref(false);
 let startY = 0;
 let startProgress = 0;
 let startTime = 0;
@@ -77,22 +69,12 @@ const progress = computed(() => {
   return curtainOpen.value ? 1 : 0;
 });
 
+const RING_RADIUS = 19;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 const ringLength = RING_CIRCUMFERENCE;
 const ringOffset = computed(() => String(RING_CIRCUMFERENCE * (1 - progress.value)));
+
 const arrowUp = computed(() => curtainOpen.value || progress.value > 0.5);
-
-function updateVisibility() {
-  hidden.value = !curtainOpen.value && props.scrollTop > 8;
-}
-
-watch(
-  [curtainOpen, () => props.scrollTop],
-  updateVisibility
-);
-
-onMounted(() => {
-  updateVisibility();
-});
 
 onUnmounted(() => {
   removeDragListeners();

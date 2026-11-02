@@ -1,6 +1,6 @@
 <template>
-  <SheetFrame v-model:show="show" title="分类">
-    <p class="sheet-intro">分类用于汇总和语音识别。点分类名称可以改名，自定义名称也会作为识别关键词。</p>
+  <SheetFrame v-model:show="show" title="钱钱分类">
+    <p class="sheet-intro">分类用来汇总和听懂你的话。点名字可以改，自定义的名字也会被果冻记住。</p>
 
     <div class="category-manage">
       <span
@@ -36,7 +36,7 @@
         class="input"
         type="text"
         maxlength="10"
-        :placeholder="editing ? '修改分类名称' : '新分类，比如：宠物'"
+        :placeholder="editing ? '给分类改个名字' : '新分类，比如：猫粮'"
         @keydown.enter.prevent="submit"
       >
       <button v-if="editing" class="secondary-btn" type="button" @click="cancelEdit">取消</button>
@@ -45,7 +45,7 @@
       </button>
     </div>
 
-    <p class="sheet-note">最多 20 个分类，「其他」为默认分类，不能改名或删除。</p>
+    <p class="sheet-note">最多 20 个分类，「其他」是果冻的默认分类，不能改名或删掉。</p>
   </SheetFrame>
 </template>
 
@@ -92,57 +92,57 @@ async function submit() {
     if (isCategoryUsed(editing.value)) {
       try {
         await showConfirmDialog({
-          title: '修改分类',
-          message: `已有支出使用「${editing.value}」，改名后这些记录会一起更新。继续？`,
-          confirmButtonText: '继续改名'
+          title: '给分类改名',
+          message: `已经有支出用着「${editing.value}」啦，改名后这些记录会一起变，继续吗？`,
+          confirmButtonText: '一起改吧'
         });
       } catch (err) {
         return;
       }
     }
-    showLoadingToast({ message: '正在更新分类…', forbidClick: true, duration: 0 });
+    showLoadingToast({ message: '果冻在改分类…', forbidClick: true, duration: 0 });
     try {
       await renameCategory(editing.value, name);
       closeToast();
       haptic('success');
-      showToast(`已改名为「${name}」`);
+      showToast(`改好啦，现在叫「${name}」`);
       cancelEdit();
     } catch (err) {
       closeToast();
-      showToast(err?.message || '改名失败');
+      showToast(err?.message || '改名失败啦，再试一次吧');
     }
     return;
   }
 
   if (categories.value.includes(name)) {
-    showToast('这个分类已经有了');
+    showToast('这个分类已经有啦');
     return;
   }
   if (categories.value.length >= 20) {
-    showToast('分类最多 20 个');
+    showToast('分类最多只能有 20 个哦');
     return;
   }
   await setCategories([...categories.value, name]);
   draft.value = '';
   haptic('light');
-  showToast(`已添加「${name}」`);
+  showToast(`「${name}」加进来啦`);
 }
 
 async function removeCategory(category) {
   if (category === DEFAULT_CATEGORY) {
-    showToast('「其他」是默认分类，不能删除');
+    showToast('「其他」是果冻的默认分类，不能删哦');
     return;
   }
   if (categories.value.length <= 1) {
-    showToast('至少保留一个分类');
+    showToast('至少要给果冻留一个分类嘛');
     return;
   }
   if (isCategoryUsed(category)) {
     try {
       await showConfirmDialog({
-        title: '删除分类',
-        message: `已有支出使用「${category}」，删除分类后历史记录仍会保留这个名称。继续？`,
-        confirmButtonText: '继续删除',
+        title: '删掉这个分类',
+        message: `已经有支出用着「${category}」啦，删掉后旧记录还会保留这个名字，继续吗？`,
+        confirmButtonText: '删掉吧',
         confirmButtonColor: DANGER_COLOR
       });
     } catch (err) {
@@ -152,6 +152,6 @@ async function removeCategory(category) {
   await setCategories(categories.value.filter((item) => item !== category));
   if (editing.value === category) cancelEdit();
   haptic('light');
-  showToast(`已删除「${category}」`);
+  showToast(`「${category}」删掉啦`);
 }
 </script>

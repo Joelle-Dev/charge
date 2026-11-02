@@ -1,9 +1,11 @@
 <template>
   <section class="record-pane">
     <header class="record-pane-head">
-      <div class="record-summary-main">
-        <span class="record-summary-meta">
-          <span class="record-month-nav">
+      <img class="record-pane-cat" :src="catAvatar" alt="" aria-hidden="true">
+      <div class="record-pane-card">
+        <RecordPullHandle />
+        <div class="record-pane-meta">
+          <div class="record-month-nav">
             <button class="record-month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="m15 18-6-6 6-6"></path>
@@ -20,45 +22,24 @@
                 <path d="m9 18 6-6-6-6"></path>
               </svg>
             </button>
-          </span>
-          <span v-if="expenseCount" class="record-summary-dot" aria-hidden="true">·</span>
-          <span v-if="expenseCount" class="record-summary-count">{{ expenseCount }} 笔</span>
-        </span>
-        <span class="record-summary-title">{{ isCurrentMonth ? '本月支出' : '月度支出' }}</span>
+          </div>
+          <span class="record-meta-dot" aria-hidden="true"></span>
+          <div class="record-head-total">
+            <span class="record-total-label">花了</span>
+            <strong class="record-month-total">
+              <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
+            </strong>
+          </div>
+        </div>
       </div>
-      <strong class="record-month-total">
-        <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
-      </strong>
     </header>
-
-    <div class="record-view-row">
-      <div class="record-view-switch" aria-label="记账视图">
-        <button
-          type="button"
-          :class="{ active: recordMode === 'tree' }"
-          :aria-pressed="recordMode === 'tree'"
-          @click="setRecordMode('tree')"
-        >
-          树形
-        </button>
-        <button
-          type="button"
-          :class="{ active: recordMode === 'list' }"
-          :aria-pressed="recordMode === 'list'"
-          @click="setRecordMode('list')"
-        >
-          列表
-        </button>
-      </div>
-    </div>
 
     <div v-if="loading" class="record-loading">
       <span class="loading-dot"></span>
-      正在看看这个月…
+      果冻在翻这个月的小账本…
     </div>
 
-    <template v-else-if="expenses.length">
-      <div v-if="recordMode === 'tree'" class="record-tree">
+    <div v-else-if="expenses.length" class="record-tree">
       <div class="record-trunk" aria-hidden="true">
         <svg viewBox="0 0 22 100" preserveAspectRatio="none">
           <defs>
@@ -72,110 +53,76 @@
         <span class="record-trunk-root"></span>
       </div>
 
-      <article
-        v-for="(expense, index) in leaves"
-        :key="expense.id"
-        class="record-branch"
-        :class="[
-          index % 2 === 0 ? 'is-left' : 'is-right',
-          { active: activeExpenseId === expense.id }
-        ]"
-        :style="{
-          '--swatch': expense.color,
-          '--branch-width': expense.branchWidth,
-          '--branch-delay': `${Math.min(index, 8) * 35}ms`
-        }"
-      >
-        <svg class="record-branch-arm" viewBox="0 0 26 34" preserveAspectRatio="none" aria-hidden="true">
-          <path :d="index % 2 === 0 ? 'M26 34 C 20 34, 16 16, 0 16' : 'M0 34 C 6 34, 10 16, 26 16'"></path>
-        </svg>
-
-        <div class="record-leaf">
+        <section
+          v-for="(day, dayIndex) in treeDays"
+          :key="day.key"
+          class="record-day"
+        >
           <button
-            class="record-leaf-main"
+            class="record-day-head"
             type="button"
-            :aria-expanded="activeExpenseId === expense.id"
-            :aria-label="`${expense.category}，${expenseDate(expense)}${expense.noteText ? `，${expense.noteText}` : ''}，¥${formatMoney(expense.amount)}`"
-            @click="toggleExpenseActions(expense)"
+            :aria-label="`${day.label}，${day.items.length} 笔，合计 ¥${formatMoney(day.total)}，消费热度 ${day.heat} 级`"
+            :aria-expanded="!isDayCollapsed(day.key)"
+            @click="toggleTreeDay(day.key)"
           >
-            <span class="record-leaf-top">
-              <span class="record-leaf-content">
-                <span class="record-leaf-category">{{ expense.category }}</span>
-                <span class="record-expense-date">{{ expenseDate(expense) }}</span>
-              </span>
-              <span class="record-leaf-amount">¥{{ formatMoney(expense.amount) }}</span>
-            </span>
-            <span v-if="expense.noteText" class="record-leaf-note" :title="expense.noteText">{{ expense.noteText }}</span>
+            <span class="record-day-dot" :class="`heat-${day.heat}`" aria-hidden="true"></span>
+            <span class="record-day-label">{{ day.label }}</span>
+            <span class="record-day-meta">¥{{ formatMoney(day.total) }}</span>
+            <svg
+              class="record-day-chevron"
+              :class="{ collapsed: isDayCollapsed(day.key) }"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
           </button>
 
-          <div v-if="activeExpenseId === expense.id" class="record-expense-actions">
-            <button
-              class="expense-action expense-action-edit"
-              type="button"
-              aria-label="编辑这笔支出"
-              @click="editExpense(expense)"
+          <div v-if="!isDayCollapsed(day.key)" class="record-day-leaves">
+            <article
+              v-for="(expense, index) in day.leaves"
+              :key="expense.id"
+              class="record-branch"
+              :style="{
+                '--swatch': expense.color,
+                '--branch-width': expense.branchWidth,
+                '--branch-delay': `${Math.min(dayIndex * 3 + index, 12) * 35}ms`
+              }"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 20h9"></path>
-                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+              <svg class="record-branch-arm" viewBox="0 0 20 18" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M0 1 C 0 11, 4 16, 20 16"></path>
               </svg>
-            </button>
-            <button
-              class="expense-action expense-action-delete"
-              type="button"
-              aria-label="删除这笔支出"
-              @click="deleteExpense(expense)"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M4 7h16"></path>
-                <path d="M9 7V5h6v2"></path>
-                <path d="M7 7l1 12h8l1-12"></path>
-                <path d="M10 11v4M14 11v4"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </article>
-      </div>
 
-      <div v-else class="record-list">
-        <div class="expense-list">
-          <div
-            v-for="group in groups"
-            :key="group.key"
-            class="day-group"
-            :data-day="group.key"
-            :class="{ expanded: isExpanded(group.key) }"
-          >
-            <button class="day-head" type="button" @click="toggleDay(group.key)">
-              <span class="day-main">
-                <span class="day-label">{{ group.label }}</span>
-                <span class="day-count">{{ group.items.length }} 笔</span>
-              </span>
-              <span class="day-side">
-                <span class="day-total">¥{{ formatMoney(group.total) }}</span>
-                <svg class="day-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="m6 9 6 6 6-6"></path>
-                </svg>
-              </span>
-            </button>
-
-            <div v-if="isExpanded(group.key)" class="day-items">
-              <ExpenseRow
-                v-for="expense in group.items"
-                :key="expense.id"
-                :expense="expense"
-                @edit="editExpense"
-                @delete="deleteExpense"
-              />
-            </div>
+              <div class="record-branch-main">
+                <RecordLeaf
+                  :expense="expense"
+                  @select="openDaily"
+                />
+                <button
+                  class="record-leaf-more"
+                  type="button"
+                  :aria-label="`更多操作：${expense.noteText || expense.category}`"
+                  @click.stop="openRowMenu(expense)"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                    <circle cx="5" cy="12" r="1.6"></circle>
+                    <circle cx="12" cy="12" r="1.6"></circle>
+                    <circle cx="19" cy="12" r="1.6"></circle>
+                  </svg>
+                </button>
+              </div>
+            </article>
           </div>
-        </div>
-      </div>
-    </template>
+        </section>
+    </div>
 
     <div v-else class="record-empty">
-      <strong>这个月还没花钱</strong>
+      <strong>这个月果冻还没花钱</strong>
       <span>果冻在等第一笔</span>
     </div>
 
@@ -184,25 +131,110 @@
       :selected-month="month"
       @select="selectMonth"
     />
+
+    <ExpenseActionSheets ref="rowActionsRef" />
+
+    <Teleport to="body">
+      <div v-if="dailyDate" class="daily-page">
+        <header class="daily-page-head">
+          <button class="daily-page-back" type="button" aria-label="返回月视图" @click="closeDaily">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M19 12H5"></path>
+              <path d="m12 19-7-7 7-7"></path>
+            </svg>
+          </button>
+          <h1>果冻的每日账单</h1>
+          <span class="daily-page-spacer" aria-hidden="true"></span>
+        </header>
+
+        <div class="daily-page-body">
+          <section class="daily-date-card">
+            <button class="daily-date-arrow" type="button" aria-label="前一天" @click="shiftDaily(-1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6"></path>
+              </svg>
+            </button>
+            <div class="daily-date-main">
+              <span class="daily-date-relative">
+                <span v-if="dailyRelative" class="daily-date-relative-pill">{{ dailyRelative }}</span>
+                <span>{{ dailyWeekday }}</span>
+              </span>
+              <strong class="daily-date-day">{{ dailyDayNumber }}</strong>
+              <span class="daily-date-ym">{{ dailyYearMonth }}</span>
+            </div>
+            <button class="daily-date-arrow" type="button" aria-label="后一天" @click="shiftDaily(1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6"></path>
+              </svg>
+            </button>
+          </section>
+
+          <section class="daily-summary">
+            <span class="daily-summary-label">这天花了</span>
+            <strong class="daily-summary-total">¥{{ formatMoney(dailyTotal) }}</strong>
+            <span class="daily-summary-count">{{ dailyExpenses.length }} 笔</span>
+          </section>
+
+          <div v-if="dailyLoading" class="record-loading">
+            <span class="loading-dot"></span>
+            果冻在翻这一天的账本…
+          </div>
+
+          <div v-else-if="dailyExpenses.length" class="daily-list">
+            <div
+              v-for="expense in dailyExpenses"
+              :key="expense.id"
+              class="expense-row"
+            >
+              <ExpenseItem
+                :expense="expense"
+                @select="editExpense"
+              />
+              <button
+                class="expense-more"
+                type="button"
+                :aria-label="`更多操作：${expense.note || expense.category}`"
+                @click.stop="openRowMenu(expense)"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                  <circle cx="5" cy="12" r="1.6"></circle>
+                  <circle cx="12" cy="12" r="1.6"></circle>
+                  <circle cx="19" cy="12" r="1.6"></circle>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="record-empty">
+            <strong>果冻这天没花钱</strong>
+            <span>换一天看看嘛</span>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import ExpenseRow from './ExpenseRow.vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { showToast } from 'vant';
+import ExpenseActionSheets from './ExpenseActionSheets.vue';
+import ExpenseItem from './ExpenseItem.vue';
 import MonthPickerSheet from './MonthPickerSheet.vue';
-import { useExpenseActions } from '../composables/useExpenseActions';
+import RecordLeaf from './RecordLeaf.vue';
+import RecordPullHandle from './RecordPullHandle.vue';
+import catAvatar from '../assets/cat-avatar.png';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
-import { categoryColor, dayKey, dayLabel, formatMoney, sumAmounts } from '../utils/format';
+import { categoryColor, dayKey, formatMoney, sumAmounts, toDateInput } from '../utils/format';
+import { groupExpensesByDay } from '../utils/expenses';
 import { haptic } from '../utils/haptics';
 import { addMonths, currentMonthKey, monthLabel, shortMonthLabel } from '../utils/months';
 
 const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
-const { removeExpense: removeExpenseAction } = useExpenseActions();
 const record = useRecordEntry();
-const { recordMode, recordMonth } = useRecordsView();
+const { recordMonth, dailyOpen } = useRecordsView();
 
 const month = ref(recordMonth.value || currentMonthKey());
 const monthTitle = computed(() => (
@@ -210,55 +242,109 @@ const monthTitle = computed(() => (
     ? shortMonthLabel(month.value)
     : monthLabel(month.value)
 ));
-const isCurrentMonth = computed(() => month.value === currentMonthKey());
 const showMonthPicker = ref(false);
+const rowActionsRef = ref(null);
 const expenses = ref([]);
 const loading = ref(true);
-const activeExpenseId = ref(null);
-const expandedKeys = ref(new Set());
+const dailyDate = ref('');
+const dailyExpenses = ref([]);
+const dailyLoading = ref(false);
+const collapsedDays = ref(new Set());
+let treeDefaultMonth = '';
 let loadToken = 0;
+let dailyToken = 0;
 
 const total = computed(() => sumAmounts(expenses.value));
-const expenseCount = computed(() => expenses.value.length);
-
-const groups = computed(() => {
-  const map = new Map();
-  for (const expense of expenses.value) {
-    const key = dayKey(new Date(expense.spentAt));
-    if (!map.has(key)) {
-      map.set(key, { key, label: dayLabel(key), total: 0, items: [] });
-    }
-    const group = map.get(key);
-    group.items.push(expense);
-    group.total += Number(expense.amount) || 0;
-  }
-  return [...map.values()];
+const dailyTotal = computed(() => sumAmounts(dailyExpenses.value));
+const dailyDateObj = computed(() => (
+  dailyDate.value ? new Date(`${dailyDate.value}T12:00:00`) : null
+));
+const dailyRelative = computed(() => {
+  if (!dailyDateObj.value) return '';
+  const todayKey = toDateInput(new Date());
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (dailyDate.value === todayKey) return '今天';
+  if (dailyDate.value === toDateInput(yesterday)) return '昨天';
+  return '';
 });
+const dailyWeekday = computed(() => (
+  dailyDateObj.value
+    ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dailyDateObj.value.getDay()]
+    : ''
+));
+const dailyDayNumber = computed(() => (
+  dailyDateObj.value ? String(dailyDateObj.value.getDate()).padStart(2, '0') : ''
+));
+const dailyYearMonth = computed(() => (
+  dailyDateObj.value
+    ? `${dailyDateObj.value.getFullYear()}年${dailyDateObj.value.getMonth() + 1}月`
+    : ''
+));
+
+const groups = computed(() => groupExpensesByDay(expenses.value));
+
+const maxAmount = computed(() => (
+  Math.max(1, ...expenses.value.map((expense) => Number(expense.amount) || 0))
+));
+
+function leafMeta(expense) {
+  const amount = Number(expense.amount) || 0;
+  return {
+    ...expense,
+    color: categoryColor(expense.category),
+    branchWidth: (2 + Math.min(1, amount / maxAmount.value) * 5).toFixed(1),
+    noteText: cleanNote(expense.note)
+  };
+}
+
+const maxDayTotal = computed(() => (
+  Math.max(1, ...groups.value.map((group) => group.total))
+));
+
+function dayHeat(total) {
+  const ratio = total / maxDayTotal.value;
+  if (ratio >= 0.85) return 4;
+  if (ratio >= 0.6) return 3;
+  if (ratio >= 0.35) return 2;
+  return 1;
+}
+
+const treeDays = computed(() => (
+  groups.value.map((group) => ({
+    ...group,
+    heat: dayHeat(group.total),
+    leaves: group.items.map(leafMeta)
+  }))
+));
+
+const HEAT_HINT_KEY = 'recordHeatHintSeen';
+let heatHintShown = false;
+
+function maybeShowHeatHint(days) {
+  if (heatHintShown || !days.length) return;
+  heatHintShown = true;
+  try {
+    if (localStorage.getItem(HEAT_HINT_KEY)) return;
+    localStorage.setItem(HEAT_HINT_KEY, '1');
+  } catch (err) {
+    // localStorage can be unavailable in private modes.
+  }
+  showToast({ message: '圆点越大，这天果冻花得越多', position: 'bottom' });
+}
 
 watch(
-  () => groups.value[0]?.key,
-  (key) => {
-    if (!key || expandedKeys.value.has(key)) return;
-    const next = new Set(expandedKeys.value);
-    next.add(key);
-    expandedKeys.value = next;
+  treeDays,
+  (days) => {
+    if (!days.length) return;
+    if (treeDefaultMonth !== month.value) {
+      treeDefaultMonth = month.value;
+      collapsedDays.value = new Set(days.slice(1).map((day) => day.key));
+    }
+    maybeShowHeatHint(days);
   },
   { immediate: true }
 );
-
-const leaves = computed(() => {
-  if (!expenses.value.length) return [];
-  const max = Math.max(1, ...expenses.value.map((expense) => Number(expense.amount) || 0));
-  return expenses.value.map((expense) => {
-    const amount = Number(expense.amount) || 0;
-    return {
-      ...expense,
-      color: categoryColor(expense.category),
-      branchWidth: (2 + Math.min(1, amount / max) * 5).toFixed(1),
-      noteText: cleanNote(expense.note)
-    };
-  });
-});
 
 async function loadMonth() {
   if (!ready.value) {
@@ -292,43 +378,19 @@ watch(
 
 watch(month, (value) => {
   recordMonth.value = value;
-  activeExpenseId.value = null;
-  expandedKeys.value = new Set();
+  collapsedDays.value = new Set();
+  treeDefaultMonth = '';
 });
 
 watch(
   () => currentStage.value?.id,
   (id, previous) => {
     if (!id || id === previous) return;
+    treeDefaultMonth = '';
+    collapsedDays.value = new Set();
     month.value = currentMonthKey();
   }
 );
-
-onMounted(() => {
-  document.addEventListener('pointerdown', onDocumentPointerDown, true);
-});
-
-onUnmounted(() => {
-  document.removeEventListener('pointerdown', onDocumentPointerDown, true);
-});
-
-function onDocumentPointerDown(event) {
-  if (!activeExpenseId.value) return;
-  if (event.target?.closest?.('.record-branch')) return;
-  activeExpenseId.value = null;
-}
-
-function toggleExpenseActions(expense) {
-  haptic('light');
-  activeExpenseId.value = activeExpenseId.value === expense.id ? null : expense.id;
-}
-
-function setRecordMode(mode) {
-  if (recordMode.value === mode) return;
-  activeExpenseId.value = null;
-  recordMode.value = mode;
-  haptic('light');
-}
 
 function shiftMonth(delta) {
   month.value = addMonths(month.value, delta);
@@ -342,40 +404,86 @@ function selectMonth(next) {
   haptic('light');
 }
 
-function isExpanded(key) {
-  return expandedKeys.value.has(key);
+function isDayCollapsed(key) {
+  return collapsedDays.value.has(key);
 }
 
-function toggleDay(key) {
-  const next = new Set(expandedKeys.value);
+function toggleTreeDay(key) {
+  const next = new Set(collapsedDays.value);
   if (next.has(key)) next.delete(key);
   else next.add(key);
-  expandedKeys.value = next;
+  collapsedDays.value = next;
+  haptic('light');
+}
+
+function openDaily(expense) {
+  haptic('light');
+  dailyOpen.value = true;
+  dailyExpenses.value = [];
+  dailyDate.value = dayKey(new Date(expense.spentAt));
+}
+
+function closeDaily() {
+  dailyOpen.value = false;
+  dailyDate.value = '';
+  dailyExpenses.value = [];
+  dailyLoading.value = false;
+}
+
+function shiftDaily(delta) {
+  if (!dailyDate.value) return;
+  const date = new Date(`${dailyDate.value}T12:00:00`);
+  date.setDate(date.getDate() + delta);
+  dailyExpenses.value = [];
+  dailyDate.value = toDateInput(date);
+  haptic('light');
+}
+
+async function loadDaily(dateKey) {
+  const stage = currentStage.value;
+  const token = ++dailyToken;
+  if (!stage || !dateKey) {
+    dailyExpenses.value = [];
+    dailyLoading.value = false;
+    return;
+  }
+  dailyLoading.value = true;
+  try {
+    const items = await loadMonthExpenses(stage.id, dateKey.slice(0, 7));
+    if (token !== dailyToken) return;
+    dailyExpenses.value = items.filter(
+      (expense) => dayKey(new Date(expense.spentAt)) === dateKey
+    );
+  } finally {
+    if (token === dailyToken) dailyLoading.value = false;
+  }
 }
 
 function editExpense(expense) {
   haptic('light');
-  activeExpenseId.value = null;
   record.openRecord(expense);
 }
 
-async function deleteExpense(expense) {
-  activeExpenseId.value = null;
-  await removeExpenseAction(expense);
+function openRowMenu(expense) {
+  rowActionsRef.value?.open(expense);
 }
+
+watch(
+  [dailyDate, dataVersion, () => currentStage.value?.id],
+  () => {
+    if (dailyDate.value) loadDaily(dailyDate.value);
+  }
+);
+
+onBeforeUnmount(() => {
+  dailyOpen.value = false;
+});
 
 function cleanNote(value) {
   return String(value || '')
     .replace(/(?:19|20)\d{2}\s*年\s*/g, '')
     .replace(/^(?:19|20)\d{2}[-/.]/, '')
     .trim();
-}
-
-function expenseDate(expense) {
-  const date = new Date(expense.spentAt);
-  return Number.isFinite(date.getTime())
-    ? `${date.getMonth() + 1}月${date.getDate()}日`
-    : '—';
 }
 
 </script>

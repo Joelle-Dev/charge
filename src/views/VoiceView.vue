@@ -7,8 +7,8 @@
         </svg>
       </button>
       <div class="voice-page-title">
-        <span class="voice-page-eyebrow">语音记账</span>
-        <h1>说一笔</h1>
+        <span class="voice-page-eyebrow">{{ isTest ? '测试 · 语音记账' : '果冻听你说' }}</span>
+        <h1>{{ isTest ? '说一笔 · 测试' : '说给果冻听' }}</h1>
       </div>
       <span v-if="currentStage" class="voice-stage-pill">
         <span class="voice-stage-dot" aria-hidden="true"></span>
@@ -18,6 +18,10 @@
 
     <div class="voice-page-body">
       <p class="voice-page-intro">果冻先听你说，确认后再入账。</p>
+
+      <p v-if="isTest" class="voice-test-banner">
+        测试页：语音识别仍有问题，手机自测通过前不要上线。
+      </p>
 
       <section class="voice-hero">
         <div class="voice-hero-glow" aria-hidden="true"></div>
@@ -49,33 +53,33 @@
 
       <section class="voice-transcript-card">
         <div class="voice-card-head">
-          <span class="voice-card-title">识别文字</span>
-          <span class="voice-card-hint">可以修改后再解析</span>
+          <span class="voice-card-title">果冻听到的话</span>
+          <span class="voice-card-hint">听错了可以自己改</span>
         </div>
         <div class="field transcript">
           <textarea
             v-model="text"
             class="textarea"
             rows="3"
-            placeholder="例如：午饭吃了 35，打车 25，昨天门票 120"
+            placeholder="比如：午饭 35，打车 25，昨天门票 120"
           ></textarea>
-          <span v-if="recording" class="transcript-live"><i></i>聆听中</span>
+          <span v-if="recording" class="transcript-live"><i></i>果冻在听…</span>
         </div>
       </section>
 
     <div class="voice-actions">
-      <button class="secondary-btn" type="button" @click="parseText">解析文字</button>
+      <button class="secondary-btn" type="button" @click="parseText">看看记成什么样</button>
       <button v-if="supported" class="secondary-btn" type="button" @click="toggleRecording">
-        {{ recording ? '停止' : '语音输入' }}
+        {{ recording ? '说完啦' : '说给果冻听' }}
       </button>
     </div>
 
     <p v-if="error" class="voice-error">{{ error }}</p>
-    <p v-else-if="!secure" class="voice-error">语音识别需要 HTTPS 或 localhost 环境。可以直接输入文字。</p>
+    <p v-else-if="!secure" class="voice-error">这里需要 HTTPS 或 localhost 才能听你说话。先直接打字也可以。</p>
 
       <section v-if="parsedEntries.length" class="voice-results">
         <div class="voice-results-head">
-          <h2>解析结果</h2>
+          <h2>果冻记成这样</h2>
           <span>{{ parsedEntries.length }} 笔</span>
         </div>
         <div class="parsed-list">
@@ -83,9 +87,9 @@
         <div class="parsed-head">
           <span class="parsed-head-left">
             <span class="parsed-index"><PawIcon />{{ index + 1 }}</span>
-            <span class="parsed-raw">{{ entry.raw || entry.note || '识别结果' }}</span>
+            <span class="parsed-raw">{{ entry.raw || entry.note || '果冻听到的' }}</span>
           </span>
-          <button class="remove-chip" type="button" @click="removeEntry(index)">移除</button>
+          <button class="remove-chip" type="button" @click="removeEntry(index)">删掉这条</button>
         </div>
         <div class="parsed-grid">
           <div class="field full">
@@ -121,13 +125,38 @@
 
         <div class="parsed-actions">
           <button class="primary-btn" type="button" :disabled="saving" @click="saveParsed">
-            {{ saving ? '入账中…' : `全部入账 · ¥${formatMoney(parsedTotal)}` }}
+            {{ saving ? '果冻在记…' : `都记上 · ¥${formatMoney(parsedTotal)}` }}
           </button>
-          <button class="secondary-btn" type="button" @click="parseText">重新解析</button>
+          <button class="secondary-btn" type="button" @click="parseText">再听一遍</button>
         </div>
       </section>
 
-      <p class="sheet-note">语音识别由浏览器和系统服务提供。若不便说话，可直接输入文字。</p>
+      <p class="sheet-note">果冻的耳朵由浏览器和系统服务提供。如果每次都问麦克风权限，可以在浏览器网站设置里改成「允许」。不方便说话时，直接打字也可以。</p>
+
+      <section v-if="isTest" class="voice-debug">
+        <button class="voice-debug-toggle" type="button" @click="showDebug = !showDebug">
+          <span>调试信息</span>
+          <span>{{ showDebug ? '收起' : '展开' }}</span>
+        </button>
+        <div v-if="showDebug" class="voice-debug-body">
+          <dl class="voice-debug-grid">
+            <template v-for="row in debugRows" :key="row.label">
+              <dt>{{ row.label }}</dt>
+              <dd>{{ row.value }}</dd>
+            </template>
+          </dl>
+          <div class="voice-debug-log">
+            <div class="voice-debug-log-head">
+              <span>事件日志</span>
+              <button type="button" @click="debugLog.length = 0">清空</button>
+            </div>
+            <p v-if="!debugLog.length" class="voice-debug-empty">暂无事件</p>
+            <ul v-else>
+              <li v-for="(line, index) in debugLog" :key="`${index}-${line}`">{{ line }}</li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </div>
 
     <div v-if="showStamp" class="paw-stamp" aria-hidden="true">
@@ -140,7 +169,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import DateTimeField from '../components/DateTimeField.vue';
 import PawIcon from '../components/PawIcon.vue';
 import { parseExpenses } from '../lib/parser';
@@ -150,6 +179,8 @@ import { applyDateToIso, formatMoney, toDateInput, uid } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
 const router = useRouter();
+const route = useRoute();
+const isTest = computed(() => route.meta.voiceTest === true);
 const voice = useVoiceEntry();
 const { ready, currentStage, categories, addExpenses } = useLedger();
 
@@ -164,11 +195,17 @@ const secure = typeof window !== 'undefined' && (
 );
 
 const recording = ref(false);
+const preparing = ref(false);
 const text = ref('');
 const error = ref('');
 const parsedEntries = ref([]);
 const saving = ref(false);
 const showStamp = ref(false);
+const showDebug = ref(isTest.value);
+const debugLog = ref([]);
+const debugTick = ref(0);
+
+let micReady = false;
 
 let recognition = null;
 let finalText = '';
@@ -179,26 +216,55 @@ let restartTimer = null;
 let maxTimer = null;
 let lastFinalAt = 0;
 let restartAttempts = 0;
+let networkFailures = 0;
 let pendingStop = false;
 
 const restarting = ref(false);
 const MAX_LISTEN_MS = 120000;
+const MAX_RESTARTS = 30;
+const MAX_NETWORK_RETRIES = 5;
 
 const statusText = computed(() => {
-  if (!supported) return '当前浏览器不支持语音识别';
-  if (restarting.value) return '正在继续聆听…';
-  if (recording.value) return '正在聆听…说完再点一下';
-  if (text.value.trim()) return '已停止，可以修改文字后解析';
-  return '点一下，开始说话';
+  if (!supported) return '这个浏览器还不会听果冻说话';
+  if (preparing.value) return '果冻在找麦克风…';
+  if (restarting.value) return '果冻还在听…';
+  if (recording.value) return '果冻在听…说完再点一下';
+  if (text.value.trim()) return '果冻听好啦，可以改改再解析';
+  return '点一下，说给果冻听';
 });
 
 const hintText = supported
-  ? '可以连续说多笔，说完再点一下'
-  : '可以直接输入文字，解析后记入';
+  ? '可以连着说好几笔，说完再点一下'
+  : '也可以直接打字，解析后记上';
 
 const parsedTotal = computed(() =>
   parsedEntries.value.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0)
 );
+
+const debugRows = computed(() => {
+  debugTick.value;
+  return [
+    { label: '语音识别', value: supported ? '支持' : '不支持' },
+    { label: '安全环境', value: secure ? '是' : '否（需 HTTPS 或 localhost）' },
+    { label: '麦克风', value: preparing.value ? '准备中' : micReady ? '已授权' : '未确认' },
+    { label: '识别状态', value: restarting.value ? '重连中' : recording.value ? '聆听中' : '未开始' },
+    { label: '当前阶段', value: currentStage.value?.name || '无' },
+    { label: '识别原文', value: text.value ? `${text.value.length} 字` : '空' },
+    { label: '已定稿', value: finalText ? `${finalText.length} 字` : '空' },
+    { label: '临时结果', value: interimText ? `${interimText.length} 字` : '空' },
+    { label: '重连次数', value: String(restartAttempts) },
+    { label: '解析条数', value: `${parsedEntries.value.length} 笔` },
+    { label: '解析合计', value: `¥${formatMoney(parsedTotal.value)}` },
+    { label: '最近错误', value: error.value || '无' }
+  ];
+});
+
+function pushDebug(message) {
+  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  debugLog.value.unshift(`${time}  ${message}`);
+  if (debugLog.value.length > 30) debugLog.value.length = 30;
+  debugTick.value += 1;
+}
 
 function clearTimers() {
   if (restartTimer) {
@@ -211,6 +277,35 @@ function clearTimers() {
   }
 }
 
+function detachRecognition() {
+  const current = recognition;
+  recognition = null;
+  if (!current) return;
+  current.onstart = null;
+  current.onresult = null;
+  current.onerror = null;
+  current.onend = null;
+  try { current.abort(); } catch (err) { /* noop */ }
+}
+
+function scheduleRestart() {
+  if (userStopped || closing || restartTimer) return;
+
+  if (restartAttempts >= MAX_RESTARTS) {
+    stopWithError('果冻听断啦，再点一下麦克风，或者直接打字。');
+    return;
+  }
+
+  restartAttempts += 1;
+  restarting.value = true;
+  pushDebug(`自动重连 #${restartAttempts}`);
+  const delay = Math.min(500, 90 + restartAttempts * 40);
+  restartTimer = setTimeout(() => {
+    restartTimer = null;
+    if (!userStopped && !closing) startSession();
+  }, delay);
+}
+
 function reset() {
   closing = false;
   userStopped = true;
@@ -219,7 +314,9 @@ function reset() {
   interimText = '';
   lastFinalAt = 0;
   restartAttempts = 0;
+  networkFailures = 0;
   recording.value = false;
+  preparing.value = false;
   restarting.value = false;
   saving.value = false;
   showStamp.value = false;
@@ -227,6 +324,8 @@ function reset() {
   text.value = '';
   error.value = '';
   parsedEntries.value = [];
+  debugLog.value = [];
+  debugTick.value += 1;
 }
 
 function cleanup() {
@@ -234,11 +333,9 @@ function cleanup() {
   userStopped = true;
   pendingStop = false;
   clearTimers();
-  if (recognition) {
-    try { recognition.abort(); } catch (err) { /* noop */ }
-  }
-  recognition = null;
+  detachRecognition();
   recording.value = false;
+  preparing.value = false;
   restarting.value = false;
 }
 
@@ -246,6 +343,7 @@ function appendFinal(piece) {
   const value = String(piece || '').trim();
   if (!value) return;
 
+  pushDebug(`识别到「${value}」`);
   const now = performance.now();
   const previous = finalText.trimEnd();
   const needsSeparator = previous &&
@@ -265,45 +363,61 @@ function flushInterim() {
 }
 
 function stopWithError(message) {
+  flushInterim();
   userStopped = true;
   clearTimers();
+  detachRecognition();
   recording.value = false;
   restarting.value = false;
   error.value = message;
+  showToast(message);
+  if (text.value.trim()) parseText();
 }
 
 function handleResult(event) {
   let interim = '';
   for (let i = event.resultIndex; i < event.results.length; i += 1) {
     const result = event.results[i];
-    if (result.isFinal) {
-      appendFinal(result[0].transcript);
-    } else {
-      interim += result[0].transcript;
-    }
+    if (result.isFinal) appendFinal(result[0].transcript);
   }
+
+  for (let i = 0; i < event.results.length; i += 1) {
+    const result = event.results[i];
+    if (!result.isFinal) interim += result[0].transcript;
+  }
+
   interimText = interim;
   text.value = interim ? `${finalText}${interim}` : finalText;
   restartAttempts = 0;
+  networkFailures = 0;
 }
 
 function handleError(event) {
+  pushDebug(`识别错误：${event.error}`);
   if (event.error === 'no-speech' || event.error === 'aborted') return;
 
+  if (event.error === 'network' && networkFailures < MAX_NETWORK_RETRIES) {
+    networkFailures += 1;
+    error.value = '网有点抖，果冻在重新连…';
+    detachRecognition();
+    scheduleRestart();
+    return;
+  }
+
   const messages = {
-    'not-allowed': '麦克风权限被拒绝。请在浏览器设置中允许麦克风，或直接输入文字。',
-    'service-not-allowed': '语音服务不可用，请直接输入文字。',
-    'audio-capture': '没有找到可用的麦克风。',
-    network: '语音服务连接失败，请检查网络，或直接输入文字。'
+    'not-allowed': '麦克风权限被拒绝啦。请在浏览器设置里允许麦克风，或者直接打字。',
+    'service-not-allowed': '语音服务不可用，先直接打字吧。',
+    'audio-capture': '没找到可用的麦克风。',
+    network: '语音服务连不上，看看网络，或者直接打字。'
   };
 
-  stopWithError(messages[event.error] || '语音识别失败，请直接输入文字。');
+  stopWithError(messages[event.error] || '果冻没听清，直接打字也可以。');
 }
 
 function handleEnd() {
   if (closing) return;
+  pushDebug('识别结束');
   flushInterim();
-  recognition = null;
 
   if (userStopped) {
     clearTimers();
@@ -313,64 +427,101 @@ function handleEnd() {
     return;
   }
 
-  if (restartAttempts >= 20) {
-    stopWithError('语音识别多次中断，请再点一下麦克风，或直接输入文字。');
-    return;
-  }
-
-  restartAttempts += 1;
-  restarting.value = true;
-  const delay = Math.min(1200, 200 + restartAttempts * 180);
-  restartTimer = setTimeout(() => {
-    restartTimer = null;
-    if (!userStopped && !closing) startSession();
-  }, delay);
+  scheduleRestart();
 }
 
 function startSession() {
   if (userStopped || closing) return;
 
-  try {
-    recognition = new RecognitionCtor();
-  } catch (err) {
-    stopWithError('无法启动语音识别，请改用文字输入。');
-    return;
-  }
-
-  recognition.lang = 'zh-CN';
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
-
-  recognition.onstart = () => {
-    if (closing) return;
-    restarting.value = false;
-    recording.value = true;
-    if (pendingStop) {
-      pendingStop = false;
-      stopRecording();
+  if (!recognition) {
+    pushDebug('创建识别会话');
+    try {
+      recognition = new RecognitionCtor();
+    } catch (err) {
+      stopWithError('麦克风没打开，改用文字也可以。');
+      return;
     }
-  };
 
-  recognition.onresult = handleResult;
-  recognition.onerror = handleError;
-  recognition.onend = handleEnd;
+    recognition.lang = 'zh-CN';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      if (closing) return;
+      pushDebug('识别已启动');
+      error.value = '';
+      restarting.value = false;
+      recording.value = true;
+      if (pendingStop) {
+        pendingStop = false;
+        stopRecording();
+      }
+    };
+
+    recognition.onresult = handleResult;
+    recognition.onerror = handleError;
+    recognition.onend = handleEnd;
+  } else {
+    pushDebug('复用识别会话');
+  }
 
   try {
     recognition.start();
   } catch (err) {
-    stopWithError('无法启动语音识别，请直接输入文字。');
+    pushDebug('启动识别失败，准备重连');
+    detachRecognition();
+    scheduleRestart();
   }
 }
 
-function startRecording() {
-  if (!RecognitionCtor || recording.value) return;
+async function ensureMicReady() {
+  if (micReady) return true;
 
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    micReady = true;
+    return true;
+  }
+
+  try {
+    if (navigator.permissions?.query) {
+      try {
+        const status = await navigator.permissions.query({ name: 'microphone' });
+        if (status.state === 'granted') {
+          micReady = true;
+          return true;
+        }
+      } catch (err) {
+        // Some browsers do not support querying microphone permission.
+      }
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    micReady = true;
+    return true;
+  } catch (err) {
+    error.value = '麦克风权限被拒绝啦。请在浏览器设置里允许麦克风，或者直接打字。';
+    return false;
+  }
+}
+
+async function startRecording() {
+  if (!RecognitionCtor || recording.value || preparing.value) return;
+
+  pushDebug('准备麦克风');
+  preparing.value = true;
+  const ready = await ensureMicReady();
+  preparing.value = false;
+  if (!ready || closing) return;
+
+  pushDebug('开始识别');
   error.value = '';
   finalText = '';
   interimText = '';
   lastFinalAt = 0;
   restartAttempts = 0;
+  networkFailures = 0;
   text.value = '';
   parsedEntries.value = [];
   closing = false;
@@ -392,6 +543,7 @@ function startRecording() {
 }
 
 function stopRecording() {
+  pushDebug('停止识别');
   userStopped = true;
   restarting.value = false;
   clearTimers();
@@ -427,13 +579,14 @@ function toggleRecording() {
 function parseText() {
   const value = text.value.trim();
   if (!value) {
-    showToast('先说一句或输入文字');
+    showToast('先说一句或打点字嘛');
     return;
   }
 
   const entries = parseExpenses(value, { categories: categories.value });
+  pushDebug(`解析结果：${entries.length} 笔`);
   if (!entries.length) {
-    error.value = '没听出金额。试着说「午饭 35」或「打车 25 块」。';
+    error.value = '果冻没听出金额。试着说「午饭 35」或「打车 25 块」。';
     parsedEntries.value = [];
     return;
   }
@@ -463,7 +616,7 @@ function removeEntry(index) {
 async function saveParsed() {
   if (!parsedEntries.value.length) return;
   if (parsedEntries.value.some((entry) => !Number.isFinite(Number(entry.amount)) || Number(entry.amount) <= 0)) {
-    showToast('有一笔金额不对，检查一下');
+    showToast('有一笔金额不太对，帮果冻看看嘛');
     return;
   }
 
@@ -471,15 +624,16 @@ async function saveParsed() {
   saving.value = true;
   try {
     const count = parsedEntries.value.length;
+    pushDebug(`提交入账：${count} 笔`);
     await addExpenses(parsedEntries.value);
     showStamp.value = true;
     haptic('success');
     await new Promise((resolve) => setTimeout(resolve, 420));
-    showToast(`果冻记下 ${count} 笔`);
+    showToast(`果冻记下 ${count} 笔啦`);
     leave();
   } catch (err) {
     console.error(err);
-    showToast('入账失败，请重试');
+    showToast('没记上，再试一次吧');
   } finally {
     saving.value = false;
   }

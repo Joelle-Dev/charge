@@ -1,20 +1,20 @@
 <template>
-  <SheetFrame v-model:show="show" title="数据与备份">
-    <p class="sheet-intro">完整备份包含全部阶段、支出、分类和成就。文件只在本机生成，不会上传。</p>
+  <SheetFrame v-model:show="show" title="账本与备份">
+    <p class="sheet-intro">完整备份里装着全部阶段、花销、分类和爪印。文件只在这台设备里生成，不会上传。</p>
 
-    <p class="backup-last">上次备份：{{ lastBackupText }}</p>
+    <p class="backup-last">上次打包：{{ lastBackupText }}</p>
 
     <div class="sheet-footer">
       <button class="primary-btn" type="button" @click="exportBackup">
-        导出完整备份
+        把全部账本打包带走
       </button>
       <button class="secondary-btn" type="button" @click="emit('import')">
-        导入 / 换机
+        导入 / 搬新家
       </button>
     </div>
 
     <div class="backup-badges">
-      <span>仅本机存储</span>
+      <span>只住在本机</span>
       <span>不上传云端</span>
     </div>
   </SheetFrame>
@@ -38,9 +38,9 @@ const { initAchievements } = useAchievements();
 const lastBackupAt = ref(null);
 
 const lastBackupText = computed(() => {
-  if (!lastBackupAt.value) return '还没有备份';
+  if (!lastBackupAt.value) return '还没打包过';
   const date = new Date(Number(lastBackupAt.value));
-  if (Number.isNaN(date.getTime())) return '还没有备份';
+  if (Number.isNaN(date.getTime())) return '还没打包过';
   const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 });
@@ -60,27 +60,27 @@ watch(show, (visible) => {
 
 async function exportBackup() {
   if (!stages.value.length) {
-    showToast('还没有数据可以备份');
+    showToast('果冻还没有账本可以打包');
     return;
   }
 
-  showLoadingToast({ message: '正在导出完整备份…', forbidClick: true, duration: 0 });
+  showLoadingToast({ message: '果冻在打包全部账本…', forbidClick: true, duration: 0 });
   try {
     await initAchievements().catch(() => {});
     const result = await exportBackupInWorker();
     closeToast();
     if (result.empty) {
-      showToast('还没有数据可以备份');
+      showToast('果冻还没有账本可以打包');
       return;
     }
     saveBlob(result.blob, result.filename);
     lastBackupAt.value = Date.now();
     haptic('success');
-    showToast('已导出完整备份');
+    showToast('全部账本打包好啦');
   } catch (err) {
     closeToast();
     console.error(err);
-    showToast('导出失败，请重试');
+    showToast('打包失败啦，再试一次吧');
   }
 }
 </script>

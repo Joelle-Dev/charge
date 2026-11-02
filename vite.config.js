@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
         manifest: {
           name: '守财小果 · 语音记账',
           short_name: '守财小果',
-          description: '守财小果，说一句就记上。按阶段归类的轻量语音记账应用。',
+          description: '守财小果，果冻陪你一句一句记小账。按阶段归类的轻量语音记账应用。',
           lang: 'zh-CN',
           theme_color: '#faf5ec',
           background_color: '#faf5ec',

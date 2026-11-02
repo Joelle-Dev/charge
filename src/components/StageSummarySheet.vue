@@ -1,5 +1,5 @@
 <template>
-  <SheetFrame v-model:show="show" title="阶段小结" max-height="92dvh">
+  <SheetFrame v-model:show="show" title="果冻的阶段小结" max-height="92dvh">
     <template v-if="summary">
       <div ref="cardRef" class="summary-card">
         <div class="summary-top">
@@ -13,7 +13,7 @@
         </div>
 
         <div class="summary-total">
-          <span>总支出</span>
+          <span>一共花了</span>
           <strong>¥{{ formatMoney(summary.total) }}</strong>
           <small>{{ summary.count }} 笔 · {{ budgetText }}</small>
         </div>
@@ -38,15 +38,15 @@
 
       <div class="form-actions">
         <button class="primary-btn" type="button" :disabled="busy" @click="shareSummary">
-          {{ busy ? '生成中…' : '分享 / 保存图片' }}
+          {{ busy ? '果冻在画画…' : '分享 / 保存这张图' }}
         </button>
       </div>
-      <p class="sheet-note">图片由本机生成，不会上传阶段数据。</p>
+      <p class="sheet-note">图片由本机画出来，不会上传阶段数据。</p>
     </template>
 
     <div v-else class="list-empty">
-      <p>还没有阶段小结</p>
-      <span>先记几笔再来看吧</span>
+        <p>果冻还没画出小结</p>
+        <span>先记几笔，再来看看嘛</span>
     </div>
   </SheetFrame>
 </template>
@@ -89,9 +89,9 @@ const mood = computed(() => {
 });
 
 const budgetText = computed(() => {
-  if (!summary.value || !summary.value.budget) return '未设置预算';
-  if (summary.value.remaining >= 0) return `预算 ¥${formatMoney(summary.value.budget)} · 剩余 ¥${formatMoney(summary.value.remaining)}`;
-  return `预算 ¥${formatMoney(summary.value.budget)} · 超支 ¥${formatMoney(Math.abs(summary.value.remaining))}`;
+  if (!summary.value || !summary.value.budget) return '还没放猫粮预算';
+  if (summary.value.remaining >= 0) return `猫粮罐 ¥${formatMoney(summary.value.budget)} · 还剩 ¥${formatMoney(summary.value.remaining)}`;
+  return `猫粮罐 ¥${formatMoney(summary.value.budget)} · 花超啦 ¥${formatMoney(Math.abs(summary.value.remaining))}`;
 });
 
 function download(dataUrl, filename) {
@@ -123,18 +123,18 @@ async function shareSummary() {
       try {
         await navigator.share({
           files: [file],
-          title: `${summary.value.stage.name} · 阶段小结`,
-          text: `${summary.value.stage.name} 共支出 ¥${formatMoney(summary.value.total)}`
+          title: `${summary.value.stage.name} · 果冻的阶段小结`,
+          text: `${summary.value.stage.name} 一共花了 ¥${formatMoney(summary.value.total)}`
         });
-        showToast('已打开分享');
+        showToast('分享打开啦');
       } catch (err) {
         if (err?.name === 'AbortError') return;
         download(dataUrl, filename);
-        showToast('分享不可用，已保存图片');
+        showToast('分享不了，果冻已经帮你存好啦');
       }
     } else {
       download(dataUrl, filename);
-      showToast('小结图片已保存');
+      showToast('小结图存好啦');
     }
     haptic('success');
   } catch (err) {
@@ -142,9 +142,9 @@ async function shareSummary() {
       console.error(err);
       if (dataUrl && filename) {
         download(dataUrl, filename);
-        showToast('已保存小结图片');
+        showToast('小结图存好啦');
       } else {
-        showToast('生成图片失败，请重试');
+        showToast('画像失败啦，再试一次吧');
       }
     }
   } finally {

@@ -1,14 +1,14 @@
 <template>
-  <SheetFrame v-model:show="show" title="导入数据" max-height="92dvh">
+  <SheetFrame v-model:show="show" title="把账本搬进来" max-height="92dvh">
     <p class="sheet-intro">
-      支持完整备份（换机）和支出 CSV。导入前会先预览，确认后才会写入账本。
+      支持完整备份（搬新家）和花销 CSV。搬进来之前会先看一眼，确认后才写进账本。
     </p>
 
     <label
       class="secondary-btn import-pick"
       :class="{ 'is-disabled': parsing || busy || exportingCurrent }"
     >
-      {{ preview ? '重新选择文件' : '选择备份或 CSV 文件' }}
+      {{ preview ? '重新选一个文件' : '挑一个备份或 CSV 文件' }}
       <input
         ref="fileInput"
         class="import-file-input"
@@ -19,7 +19,7 @@
     </label>
 
     <p v-if="error" class="form-error import-error">{{ error }}</p>
-    <p v-if="parsing" class="import-hint">正在解析文件，请稍候…</p>
+    <p v-if="parsing" class="import-hint">果冻在看看文件…</p>
     <p v-if="busy && progressText" class="import-hint">{{ progressText }}</p>
 
     <div v-if="preview" class="import-preview">
@@ -36,10 +36,10 @@
           <b>{{ preview.manifest.categories?.length || 0 }}</b> 个分类
         </span>
         <span v-if="preview.format === 'backup'">
-          <b>{{ preview.manifest.achievementUnlocked?.length || 0 }}</b> 个成就
+          <b>{{ preview.manifest.achievementUnlocked?.length || 0 }}</b> 枚爪印
         </span>
         <span>
-          <b>{{ validCount }}</b> 笔支出
+          <b>{{ validCount }}</b> 笔花销
         </span>
         <span>
           <b>¥{{ formatMoney(validTotal) }}</b>
@@ -48,7 +48,7 @@
       </div>
 
       <div v-if="preview.errorCount" class="import-warnings">
-        <strong>{{ preview.errorCount }} 条记录无法导入，将被忽略</strong>
+        <strong>{{ preview.errorCount }} 条记录搬不进来，会被跳过</strong>
         <ul>
           <li v-for="(item, index) in preview.errors.slice(0, 5)" :key="index">
             {{ typeof item === 'string' ? item : `第 ${item.line} 行：${item.message}` }}
@@ -59,7 +59,7 @@
 
       <template v-if="preview.format === 'backup'">
         <div v-if="existingData" class="field">
-          <span class="field-label">导入方式</span>
+          <span class="field-label">搬进来的方式</span>
           <div class="chip-wrap">
             <button
               class="chip"
@@ -67,7 +67,7 @@
               type="button"
               @click="mode = 'replace'"
             >
-              覆盖恢复
+              全部换掉
             </button>
             <button
               class="chip"
@@ -75,16 +75,16 @@
               type="button"
               @click="mode = 'merge'"
             >
-              合并导入
+              放在一起
             </button>
           </div>
         </div>
 
         <p v-if="mode === 'replace'" class="import-danger-note">
-          覆盖恢复会清空当前阶段、支出、分类和成就，且无法撤销。
+          全部换掉会清空现在的阶段、花销、分类和爪印，而且没法后悔。
         </p>
         <p v-else class="import-hint">
-          保留现有数据，备份里的阶段会作为新阶段导入；同一份备份重复导入会产生重复数据。
+          现在的账本都会留着，备份里的阶段会作为新阶段搬进来；同一份备份搬两次会出现重复。
         </p>
 
         <button
@@ -94,28 +94,28 @@
           :disabled="busy || exportingCurrent"
           @click="exportCurrentBackup"
         >
-          {{ exportingCurrent ? '正在导出当前数据…' : '先导出当前数据' }}
+          {{ exportingCurrent ? '果冻在打包现在的账本…' : '先打包现在的账本' }}
         </button>
 
         <p v-if="!existingData" class="import-hint">
-          新手机还没有数据，将直接恢复完整备份。
+          新手机还空空的，可以直接把完整备份搬进来。
         </p>
       </template>
 
       <template v-else>
         <label class="field">
-          <span class="field-label">导入到阶段</span>
+          <span class="field-label">搬进哪个阶段</span>
           <select v-model="targetStageId" class="select">
-            <option value="__new__">新建阶段</option>
+            <option value="__new__">建个新阶段</option>
             <option v-for="stage in stages" :key="stage.id" :value="stage.id">
-              {{ stage.name }}{{ stage.archived ? '（已归档）' : '' }}
+              {{ stage.name }}{{ stage.archived ? '（已收起来）' : '' }}
             </option>
           </select>
         </label>
 
         <label v-if="targetStageId === '__new__'" class="field">
-          <span class="field-label">新阶段名称</span>
-          <input v-model="newStageName" class="input" type="text" maxlength="24" placeholder="导入数据">
+          <span class="field-label">新阶段名字</span>
+          <input v-model="newStageName" class="input" type="text" maxlength="24" placeholder="搬进来的账本">
         </label>
 
         <div class="chip-wrap import-options">
@@ -125,7 +125,7 @@
             type="button"
             @click="skipDuplicates = !skipDuplicates"
           >
-            跳过重复支出
+            跳过重复的花销
           </button>
         </div>
       </template>
@@ -133,13 +133,13 @@
 
     <div v-if="preview" class="form-actions">
       <button class="primary-btn" type="button" :disabled="!canImport || busy || exportingCurrent" @click="confirmImport">
-        {{ busy ? '导入中…' : confirmText }}
+        {{ busy ? '果冻在搬…' : confirmText }}
       </button>
       <button class="secondary-btn" type="button" :disabled="busy" @click="reset">取消</button>
     </div>
 
     <p class="sheet-note">
-      完整备份包含全部阶段、支出、分类和成就；CSV 只导入支出。文件只在本机解析，不会上传。
+      完整备份里装着全部阶段、花销、分类和爪印；CSV 只搬花销。文件只在本机看，不会上传。
     </p>
   </SheetFrame>
 </template>
@@ -185,7 +185,7 @@ const exportingCurrent = ref(false);
 const progressText = ref('');
 const mode = ref('replace');
 const targetStageId = ref('__new__');
-const newStageName = ref('导入数据');
+const newStageName = ref('搬进来的账本');
 const skipDuplicates = ref(true);
 let parseToken = 0;
 
@@ -219,7 +219,7 @@ const dateRange = computed(() => {
 });
 
 const formatLabel = computed(() => (
-  preview.value?.format === 'backup' ? '完整备份' : '支出 CSV'
+  preview.value?.format === 'backup' ? '完整备份' : '花销 CSV'
 ));
 
 const canImport = computed(() => {
@@ -235,9 +235,9 @@ const canImport = computed(() => {
 
 const confirmText = computed(() => {
   if (preview.value?.format === 'backup') {
-    return mode.value === 'replace' ? '覆盖恢复' : '合并导入';
+    return mode.value === 'replace' ? '全部换掉' : '放在一起';
   }
-  return `导入 ${validCount.value} 笔`;
+  return `搬进 ${validCount.value} 笔`;
 });
 
 function formatSize(size) {
@@ -248,16 +248,16 @@ function formatSize(size) {
 
 function phaseLabel(phase, elapsed) {
   const labels = {
-    start: '正在准备整理…',
-    clear: '正在清理旧索引…',
-    read: '正在读取账本…',
-    stats: '正在生成统计…',
-    writeStats: '正在写入统计…',
-    buildSearch: '正在建立搜索索引…',
-    writeSearch: '正在写入搜索索引…',
-    stages: '正在恢复阶段…'
+    start: '果冻在准备…',
+    clear: '在收拾旧索引…',
+    read: '在翻账本…',
+    stats: '在数一数…',
+    writeStats: '在写统计…',
+    buildSearch: '在建搜索小本子…',
+    writeSearch: '在写搜索小本子…',
+    stages: '在搬阶段…'
   };
-  const base = labels[phase] || '正在整理数据…';
+  const base = labels[phase] || '果冻在整理…';
   return elapsed ? `${base} ${Math.round(elapsed / 1000)}s` : base;
 }
 
@@ -267,7 +267,7 @@ function reset() {
   error.value = '';
   mode.value = 'replace';
   targetStageId.value = '__new__';
-  newStageName.value = '导入数据';
+  newStageName.value = '搬进来的账本';
   skipDuplicates.value = true;
   busy.value = false;
   parsing.value = false;
@@ -284,7 +284,7 @@ async function parseCsvPreview(file, token) {
     const summary = await parseCsvFile(file);
     if (token !== parseToken) return;
     if (!summary.count) {
-      error.value = 'CSV 里没有可导入的支出';
+      error.value = 'CSV 里没有能搬进来的花销';
       return;
     }
 
@@ -293,7 +293,7 @@ async function parseCsvPreview(file, token) {
       newStageName.value = currentStage.value.name;
     } else {
       targetStageId.value = '__new__';
-      newStageName.value = summary.stageName || '导入数据';
+      newStageName.value = summary.stageName || '搬进来的账本';
     }
     skipDuplicates.value = true;
     preview.value = {
@@ -307,7 +307,7 @@ async function parseCsvPreview(file, token) {
   } catch (err) {
     if (token === parseToken) {
       console.error(err);
-      error.value = err?.message || '解析 CSV 失败，请检查文件';
+      error.value = err?.message || 'CSV 没看懂，检查一下文件吧';
     }
   } finally {
     if (token === parseToken) parsing.value = false;
@@ -316,7 +316,7 @@ async function parseCsvPreview(file, token) {
 
 async function parseBackupPreview(file, token) {
   if (file.size > BACKUP_MAX_SIZE) {
-    error.value = '备份文件过大';
+    error.value = '备份文件太大啦';
     return;
   }
 
@@ -336,7 +336,7 @@ async function parseBackupPreview(file, token) {
   } catch (err) {
     if (token === parseToken) {
       console.error(err);
-      error.value = err?.message || '解析完整备份失败';
+      error.value = err?.message || '完整备份没看懂，再试一次吧';
     }
   } finally {
     if (token === parseToken) parsing.value = false;
@@ -387,7 +387,7 @@ async function onFileChange(event) {
 
   if (kind === 'backup') {
     if (file.size > BACKUP_MAX_SIZE) {
-      error.value = '备份文件过大';
+      error.value = '备份文件太大啦';
       return;
     }
     await parseBackupPreview(file, token);
@@ -396,7 +396,7 @@ async function onFileChange(event) {
 
   if (kind === 'csv') {
     if (file.size > MAX_CSV_SIZE) {
-      error.value = '文件超过 50MB，请拆分后再导入';
+      error.value = '文件超过 50MB，拆小一点再搬吧';
       return;
     }
     await parseCsvPreview(file, token);
@@ -404,33 +404,33 @@ async function onFileChange(event) {
   }
 
   if (kind === 'json') {
-    error.value = '完整备份请使用 .scbackup 文件';
+    error.value = '完整备份要用 .scbackup 文件哦';
     return;
   }
 
-  error.value = '无法识别文件，请选择完整备份或 CSV 文件';
+  error.value = '果冻没认出这个文件，选完整备份或 CSV 吧';
 }
 
 async function exportCurrentBackup() {
   if (exportingCurrent.value || busy.value) return;
   exportingCurrent.value = true;
-  showLoadingToast({ message: '正在导出当前数据…', forbidClick: true, duration: 0 });
+  showLoadingToast({ message: '果冻在打包现在的账本…', forbidClick: true, duration: 0 });
   try {
     await initAchievements().catch(() => {});
     const result = await exportBackupInWorker();
     closeToast();
     if (result.empty) {
-      showToast('当前没有数据可以导出');
+      showToast('现在还没有账本可以打包');
       return;
     }
     saveBlob(result.blob, result.filename);
     haptic('success');
-    showToast('已导出当前数据');
+    showToast('现在的账本打包好啦');
     emit('backupExported');
   } catch (err) {
     closeToast();
     console.error(err);
-    showToast('导出失败，请重试');
+    showToast('打包失败啦，再试一次吧');
   } finally {
     exportingCurrent.value = false;
   }
@@ -440,9 +440,9 @@ async function importBackup() {
   if (mode.value === 'replace' && existingData.value) {
     try {
       await showConfirmDialog({
-        title: '覆盖恢复',
-        message: `将清空现有 ${stages.value.length} 个阶段和全部支出，然后恢复备份。建议先导出当前数据。`,
-        confirmButtonText: '覆盖恢复',
+        title: '全部换掉',
+        message: `会把现在的 ${stages.value.length} 个阶段和全部花销清空，再把备份搬进来。先打包现在的账本更安心。`,
+        confirmButtonText: '全部换掉',
         confirmButtonColor: DANGER_COLOR
       });
     } catch (err) {
@@ -450,14 +450,14 @@ async function importBackup() {
     }
   }
 
-  progressText.value = '正在准备恢复…';
+  progressText.value = '果冻在准备搬…';
   await ensureSearchIndex();
   const result = await importBackupFile({ mode: mode.value }, {
     onProgress: (message) => {
       if (message.phase === 'validate') {
-        progressText.value = `正在校验备份… ${message.written}/${message.total}`;
+        progressText.value = `在看看备份… ${message.written}/${message.total}`;
       } else if (message.phase === 'expenses') {
-        progressText.value = `正在写入支出… ${message.written}/${message.total}`;
+        progressText.value = `在搬花销… ${message.written}/${message.total}`;
       } else if (message.phase === 'export') {
         return;
       } else {
@@ -471,15 +471,15 @@ async function importBackup() {
   haptic('success');
   showToast(
     mode.value === 'replace'
-      ? `已恢复 ${result.stages} 个阶段、${result.imported} 笔支出`
-      : `已合并 ${result.stages} 个阶段、${result.imported} 笔支出`
+      ? `搬回来 ${result.stages} 个阶段、${result.imported} 笔花销`
+      : `放进来 ${result.stages} 个阶段、${result.imported} 笔花销`
   );
   return true;
 }
 
 async function importCsv() {
   const summary = preview.value.summary;
-  progressText.value = '正在准备导入…';
+  progressText.value = '果冻在准备搬…';
   await ensureSearchIndex();
   const result = await importParsedCsv({
     stageId: targetStageId.value === '__new__' ? null : targetStageId.value,
@@ -490,9 +490,9 @@ async function importCsv() {
   }, {
     onProgress: (message) => {
       if (message.phase === 'dedup') {
-        progressText.value = `正在检查重复支出… ${message.checked}/${message.total} 个月`;
+        progressText.value = `在检查重复的花销… ${message.checked}/${message.total} 个月`;
       } else if (message.phase === 'write') {
-        progressText.value = `正在写入支出… ${message.written}/${message.total} 笔`;
+        progressText.value = `在搬花销… ${message.written}/${message.total} 笔`;
       } else {
         progressText.value = phaseLabel(message.phase, message.elapsed);
       }
@@ -502,9 +502,9 @@ async function importCsv() {
   await reloadAfterImport();
   haptic('success');
   if (result.imported) {
-    showToast(`已导入 ${result.imported} 笔${result.skipped ? `，跳过 ${result.skipped} 笔重复` : ''}`);
+    showToast(`搬进来 ${result.imported} 笔${result.skipped ? `，跳过 ${result.skipped} 笔重复` : ''}`);
   } else {
-    showToast(result.skipped ? `没有新支出，跳过 ${result.skipped} 笔重复` : '没有可导入的支出');
+    showToast(result.skipped ? `没有新花销，跳过 ${result.skipped} 笔重复` : '没有能搬进来的花销');
   }
 }
 
@@ -530,7 +530,7 @@ async function confirmImport() {
     reset();
   } catch (err) {
     console.error(err);
-    error.value = err?.message || '导入失败，请检查文件后重试';
+    error.value = err?.message || '没搬进来，检查文件再试试吧';
   } finally {
     busy.value = false;
   }

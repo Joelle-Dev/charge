@@ -10,17 +10,16 @@ import './styles/global.css';
 const updateSW = registerSW({
   onNeedRefresh() {
     showConfirmDialog({
-      title: '发现新版本',
-      message: '刷新后即可使用最新版本',
-      confirmButtonText: '立即刷新',
-      cancelButtonText: '稍后',
-      showCancelButton: true
+    title: '果冻换新衣服啦',
+    message: '刷新一下就能用新版本啦',
+    confirmButtonText: '马上刷新',
+      showCancelButton: false
     })
       .then(() => updateSW(true))
       .catch(() => {});
   },
   onOfflineReady() {
-    showToast('已可离线使用');
+    showToast('果冻已经可以离线记账啦');
   }
 });
 

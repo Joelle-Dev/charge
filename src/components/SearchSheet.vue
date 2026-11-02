@@ -2,7 +2,7 @@
   <SheetFrame
     ref="sheetRef"
     v-model:show="show"
-    title="搜索明细"
+    title="翻翻果冻的小账本"
     :max-height="sheetMaxHeight"
     fill
     keyboard-padding
@@ -24,7 +24,7 @@
           autocorrect="off"
           spellcheck="false"
           enterkeyhint="search"
-          placeholder="搜备注、分类、金额"
+          placeholder="搜搜备注、分类或金额"
           aria-label="搜索明细"
         >
         <button
@@ -63,23 +63,23 @@
     </div>
 
     <div v-if="!currentStageStats.count" class="list-empty">
-      <p>这个阶段还没有支出</p>
-      <span>先记一笔，再来搜索</span>
+      <p>这个阶段果冻还没花过钱</p>
+      <span>先记一笔，再来翻账本</span>
     </div>
 
     <div v-else-if="loading" class="loading-state">
       <span class="loading-dot"></span>
-      正在整理搜索数据…
+      果冻在翻小账本…
     </div>
 
     <template v-else>
       <p class="search-summary">
-        找到 {{ totalMatches }} 笔<template v-if="filteredExpenses.length < totalMatches"> · 已显示 {{ filteredExpenses.length }} 笔</template>
+        找到 {{ totalMatches }} 笔啦<template v-if="results.length < totalMatches"> · 已显示 {{ results.length }} 笔</template>
       </p>
 
       <div v-if="!totalMatches" class="list-empty">
-        <p>没有找到相关支出</p>
-        <span>换个关键词试试</span>
+        <p>果冻没翻到这笔</p>
+        <span>换个词再找找嘛</span>
       </div>
 
       <div v-else class="expense-list search-results">
@@ -103,12 +103,12 @@
         </div>
       </div>
       <button
-        v-if="filteredExpenses.length < totalMatches"
+        v-if="results.length < totalMatches"
         class="secondary-btn search-more"
         type="button"
         @click="loadMore"
       >
-        加载更多
+        再翻几页
       </button>
     </template>
   </SheetFrame>
@@ -122,7 +122,8 @@ import PawIcon from './PawIcon.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
-import { categoryColor, dayKey, dayLabel, formatMoney } from '../utils/format';
+import { categoryColor, formatMoney } from '../utils/format';
+import { groupExpensesByDay } from '../utils/expenses';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const record = useRecordEntry();
@@ -155,21 +156,7 @@ function syncSheetHeight() {
 
 const filterCategories = computed(() => categoryGroups.value.map((group) => group.category));
 
-const filteredExpenses = computed(() => results.value);
-
-const filteredGroups = computed(() => {
-  const groups = new Map();
-  for (const expense of filteredExpenses.value) {
-    const key = dayKey(new Date(expense.spentAt));
-    if (!groups.has(key)) {
-      groups.set(key, { key, label: dayLabel(key), total: 0, items: [] });
-    }
-    const group = groups.get(key);
-    group.items.push(expense);
-    group.total += Number(expense.amount) || 0;
-  }
-  return [...groups.values()];
-});
+const filteredGroups = computed(() => groupExpensesByDay(results.value));
 
 function cancelPendingSearch() {
   searchToken += 1;

@@ -101,11 +101,11 @@ const draft = ref([]);
 const minDate = new Date(2000, 0, 1);
 const maxDate = new Date(2100, 11, 31);
 
-const fieldLabel = computed(() => props.label || (props.type === 'date' ? '日期' : '时间'));
-const pickerTitle = computed(() => props.title || (props.type === 'date' ? '选择日期' : '选择时间'));
+const fieldLabel = computed(() => props.label || (props.type === 'date' ? '哪一天' : '几点'));
+const pickerTitle = computed(() => props.title || (props.type === 'date' ? '挑个日子' : '挑个时间'));
 
 const displayValue = computed(() => {
-  if (!props.modelValue) return props.type === 'date' ? '选择日期' : '选择时间';
+  if (!props.modelValue) return props.type === 'date' ? '挑个日子' : '挑个时间';
   if (props.type === 'time') return props.modelValue;
 
   const now = new Date();

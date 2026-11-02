@@ -48,7 +48,7 @@ function ensureWorker() {
       rebuildResolve = null;
       rebuildReject = null;
       rebuildProgress = null;
-      reject?.(new Error(message.error || '搜索索引重建失败'));
+      reject?.(new Error(message.error || '搜索小本子重建失败啦'));
       return;
     }
 
@@ -73,7 +73,7 @@ function ensureWorker() {
       derivedResolve = null;
       derivedReject = null;
       derivedProgress = null;
-      reject?.(new Error(message.error || '重建数据失败'));
+      reject?.(new Error(message.error || '数据重建失败啦'));
       return;
     }
 
@@ -87,12 +87,12 @@ function ensureWorker() {
       if (!entry) return;
       pendingSearches.delete(message.requestId);
       if (message.type === 'searchDone') entry.resolve(message);
-      else entry.reject(new Error(message.error || '搜索失败'));
+      else entry.reject(new Error(message.error || '搜索失败啦'));
     }
   };
 
   worker.onerror = () => {
-    const error = new Error('搜索线程启动失败');
+    const error = new Error('搜索小帮手没启动，刷新再试试吧');
     rejectPending(error);
     if (rebuildReject) {
       const reject = rebuildReject;

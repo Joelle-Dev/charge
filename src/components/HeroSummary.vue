@@ -3,7 +3,7 @@
     <div class="hero-glow" aria-hidden="true"></div>
 
     <div class="hero-top">
-      <span class="eyebrow">当前阶段</span>
+      <span class="eyebrow">果冻守着</span>
       <div class="hero-side">
         <span class="hero-count">{{ currentStageStats.count }} 笔</span>
         <span class="hero-mood"><CatMood :mood="mood" /></span>
@@ -18,6 +18,8 @@
       <span class="currency">¥</span><span>{{ formatMoney(total) }}</span>
     </div>
 
+    <p class="hero-caption">{{ moodLine }}</p>
+
     <div v-if="budget > 0" class="budget-block">
       <div class="budget-line">
         <span class="budget-label">
@@ -31,7 +33,7 @@
           猫粮罐 ¥<b>{{ formatMoney(budget) }}</b>
         </span>
         <span :class="{ over: remaining < 0 }">
-          {{ remaining >= 0 ? `剩余 ¥${formatMoney(remaining)}` : `超支 ¥${formatMoney(Math.abs(remaining))}` }}
+          {{ remaining >= 0 ? `还剩 ¥${formatMoney(remaining)}` : `花超啦 ¥${formatMoney(Math.abs(remaining))}` }}
         </span>
       </div>
       <div class="progress">
@@ -65,5 +67,16 @@ const mood = computed(() => {
   if (ratio >= 0.8) return 'worried';
   if (ratio >= 0.5) return 'watch';
   return 'happy';
+});
+
+const moodLine = computed(() => {
+  if (!currentStageStats.value.count) return '果冻还没花钱，真乖';
+  if (!budget.value) return '果冻今天也把钱看得紧紧的';
+
+  const ratio = total.value / budget.value;
+  if (ratio > 1) return '猫粮罐见底啦，果冻有点慌';
+  if (ratio >= 0.8) return '快碰到猫粮罐底啦，省着点花哦';
+  if (ratio >= 0.5) return '果冻在盯着猫粮罐，慢慢花';
+  return '果冻今天也没乱花钱，真棒';
 });
 </script>

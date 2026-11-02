@@ -8,7 +8,8 @@ const RULES = [
       '早餐', '早饭', '午餐', '午饭', '晚餐', '晚饭', '夜宵', '宵夜', '吃饭', '外卖',
       '奶茶', '咖啡', '火锅', '烧烤', '饮料', '可乐', '矿泉水', '星巴克', '麦当劳',
       '肯德基', '食堂', '买菜', '菜市场', '零食', '水果', '蛋糕', '面包', '饺子',
-      '包子', '面条', '米粉', '烧烤', '聚餐', '请客', '餐', '饭', '粉', '面'
+      '包子', '面条', '米粉', '烧烤', '聚餐', '请客', '早茶', '下午茶', '小吃',
+      '盒饭', '便当', '泡面', '快餐', '餐', '饭', '粉', '面'
     ]
   },
   {
@@ -16,7 +17,8 @@ const RULES = [
     keywords: [
       '打车', '滴滴', '出租车', '的士', '网约车', '地铁', '公交', '巴士', '高铁',
       '火车', '动车', '机票', '飞机', '机场', '停车', '加油', '油费', '过路费',
-      '高速', '共享单车', '单车', '电瓶车', '船票', '轮渡', '车费'
+      '高速', '共享单车', '单车', '电瓶车', '船票', '轮渡', '车费', '代驾',
+      '充电桩', '车票', '停车费', '油钱'
     ]
   },
   {
@@ -35,14 +37,15 @@ const RULES = [
     keywords: [
       '购物', '超市', '商场', '衣服', '裤子', '鞋子', '包包', '化妆品', '护肤',
       '日用品', '淘宝', '京东', '拼多多', '纪念品', '特产', '礼物', '数码', '耳机',
-      '手机', '家电', '药店', '药', '买'
+      '手机', '家电', '药店', '药', '快递', '网购', '便利店', '买'
     ]
   },
   {
     name: '娱乐',
     keywords: [
       '电影', '唱歌', 'ktv', '游戏', '演出', '演唱会', '酒吧', '娱乐', '按摩',
-      'spa', '桌游', '剧本杀', '密室', '健身', '游泳', '滑雪', '租车'
+      'spa', '桌游', '剧本杀', '密室', '健身', '游泳', '滑雪', '租车',
+      '会员', '订阅', '充值', '网吧'
     ]
   }
 ];
@@ -54,6 +57,7 @@ const CN_DIGITS = {
 const CN_UNITS = { 十: 10, 百: 100, 千: 1000, 万: 10000, 亿: 100000000 };
 
 const MEASURE_AFTER = /^[年月日号点时秒分公里人个份杯瓶包张件次天晚位只斤克岁折成]/;
+const CN_MEASURE_AFTER = /^[年月日号点时秒分公里人个份杯瓶包张件次天晚位只斤克岁折成]/;
 const DATE_DAY = /^[日号]/;
 
 export function chineseToNumber(input) {
@@ -130,6 +134,8 @@ function normalize(text) {
     .replace(/．/g, '.')
     .replace(/，/g, '，')
     .replace(/(\d),(?=\d{3}(?:\D|$))/g, '$1')
+    .replace(/([零〇一二两三四五六七八九十百千万亿])\s+(?=[零〇一二两三四五六七八九十百千万亿])/g, '$1')
+    .replace(/([零〇一二两三四五六七八九十百千万亿])\s+(?=[块元圆毛角年月日号点时秒分个份杯瓶包张件次天晚位只斤克岁折成公里人])/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -145,8 +151,13 @@ function validAmount(value) {
 
 export function extractAmount(text) {
   const source = normalize(text);
+  const candidates = [];
 
   const patterns = [
+    {
+      re: /(\d+(?:\.\d+)?|[零〇一二两三四五六七八九十百千万亿点]+)\s*(?:元|块钱|块|圆)\s*半/,
+      calc: (m) => numberFrom(m[1]) + 0.5
+    },
     {
       re: /(\d+(?:\.\d+)?)\s*(?:元|块钱|块|圆)\s*([0-9一二三四五六七八九])\s*(?:毛|角)?/,
       calc: (m) => Number(m[1]) + Number(numberFrom(m[2])) / 10
@@ -177,18 +188,24 @@ export function extractAmount(text) {
     }
   ];
 
-  for (const { re, calc } of patterns) {
-    const match = re.exec(source);
-    if (!match) continue;
-    const value = Math.round(calc(match) * 100) / 100;
-    if (!validAmount(value)) continue;
-    return {
-      amount: value,
-      raw: match[0],
-      index: match.index,
-      end: match.index + match[0].length
-    };
-  }
+  patterns.forEach(({ re, calc }, order) => {
+    const flags = re.flags.includes('g') ? re.flags : `${re.flags}g`;
+    const global = new RegExp(re.source, flags);
+    let match;
+    while ((match = global.exec(source))) {
+      const value = Math.round(calc(match) * 100) / 100;
+      if (validAmount(value)) {
+        candidates.push({
+          amount: value,
+          raw: match[0],
+          index: match.index,
+          end: match.index + match[0].length,
+          order
+        });
+      }
+      if (global.lastIndex === match.index) global.lastIndex += 1;
+    }
+  });
 
   const bare = /\d+(?:\.\d+)?/g;
   let m;
@@ -199,28 +216,50 @@ export function extractAmount(text) {
     if (/[第]$/.test(before)) continue;
     const value = Number(m[0]);
     if (!validAmount(value)) continue;
-    return {
+    candidates.push({
       amount: Math.round(value * 100) / 100,
       raw: m[0],
       index: m.index,
-      end: m.index + m[0].length
-    };
+      end: m.index + m[0].length,
+      order: 100
+    });
   }
 
-  const cnTail = /([零〇一二两三四五六七八九十百千万亿点]+)\s*[。.!！]?$/.exec(source);
-  if (cnTail) {
-    const value = chineseToNumber(cnTail[1]);
-    if (validAmount(value)) {
-      return {
-        amount: Math.round(value * 100) / 100,
-        raw: cnTail[0].trim(),
-        index: cnTail.index,
-        end: cnTail.index + cnTail[0].length
-      };
-    }
+  const cnRun = /([零〇一二两三四五六七八九十百千万亿]+)(?:点([零〇一二三四五六七八九]+))?/g;
+  while ((m = cnRun.exec(source))) {
+    const token = m[2] ? `${m[1]}点${m[2]}` : m[1];
+    const after = source.slice(m.index + token.length);
+    const before = source.slice(0, m.index);
+    if (CN_MEASURE_AFTER.test(after)) continue;
+    if (/[第]$/.test(before)) continue;
+    if (!m[2] && token.length < 2 && !/[十百千万亿]/.test(token)) continue;
+    const value = chineseToNumber(token);
+    if (!validAmount(value)) continue;
+    candidates.push({
+      amount: Math.round(value * 100) / 100,
+      raw: token,
+      index: m.index,
+      end: m.index + token.length,
+      order: 101
+    });
+    if (cnRun.lastIndex === m.index) cnRun.lastIndex += 1;
   }
 
-  return null;
+  if (!candidates.length) return null;
+
+  candidates.sort((a, b) => (
+    a.index - b.index ||
+    b.end - a.end ||
+    a.order - b.order
+  ));
+
+  const best = candidates[0];
+  return {
+    amount: best.amount,
+    raw: best.raw,
+    index: best.index,
+    end: best.end
+  };
 }
 
 export function detectCategory(text, categories = PRESET_CATEGORIES) {
@@ -260,9 +299,11 @@ export function parseSpentAt(text, now = new Date()) {
   const consumed = [];
   let relative = null;
 
-  const relativeMatch = /(大前天|前天|昨天|今天|今日)/.exec(source);
+  const relativeMatch = /(大前天|前天|前儿|昨天|昨儿|今天|今日|今儿)/.exec(source);
   if (relativeMatch) {
-    relative = { 大前天: -3, 前天: -2, 昨天: -1, 今天: 0, 今日: 0 }[relativeMatch[1]];
+    relative = {
+      大前天: -3, 前天: -2, 前儿: -2, 昨天: -1, 昨儿: -1, 今天: 0, 今日: 0, 今儿: 0
+    }[relativeMatch[1]];
     consumed.push(relativeMatch[0]);
   }
 
@@ -300,10 +341,10 @@ export function parseSpentAt(text, now = new Date()) {
     consumed.push(periodMatch[0]);
   }
 
-  const timeMatch = /(?<!\d)(\d{1,2})\s*点\s*(?:(\d{1,2})\s*分?)?/.exec(source);
+  const timeMatch = /(?<!\d)(\d{1,2})\s*点\s*(半|(?:(\d{1,2})\s*分?)?)/.exec(source);
   if (timeMatch) {
     let hour = Number(timeMatch[1]);
-    const minute = Number(timeMatch[2] || 0);
+    const minute = timeMatch[2] === '半' ? 30 : Number(timeMatch[3] || 0);
     if (periodMatch && /下午|傍晚|晚上/.test(periodMatch[1]) && hour < 12) hour += 12;
     if (periodMatch && periodMatch[1] === '中午' && hour < 11) hour += 12;
     if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
@@ -324,8 +365,8 @@ export function parseSpentAt(text, now = new Date()) {
   return { date, consumed };
 }
 
-const LEADING_FILLER = /^(?:我|已经|刚刚|刚|一共|总共|共计|合计|大约|大概|差不多|约|花了|花|用了|用|付了|付|支付了|支付|消费了|消费|买了|买|吃了|喝了|去了|住了|又|就|还|一共)+/;
-const TRAILING_FILLER = /(?:吃了|喝了|买了|用了|花了|付了|消费了|左右|大概|差不多)$/;
+const LEADING_FILLER = /^(?:嗯+|呃+|啊+|额+|那个|这个|就是|然后|接着|帮我|帮忙|记一下|记一笔|再记|另外|我|已经|刚刚|刚|一共|总共|共计|合计|大约|大概|差不多|约|花了|花|用了|用|付了|付|支付了|支付|消费了|消费|买了|买|吃了|喝了|去了|住了|又|就|还)+/;
+const TRAILING_FILLER = /(?:吃了|喝了|买了|用了|花了|付了|消费了|左右|大概|差不多|吧|啊|呀|呢)$/;
 
 export function cleanNote(text, removeParts = []) {
   let note = normalize(text);

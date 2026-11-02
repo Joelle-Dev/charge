@@ -1,20 +1,20 @@
 <template>
-  <SheetFrame v-model:show="show" :title="editingStage ? '编辑阶段' : '新建阶段'" max-height="88dvh">
+  <SheetFrame v-model:show="show" :title="editingStage ? '改改阶段' : '建个新阶段'" max-height="88dvh">
     <form novalidate @submit.prevent="save">
       <label class="field">
-        <span class="field-label">阶段名称</span>
+        <span class="field-label">阶段名字</span>
         <input
           v-model="name"
           class="input"
           type="text"
           maxlength="24"
-          placeholder="例如：国庆旅行、装修 2025"
+          placeholder="比如：国庆旅行、装修 2025"
           required
         >
       </label>
 
       <label class="field">
-        <span class="field-label">预算总数 <span>可选</span></span>
+        <span class="field-label">猫粮罐预算 <span>可选</span></span>
         <input
           v-model="budget"
           class="input"
@@ -22,16 +22,16 @@
           inputmode="decimal"
           min="0"
           step="0.01"
-          placeholder="不填也可以"
+          placeholder="不填也没关系"
         >
       </label>
 
       <p v-if="error" class="form-error">{{ error }}</p>
 
       <div class="form-actions">
-        <button class="primary-btn" type="submit">{{ editingStage ? '保存' : '创建并切换' }}</button>
+        <button class="primary-btn" type="submit">{{ editingStage ? '保存' : '建好就用它' }}</button>
         <button v-if="editingStage" class="danger-btn" type="button" @click="toggleArchive">
-          {{ editingStage.archived ? '恢复' : '归档' }}
+          {{ editingStage.archived ? '恢复' : '收起来' }}
         </button>
       </div>
 
@@ -41,11 +41,11 @@
         type="button"
         @click="removeStage"
       >
-        删除这个阶段
+        把这个阶段删掉
       </button>
 
       <p class="sheet-note">
-        {{ editingStage ? '预算只用于计算剩余和进度，不影响记账。' : '创建后会立即切换到这个阶段。' }}
+        {{ editingStage ? '预算只用来算还剩多少，不影响记账。' : '建好后会马上换到这个阶段。' }}
       </p>
     </form>
   </SheetFrame>
@@ -99,19 +99,19 @@ async function save() {
     return;
   }
   if (budgetRaw !== '' && (!Number.isFinite(budgetValue) || budgetValue < 0)) {
-    error.value = '预算需要是大于等于 0 的数字';
+    error.value = '预算要填 0 或更大的数字哦';
     return;
   }
 
   if (editingStage.value) {
     await updateStage(editingStage.value, { name: trimmed, budget: budgetValue });
     haptic('success');
-    showToast('阶段已更新');
+    showToast('阶段改好啦');
   } else {
     await createStage({ name: trimmed, budget: budgetValue });
     haptic('success');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast(`已创建「${trimmed}」`);
+    showToast(`「${trimmed}」建好啦`);
   }
   show.value = false;
 }
@@ -122,11 +122,11 @@ async function toggleArchive() {
   if (stage.archived) {
     await restoreStage(stage);
     haptic('light');
-    showToast(`已恢复「${stage.name}」`);
+    showToast(`「${stage.name}」回来啦`);
   } else {
     await archiveStage(stage);
     haptic('light');
-    showToast(`已归档「${stage.name}」`);
+    showToast(`「${stage.name}」收起来啦`);
   }
   show.value = false;
 }
@@ -137,9 +137,9 @@ async function removeStage() {
   const count = stageStats(stage.id).count;
   try {
     await showConfirmDialog({
-      title: '删除阶段',
-      message: `删除「${stage.name}」及其中 ${count} 笔支出？此操作不可恢复。`,
-      confirmButtonText: '删除',
+      title: '删掉这个阶段',
+      message: `要把「${stage.name}」和里面的 ${count} 笔花销一起删掉吗？删掉就找不回来啦。`,
+      confirmButtonText: '删掉吧',
       confirmButtonColor: DANGER_COLOR
     });
   } catch (err) {
@@ -147,7 +147,7 @@ async function removeStage() {
   }
   await deleteStage(stage);
   haptic('warning');
-  showToast('阶段已删除');
+  showToast('阶段删掉啦');
   show.value = false;
 }
 </script>

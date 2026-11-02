@@ -6,11 +6,21 @@
     :style="panelStyle"
     @pointerdown="onCurtainPointerDown"
   >
+    <button
+      class="record-curtain-grabber"
+      type="button"
+      aria-label="收起记账面板"
+      @click="closeCurtain"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m6 15 6-6 6 6"></path>
+      </svg>
+    </button>
     <div class="record-curtain-body" :inert="!curtainOpen">
       <header class="record-curtain-head">
         <div class="record-curtain-heading">
-          <span class="record-curtain-eyebrow">{{ editingExpense ? '编辑支出' : '记一笔' }}</span>
-          <p>记入「{{ currentStage?.name || '当前阶段' }}」</p>
+          <span class="record-curtain-eyebrow">{{ editingExpense ? '改改这笔' : '记一笔' }}</span>
+          <p>记进「{{ currentStage?.name || '当前阶段' }}」</p>
         </div>
         <button
           v-if="editingExpense"
@@ -18,7 +28,7 @@
           type="button"
           @click="removeCurrent"
         >
-          删除
+          删掉
         </button>
       </header>
 
@@ -33,7 +43,7 @@
           class="record-note-input"
           type="text"
           maxlength="40"
-          placeholder="备注（可选）"
+          placeholder="想说点什么（可选）"
           aria-label="备注"
           enterkeyhint="done"
           @keydown.enter.prevent="blurNote"
@@ -43,7 +53,7 @@
           v-if="note"
           class="record-note-clear"
           type="button"
-          aria-label="清空备注"
+          aria-label="清掉备注"
           @click="clearNote"
         >
           ×
@@ -101,7 +111,7 @@
     >
       <van-date-picker
         v-model="dateDraft"
-        title="选择日期"
+        title="挑个日子"
         :min-date="minDate"
         :max-date="maxDate"
         @confirm="confirmDate"
@@ -118,6 +128,7 @@ import { useRouter } from 'vue-router';
 import NumberKeypad from './NumberKeypad.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
+import { usePreferences } from '../composables/usePreferences';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import {
   amountToInput,
@@ -160,6 +171,7 @@ const {
 } = useRecordEntry();
 const { categories, currentStage, todayStats, addExpense, updateExpense } = useLedger();
 const { removeExpense: removeExpenseAction } = useExpenseActions();
+const { recordDoneBehavior, initPreferences } = usePreferences();
 
 const panelRef = ref(null);
 const noteInput = ref(null);
@@ -191,7 +203,7 @@ const categoryOptions = computed(() => {
 const amountDisplay = computed(() => formatAmountInput(amount.value));
 const canSave = computed(() => isValidAmount(amount.value) && Boolean(selectedCategory.value));
 const closeMode = computed(() => !amount.value.trim() && !editingExpense.value);
-const doneLabel = computed(() => (closeMode.value ? '收起' : '完成'));
+const doneLabel = computed(() => (closeMode.value ? '收起来' : '记好啦'));
 const doneDisabled = computed(() => saving.value || (!closeMode.value && !canSave.value));
 
 const dateLabel = computed(() => {
@@ -203,7 +215,7 @@ const dateLabel = computed(() => {
   if (date.value === toDateInput(yesterday)) return '昨天';
 
   const [, month, day] = date.value.split('-').map(Number);
-  if (!Number.isFinite(month) || !Number.isFinite(day)) return '日期';
+  if (!Number.isFinite(month) || !Number.isFinite(day)) return '哪一天';
   return `${month}/${day}`;
 });
 
@@ -264,6 +276,7 @@ function measurePanel() {
 onMounted(() => {
   initialize();
   measurePanel();
+  initPreferences().catch((err) => console.error(err));
   previousOverflow = document.body.style.overflow;
   if (curtainOpen.value) document.body.style.overflow = 'hidden';
   window.addEventListener('keydown', onKeydown);
@@ -350,7 +363,7 @@ async function save() {
 
   const value = toAmountNumber(amount.value);
   if (!isValidAmount(amount.value)) {
-    showToast('请输入大于 0 的金额');
+    showToast('金额要大于 0 哦');
     return;
   }
 
@@ -367,7 +380,7 @@ async function save() {
       });
       rememberCategory(selectedCategory.value);
       haptic('success');
-      showToast('已保存修改');
+      showToast('改好啦');
       closeCurtain();
       resetRecord();
       if (backPath) router.back();
@@ -376,7 +389,7 @@ async function save() {
 
     const spentAt = combineLocal(date.value, toTimeInput(new Date()));
     if (!spentAt) {
-      showToast('日期不正确');
+      showToast('这个日子好像不对哦');
       return;
     }
 
@@ -388,13 +401,17 @@ async function save() {
     });
     rememberCategory(selectedCategory.value);
     haptic('success');
-    showToast('喵，已记下这笔');
-    amount.value = '';
-    note.value = '';
-    expenseDraft.value = null;
+    showToast('喵，记好啦');
+    if (recordDoneBehavior.value === 'close') {
+      resetRecord();
+    } else {
+      amount.value = '';
+      note.value = '';
+      expenseDraft.value = null;
+    }
   } catch (err) {
     console.error(err);
-    showToast('保存失败，请重试');
+    showToast('没记上，再试一次吧');
   } finally {
     saving.value = false;
   }

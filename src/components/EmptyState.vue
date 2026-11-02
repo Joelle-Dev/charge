@@ -8,9 +8,9 @@
         <span class="empty-cat"><img class="empty-cat-image" :src="brandIcon" alt=""></span>
       </div>
 
-      <span class="empty-eyebrow">开始记账</span>
-      <h1>先建一个阶段</h1>
-      <p>旅行、装修、某月日常……<br>把钱都记进同一个阶段里。</p>
+      <span class="empty-eyebrow">果冻在这里</span>
+      <h1>先给果冻一个阶段吧</h1>
+      <p>旅行、装修、这个月的日常……<br>把钱钱都装进同一个阶段里。</p>
 
       <div class="empty-examples" aria-label="阶段示例">
         <button
@@ -24,8 +24,8 @@
         </button>
       </div>
 
-      <button class="primary-btn" type="button" @click="openStageForm">新建阶段</button>
-      <p class="empty-note">建好后可以随时切换阶段</p>
+      <button class="primary-btn" type="button" @click="openStageForm">建个阶段</button>
+      <p class="empty-note">建好后随时可以换着用</p>
     </div>
   </section>
 </template>

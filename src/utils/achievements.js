@@ -4,7 +4,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'first-paw',
     name: '第一枚爪印',
-    description: '记下第一笔支出',
+    description: '记下第一笔小账',
     icon: 'paw',
     target: 1,
     value: (stats) => stats.totalCount
@@ -12,7 +12,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'ten-records',
     name: '十笔小账',
-    description: '累计记录 10 笔支出',
+    description: '一共记了 10 笔小账',
     icon: 'paw',
     target: 10,
     value: (stats) => stats.totalCount
@@ -20,7 +20,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'fifty-records',
     name: '五十笔小账',
-    description: '累计记录 50 笔支出',
+    description: '一共记了 50 笔小账',
     icon: 'paw',
     target: 50,
     value: (stats) => stats.totalCount
@@ -28,7 +28,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'hundred-records',
     name: '百笔小账',
-    description: '累计记录 100 笔支出',
+    description: '一共记了 100 笔小账',
     icon: 'crown',
     target: 100,
     value: (stats) => stats.totalCount
@@ -36,7 +36,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'streak-3',
     name: '连续三天',
-    description: '连续 3 天有记账',
+    description: '连续 3 天都来记账',
     icon: 'paw',
     target: 3,
     value: (stats) => stats.streak
@@ -44,7 +44,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'streak-7',
     name: '一周猫爪',
-    description: '连续 7 天有记账',
+    description: '连续 7 天都来记账',
     icon: 'paw',
     target: 7,
     value: (stats) => stats.streak
@@ -52,7 +52,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'streak-30',
     name: '月度守护',
-    description: '连续 30 天有记账',
+    description: '连续 30 天都来记账',
     icon: 'crown',
     target: 30,
     value: (stats) => stats.streak
@@ -60,7 +60,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'no-spend-7',
     name: '空碗勋章',
-    description: '累计 7 天没有支出',
+    description: '一共 7 天没花钱',
     icon: 'bowl',
     target: 7,
     value: (stats) => stats.noSpendDays
@@ -68,7 +68,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'budget-keeper',
     name: '猫粮守护者',
-    description: '有预算的阶段没有超支',
+    description: '有猫粮罐的阶段都没花超',
     icon: 'bowl',
     target: 1,
     value: (stats) => stats.budgetKeptStages
@@ -76,7 +76,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'stage-master',
     name: '阶段收藏家',
-    description: '创建过 3 个阶段',
+    description: '建过 3 个阶段',
     icon: 'star',
     target: 3,
     value: (stats) => stats.stageCount

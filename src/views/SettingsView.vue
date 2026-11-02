@@ -2,13 +2,13 @@
   <section class="settings-page">
     <section class="settings-card">
       <div class="settings-card-head">
-        <h2>数据</h2>
+        <h2>小账本</h2>
         <span>{{ globalStats.count }} 笔</span>
       </div>
       <button class="settings-action" type="button" @click="showBackup = true">
         <span>
-          数据与备份
-          <small>导出完整备份、导入或换机</small>
+          账本与备份
+          <small>导出果冻的全部账本、导入或搬新家</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m9 6 6 6-6 6"></path>
@@ -16,8 +16,8 @@
       </button>
       <button class="settings-action" type="button" @click="openYearSummary">
         <span>
-          历史支出
-          <small>按日期范围查看年/月支出与趋势</small>
+          花过的钱
+          <small>翻翻全部或当前阶段的年/月花销</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 20V10"></path>
@@ -28,8 +28,8 @@
       </button>
       <button class="settings-action" type="button" @click="openSummary">
         <span>
-          阶段小结卡
-          <small>果冻风格图片，可分享或保存</small>
+          果冻的阶段小结
+          <small>果冻风格图片，可以分享或保存</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="4" width="18" height="16" rx="3"></rect>
@@ -39,8 +39,8 @@
       </button>
       <button class="settings-action" type="button" @click="exportCsv">
         <span>
-          导出当前阶段 CSV
-          <small>可用 Excel 打开，包含阶段标题</small>
+          导出这个阶段的 CSV
+          <small>可以用 Excel 打开，带着阶段标题</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12"></path>
@@ -52,12 +52,34 @@
 
     <section class="settings-card">
       <div class="settings-card-head">
-        <h2>偏好</h2>
+        <h2>果冻的偏好</h2>
+      </div>
+      <div class="settings-preference">
+        <span class="settings-preference-label">
+          记完一笔之后
+          <small>{{ recordDoneBehavior === 'close' ? '保存后自动收起来' : '保存后接着记' }}</small>
+        </span>
+        <div class="settings-segment" role="group" aria-label="记完一笔之后的行为">
+          <button
+            type="button"
+            :class="{ active: recordDoneBehavior === 'continue' }"
+            @click="setRecordDoneBehavior('continue')"
+          >
+            接着记
+          </button>
+          <button
+            type="button"
+            :class="{ active: recordDoneBehavior === 'close' }"
+            @click="setRecordDoneBehavior('close')"
+          >
+            收起来
+          </button>
+        </div>
       </div>
       <button class="settings-action" type="button" @click="showCategories = true">
         <span>
-          分类
-          <small>{{ categories.length }} 个 · 添加、改名或删除</small>
+          钱钱分类
+          <small>{{ categories.length }} 个 · 可以添加、改名或删掉</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m9 6 6 6-6 6"></path>
@@ -66,14 +88,14 @@
       <button class="settings-action" type="button" @click="sheets.openAchievements()">
         <span>
           果冻成就
-          <small>{{ unlockedCount }} 枚爪印 · 当前称号 {{ currentCatTitle }}</small>
+          <small>{{ unlockedCount }} 枚爪印 · 现在叫 {{ currentCatTitle }}</small>
         </span>
         <PawIcon class="settings-paw" />
       </button>
       <button class="settings-action" type="button" @click="install">
         <span>
-          添加到主屏幕
-          <small>{{ standalone ? '当前已作为应用运行' : '像 App 一样从桌面打开' }}</small>
+          把果冻放到桌面
+          <small>{{ standalone ? '果冻已经住进桌面啦' : '像 App 一样从桌面打开' }}</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12"></path>
@@ -82,20 +104,67 @@
         </svg>
       </button>
       <div v-if="showInstallTip" class="install-tip">
-        <template v-if="isIos">在 Safari 中点击底部 <b>分享</b> 按钮，选择 <b>添加到主屏幕</b>。</template>
-        <template v-else>在浏览器菜单中选择 <b>安装应用 / 添加到主屏幕</b>。</template>
+        <template v-if="isIos">在 Safari 点底部 <b>分享</b>，再选 <b>添加到主屏幕</b>，果冻就住进去啦。</template>
+        <template v-else>在浏览器菜单里选 <b>安装应用 / 添加到主屏幕</b> 就好啦。</template>
       </div>
     </section>
 
+    <section class="settings-card">
+      <div class="settings-card-head">
+        <h2>再逛逛</h2>
+      </div>
+      <button class="settings-action" type="button" @click="shareApp">
+        <span>
+          把果冻分享给朋友
+          <small>让朋友也来守财</small>
+        </span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+          <path d="M12 16V4"></path>
+          <path d="m8 8 4-4 4 4"></path>
+        </svg>
+      </button>
+      <button class="settings-action" type="button" @click="showHelp = true">
+        <span>
+          果冻的使用说明
+          <small>记账、批量记、备份和常见问题</small>
+        </span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M9.5 9a2.5 2.5 0 1 1 3.8 2.2c-.8.5-1.3 1-1.3 2"></path>
+          <path d="M12 17h.01"></path>
+        </svg>
+      </button>
+    </section>
+
+    <section class="settings-card">
+      <div class="settings-card-head">
+        <h2>内测专区</h2>
+      </div>
+      <button class="settings-action" type="button" @click="openVoiceTest">
+        <span>
+          先试试语音（内测）
+          <small>语音识别 · 带调试信息，手机自测通过后再上线</small>
+        </span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <rect x="9" y="2.5" width="6" height="11" rx="3"></rect>
+          <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"></path>
+          <path d="M12 18v3"></path>
+        </svg>
+      </button>
+    </section>
+
     <p class="settings-privacy settings-privacy-plain">
-      所有账目和阶段都保存在这台设备的浏览器里，不会上传到服务器。语音识别由浏览器和系统提供，是否上传音频取决于浏览器实现。
+      账目和阶段都乖乖待在这台设备里，不会上传。语音识别由浏览器和系统提供，要不要上传音频要看浏览器的实现。
     </p>
 
     <button class="settings-danger-link" type="button" @click="clearCurrentStage">
-      清空当前阶段支出
+      清空这个阶段的花销
     </button>
 
-    <p class="settings-footer">守财小果 · 语音记账 · 数据只属于你</p>
+    <p class="settings-footer">守财小果 · 果冻陪你记账 · 数据只属于你</p>
+
+    <HelpSheet v-model:show="showHelp" />
 
     <CategorySheet v-model:show="showCategories" />
 
@@ -114,12 +183,14 @@ import { useRouter } from 'vue-router';
 import { closeToast, showConfirmDialog, showLoadingToast, showToast } from 'vant';
 import BackupSheet from '../components/BackupSheet.vue';
 import CategorySheet from '../components/CategorySheet.vue';
+import HelpSheet from '../components/HelpSheet.vue';
 import ImportSheet from '../components/ImportSheet.vue';
 import PawIcon from '../components/PawIcon.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
 import { useAchievements } from '../composables/useAchievements';
 import { usePwaInstall } from '../composables/usePwaInstall';
+import { usePreferences } from '../composables/usePreferences';
 import { exportStageCsvInWorker, saveBlob } from '../lib/dataClient';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
@@ -136,13 +207,16 @@ const {
 const sheets = useSheets();
 const { unlockedCount, initAchievements } = useAchievements();
 const { standalone, isIos, promptInstall } = usePwaInstall();
+const { recordDoneBehavior, initPreferences, setRecordDoneBehavior } = usePreferences();
 
 const showInstallTip = ref(false);
 const showImport = ref(false);
 const showBackup = ref(false);
 const showCategories = ref(false);
+const showHelp = ref(false);
 
 onMounted(() => {
+  initPreferences().catch((err) => console.error(err));
   initAchievements().catch((err) => console.error(err));
 });
 
@@ -160,13 +234,49 @@ function openYearSummary() {
   router.push('/history');
 }
 
+async function shareApp() {
+  const url = `${window.location.origin}${window.location.pathname}`;
+  const data = {
+    title: '守财小果',
+    text: '果冻陪你一句一句记小账',
+    url
+  };
+
+  if (navigator.share) {
+    try {
+      await navigator.share(data);
+      haptic('light');
+      return;
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(url);
+    haptic('light');
+    showToast('链接已复制，发给朋友吧');
+  } catch (err) {
+    showToast(url);
+  }
+}
+
+function openVoiceTest() {
+  if (!currentStage.value) {
+    showToast('先给果冻建个阶段吧');
+    sheets.openStageForm();
+    return;
+  }
+  router.push('/voice-test');
+}
+
 function openSummary() {
   if (!currentStage.value) {
-    showToast('还没有阶段');
+    showToast('果冻还没有阶段呢');
     return;
   }
   if (!currentStageStats.value.count) {
-    showToast('这个阶段还没有支出');
+    showToast('这个阶段果冻还没花过钱');
     return;
   }
   sheets.openSummary(currentStage.value);
@@ -174,53 +284,53 @@ function openSummary() {
 
 async function install() {
   if (standalone.value) {
-    showToast('当前已作为应用运行');
+    showToast('果冻已经住进桌面啦');
     return;
   }
   const accepted = await promptInstall();
   showInstallTip.value = !accepted;
-  if (accepted) showToast('已添加到主屏幕');
+  if (accepted) showToast('果冻已经住进桌面啦');
 }
 
 async function exportCsv() {
   if (!currentStage.value) {
-    showToast('还没有阶段');
+    showToast('果冻还没有阶段呢');
     return;
   }
   if (!currentStageStats.value.count) {
-    showToast('这个阶段还没有支出');
+    showToast('这个阶段果冻还没花过钱');
     return;
   }
 
-  showLoadingToast({ message: '正在导出…', forbidClick: true, duration: 0 });
+  showLoadingToast({ message: '果冻在打包账本…', forbidClick: true, duration: 0 });
   try {
     const result = await exportStageCsvInWorker(currentStage.value);
     closeToast();
     if (result.empty) {
-      showToast('这个阶段还没有支出');
+      showToast('这个阶段果冻还没花过钱');
       return;
     }
     saveBlob(result.blob, result.filename);
     haptic('success');
-    showToast('已导出（含阶段标题）');
+    showToast('打包好啦（带着阶段标题）');
   } catch (err) {
     closeToast();
     console.error(err);
-    showToast('导出失败，请重试');
+    showToast('打包失败啦，再试一次吧');
   }
 }
 
 async function clearCurrentStage() {
   if (!currentStage.value) return;
   if (!currentStageStats.value.count) {
-    showToast('这个阶段还没有支出');
+    showToast('这个阶段果冻还没花过钱');
     return;
   }
   try {
     await showConfirmDialog({
-      title: '清空支出',
-      message: `清空「${currentStage.value.name}」里的全部支出？此操作不可恢复。`,
-      confirmButtonText: '清空',
+      title: '清空这个阶段的花销',
+      message: `要把「${currentStage.value.name}」里的花销都清掉吗？清掉就找不回来啦。`,
+      confirmButtonText: '清空吧',
       confirmButtonColor: DANGER_COLOR
     });
   } catch (err) {
@@ -228,6 +338,6 @@ async function clearCurrentStage() {
   }
   await clearStageExpenses(currentStage.value.id);
   haptic('warning');
-  showToast('已清空当前阶段支出');
+  showToast('这个阶段的花销清空啦');
 }
 </script>

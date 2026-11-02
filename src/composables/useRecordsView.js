@@ -1,8 +1,8 @@
 import { ref } from 'vue';
 
 const viewMode = ref('list');
-const recordMode = ref('tree');
 const recordMonth = ref('');
+const dailyOpen = ref(false);
 const selectedMonth = ref('');
 const selectedDate = ref('');
 const stageId = ref(null);
@@ -10,8 +10,8 @@ const stageId = ref(null);
 export function useRecordsView() {
   return {
     viewMode,
-    recordMode,
     recordMonth,
+    dailyOpen,
     selectedMonth,
     selectedDate,
     stageId

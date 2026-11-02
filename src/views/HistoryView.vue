@@ -7,46 +7,91 @@
         </svg>
       </button>
       <div class="history-title">
-        <span class="history-eyebrow">账本</span>
-        <h1>历史支出</h1>
+        <span class="history-eyebrow">果冻的账本</span>
+        <h1>花过的钱钱</h1>
       </div>
     </header>
 
     <section class="history-range">
+      <div class="history-scope">
+        <div class="history-scope-switch" role="group" aria-label="统计范围">
+          <button
+            type="button"
+            :disabled="!currentStage"
+            :class="{ active: stageScope === 'current' }"
+            @click="setScope('current')"
+          >
+            当前阶段
+          </button>
+          <button
+            type="button"
+            :class="{ active: stageScope === 'all' }"
+            @click="setScope('all')"
+          >
+            全部阶段
+          </button>
+        </div>
+        <span class="history-scope-note">
+          {{ stageScope === 'current'
+            ? `只看「${currentStage?.name || '当前阶段'}」`
+            : '全部阶段都算上（含已归档）' }}
+        </span>
+      </div>
       <div class="history-range-head">
-        <span class="history-range-label">查询范围</span>
+        <span class="history-range-label">想翻哪段时间</span>
         <div class="history-presets">
-          <button class="history-preset" type="button" @click="useRecentRange">近一年</button>
-          <button class="history-preset" type="button" @click="useThisYear">今年</button>
-          <button class="history-preset" type="button" @click="useAllRange">全部</button>
+          <button
+            class="history-preset"
+            :class="{ active: activePreset === 'recent' }"
+            type="button"
+            @click="useRecentRange"
+          >
+            近一年
+          </button>
+          <button
+            class="history-preset"
+            :class="{ active: activePreset === 'year' }"
+            type="button"
+            @click="useThisYear"
+          >
+            今年
+          </button>
+          <button
+            class="history-preset"
+            :class="{ active: activePreset === 'all' }"
+            type="button"
+            @click="useAllRange"
+          >
+            全部
+          </button>
         </div>
       </div>
       <div class="history-range-fields">
         <div class="history-date">
-          <span>开始</span>
-          <DateTimeField v-model="startDate" type="date" label="开始日期" title="选择开始日期" />
+          <span>从</span>
+          <DateTimeField v-model="startDate" type="date" label="开始" title="挑个开始日子" />
         </div>
         <span class="history-range-dash" aria-hidden="true">—</span>
         <div class="history-date">
-          <span>结束</span>
-          <DateTimeField v-model="endDate" type="date" label="结束日期" title="选择结束日期" />
+          <span>到</span>
+          <DateTimeField v-model="endDate" type="date" label="结束" title="挑个结束日子" />
         </div>
       </div>
       <p v-if="!loading && range.count" class="history-range-summary">
-        范围内 {{ range.count }} 笔 · ¥{{ formatMoney(range.total) }}
+        这段时间 {{ range.count }} 笔 · ¥{{ formatMoney(range.total) }}
       </p>
     </section>
 
     <div v-if="loading" class="loading-state">
       <span class="loading-dot"></span>
-      正在整理历史…
+      果冻在翻旧账本…
     </div>
 
     <template v-else-if="selection">
       <section class="history-hero">
         <div class="history-hero-top">
           <div>
-            <span class="history-hero-eyebrow">{{ selection.isMonth ? '月度支出' : '年度支出' }}</span>
+            <span class="history-hero-eyebrow">{{ selection.isMonth ? '这个月花了' : '这一年花了' }}</span>
             <h2>{{ selection.label }}</h2>
           </div>
           <span class="history-hero-count">{{ selection.count }} 笔</span>
@@ -61,7 +106,7 @@
             <small>{{ selection.isMonth ? `按 ${selection.days} 天` : `按 ${selection.months} 个月` }}</small>
           </div>
           <div class="history-stat">
-            <span>有支出</span>
+            <span>{{ selection.isMonth ? '花钱的日子' : '花钱的月份' }}</span>
             <b>{{ selection.isMonth ? `${selection.activeDays} 天` : `${selection.activeMonths} 个月` }}</b>
           </div>
           <div class="history-stat">
@@ -117,8 +162,10 @@
     </template>
 
     <div v-else class="history-empty">
-      <p>这个时间范围还没有支出</p>
-      <button class="secondary-btn" type="button" @click="useAllRange">查看全部历史</button>
+      <p>这段时间果冻没花钱</p>
+      <button class="secondary-btn" type="button" @click="showAllHistory">
+        {{ stageScope === 'current' && !allDays.length ? '看看全部阶段' : '看看全部历史' }}
+      </button>
     </div>
   </section>
 </template>
@@ -138,11 +185,12 @@ const props = defineProps({
   embedded: { type: Boolean, default: false },
   active: { type: Boolean, default: true }
 });
-const { ready, dataVersion } = useLedger();
+const { ready, dataVersion, currentStage } = useLedger();
 const today = toDateInput(new Date());
 
 const loading = ref(true);
 const initialized = ref(false);
+const stageScope = ref('all');
 const allDays = ref([]);
 const minDate = ref('');
 const maxDate = ref('');
@@ -152,6 +200,7 @@ const selectedYear = ref(null);
 const selectedMonthKey = ref('');
 const yearRailRef = ref(null);
 const monthRailRef = ref(null);
+let initializedScope = '';
 
 const earliestDay = computed(() => minDate.value || allDays.value[0]?.key || '');
 const latestDay = computed(() => maxDate.value || allDays.value[allDays.value.length - 1]?.key || '');
@@ -217,19 +266,63 @@ function setRange(from, to) {
   haptic('light');
 }
 
-function useRecentRange() {
+function recentRange() {
   const end = latestDay.value || today;
   const from = shiftYear(end, -1);
-  setRange(earliestDay.value && from < earliestDay.value ? earliestDay.value : from, end);
+  return {
+    from: earliestDay.value && from < earliestDay.value ? earliestDay.value : from,
+    to: end
+  };
+}
+
+function thisYearRange() {
+  const end = today;
+  return { from: `${end.slice(0, 4)}-01-01`, to: end };
+}
+
+function allRange() {
+  return { from: earliestDay.value || today, to: latestDay.value || today };
+}
+
+function useRecentRange() {
+  const rangeValue = recentRange();
+  setRange(rangeValue.from, rangeValue.to);
 }
 
 function useThisYear() {
-  const end = today;
-  setRange(`${end.slice(0, 4)}-01-01`, end);
+  const rangeValue = thisYearRange();
+  setRange(rangeValue.from, rangeValue.to);
 }
 
 function useAllRange() {
-  setRange(earliestDay.value || today, latestDay.value || today);
+  const rangeValue = allRange();
+  setRange(rangeValue.from, rangeValue.to);
+}
+
+const activePreset = computed(() => {
+  if (!startDate.value || !endDate.value) return '';
+  const recent = recentRange();
+  if (startDate.value === recent.from && endDate.value === recent.to) return 'recent';
+  const year = thisYearRange();
+  if (startDate.value === year.from && endDate.value === year.to) return 'year';
+  const all = allRange();
+  if (startDate.value === all.from && endDate.value === all.to) return 'all';
+  return '';
+});
+
+function setScope(scope) {
+  if (scope === 'current' && !currentStage.value) return;
+  if (stageScope.value === scope) return;
+  stageScope.value = scope;
+  haptic('light');
+}
+
+function showAllHistory() {
+  if (stageScope.value === 'current' && !allDays.value.length) {
+    stageScope.value = 'all';
+    return;
+  }
+  useAllRange();
 }
 
 const allTotals = computed(() => {
@@ -342,7 +435,7 @@ function compare(current, previous) {
       text: '—',
       tone: 'flat',
       previous: 0,
-      note: current ? '前期无支出' : ''
+      note: current ? '之前没花钱' : ''
     };
   }
 
@@ -395,7 +488,7 @@ const selection = computed(() => {
 });
 
 watch(
-  [ready, dataVersion, () => props.active],
+  [ready, dataVersion, () => props.active, stageScope, () => currentStage.value?.id],
   async () => {
     if (props.embedded && !props.active) return;
     if (!ready.value) {
@@ -403,14 +496,33 @@ watch(
       return;
     }
 
+    const stageId = stageScope.value === 'current' ? currentStage.value?.id : null;
+    if (stageScope.value === 'current' && !stageId) {
+      allDays.value = [];
+      minDate.value = '';
+      maxDate.value = '';
+      startDate.value = today;
+      endDate.value = today;
+      initialized.value = false;
+      initializedScope = '';
+      loading.value = false;
+      return;
+    }
+
     loading.value = true;
     try {
-      const state = await loadDayStats();
+      const state = await loadDayStats(stageId ? { stageId } : {});
       allDays.value = [...state.days.entries()]
         .map(([key, bucket]) => ({ ...bucket, key }))
         .sort((a, b) => a.key.localeCompare(b.key));
       minDate.value = state.minDate;
       maxDate.value = state.maxDate;
+
+      const scopeKey = stageId || 'all';
+      if (initializedScope !== scopeKey) {
+        initializedScope = scopeKey;
+        initialized.value = false;
+      }
 
       if (!initialized.value) {
         initialized.value = true;

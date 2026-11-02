@@ -48,7 +48,7 @@ const stages = ref([]);
 const categories = ref([...PRESET_CATEGORIES]);
 const currentStageId = ref(null);
 const ready = ref(false);
-const loadingHint = ref('正在读取本地账本…');
+const loadingHint = ref('果冻在翻小账本…');
 const dataVersion = ref(0);
 const statsState = reactive(createStatsState());
 
@@ -345,13 +345,29 @@ async function ensureCurrentStage() {
   }
 }
 
+async function loadCategories() {
+  const stored = await getSetting('categories', null);
+  if (Array.isArray(stored) && stored.length) {
+    categories.value = stored.includes(DEFAULT_CATEGORY)
+      ? [...stored]
+      : [...stored, DEFAULT_CATEGORY];
+  }
+  return stored;
+}
+
+async function loadStagesAndCurrent() {
+  await reloadStages();
+  currentStageId.value = await getSetting('currentStageId', null);
+  await ensureCurrentStage();
+}
+
 async function rebuildAndApplyStats() {
   statsRebuildPromise = rebuildDerivedDataInWorker({
     onProgress: (phase) => {
       const percent = REBUILD_PERCENT[phase];
       loadingHint.value = percent
-        ? `正在整理账本数据… ${percent}%`
-        : '正在整理账本数据…';
+        ? `果冻在整理账本… ${percent}%`
+        : '果冻在整理账本…';
     }
   });
   try {
@@ -374,23 +390,17 @@ async function init() {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
-      const stored = await getSetting('categories', null);
-      if (Array.isArray(stored) && stored.length) {
-        categories.value = stored.includes(DEFAULT_CATEGORY)
-          ? [...stored]
-          : [...stored, DEFAULT_CATEGORY];
-      } else {
+      const stored = await loadCategories();
+      if (!Array.isArray(stored) || !stored.length) {
         await setSetting('categories', categories.value);
       }
 
-      await reloadStages();
-      currentStageId.value = await getSetting('currentStageId', null);
-      await ensureCurrentStage();
+      await loadStagesAndCurrent();
 
       const storedStatsVersion = await getSetting('statsVersion', null);
       const statsDirty = await getSetting('statsDirty', false);
       if (storedStatsVersion !== STATS_VERSION || statsDirty) {
-        loadingHint.value = '正在整理账本数据，首次打开可能需要几十秒…';
+        loadingHint.value = '果冻在整理账本，第一次打开可能要等一小会儿…';
         await rebuildAndApplyStats();
       } else {
         setStatsState(await loadHomeStats());
@@ -403,26 +413,18 @@ async function init() {
       });
     } catch (err) {
       console.error(err);
-      showToast('本地数据加载失败，请刷新重试');
+      showToast('账本没打开，刷新再试试吧');
     } finally {
       ready.value = true;
-      loadingHint.value = '正在读取本地账本…';
+      loadingHint.value = '果冻在翻小账本…';
     }
   })();
   return initPromise;
 }
 
 async function reloadAfterImport() {
-  const storedCategories = await getSetting('categories', null);
-  if (Array.isArray(storedCategories) && storedCategories.length) {
-    categories.value = storedCategories.includes(DEFAULT_CATEGORY)
-      ? [...storedCategories]
-      : [...storedCategories, DEFAULT_CATEGORY];
-  }
-
-  await reloadStages();
-  currentStageId.value = await getSetting('currentStageId', null);
-  await ensureCurrentStage();
+  await loadCategories();
+  await loadStagesAndCurrent();
 
   const hadDays = statsState.daysLoaded;
   setStatsState(await loadHomeStats());
@@ -505,7 +507,7 @@ async function deleteStage(stage) {
 
 async function addExpenses(entries) {
   const stage = currentStage.value;
-  if (!stage) throw new Error('没有可用阶段');
+  if (!stage) throw new Error('果冻还没有阶段呢');
   const now = Date.now();
   const records = entries.map((entry) => ({
     id: uid('expense'),
@@ -522,7 +524,7 @@ async function addExpenses(entries) {
 
 async function addExpense(expense) {
   const stage = currentStage.value;
-  if (!stage) throw new Error('没有可用阶段');
+  if (!stage) throw new Error('果冻还没有阶段呢');
   const record = {
     id: uid('expense'),
     stageId: stage.id,
@@ -546,6 +548,11 @@ async function deleteExpense(expenseId) {
   await commitExpenseChanges({ remove: [old] });
 }
 
+async function restoreExpense(expense) {
+  await commitExpenseChanges({ put: [expense] });
+  return expense;
+}
+
 async function clearStageExpenses(stageId) {
   await setSetting('statsDirty', true);
   await deleteByIndexRange('expenses', 'stageId', stageId);
@@ -565,8 +572,8 @@ async function renameCategory(from, to) {
   const oldName = String(from || '').trim();
   const newName = String(to || '').trim();
   if (!oldName || !newName || oldName === newName) return false;
-  if (oldName === DEFAULT_CATEGORY) throw new Error('默认分类不能改名');
-  if (categories.value.includes(newName)) throw new Error('这个分类已经有了');
+  if (oldName === DEFAULT_CATEGORY) throw new Error('「其他」是果冻的默认分类，不能改名哦');
+  if (categories.value.includes(newName)) throw new Error('这个分类已经有啦');
 
   const expenses = await getAll('expenses');
   const affected = expenses.filter(
@@ -648,6 +655,7 @@ export function useLedger() {
     addExpense,
     updateExpense,
     deleteExpense,
+    restoreExpense,
     clearStageExpenses,
     setCategories,
     renameCategory

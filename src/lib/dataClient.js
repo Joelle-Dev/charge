@@ -40,19 +40,19 @@ function ensureWorker() {
       return;
     }
 
-    entry.reject(new Error(message.error || '数据处理失败'));
+    entry.reject(new Error(message.error || '果冻没处理好数据，再试试吧'));
   };
   worker.onerror = () => {
     const entry = active;
     active = null;
-    entry?.reject(new Error('数据处理线程启动失败'));
+    entry?.reject(new Error('果冻的小帮手没启动，刷新再试试吧'));
   };
   return worker;
 }
 
 function begin(kind, { onProgress, resolve, reject }) {
   if (active) {
-    reject(new Error('另一个数据操作正在进行'));
+    reject(new Error('果冻还在忙上一件事，等一下下吧'));
     return false;
   }
   active = { kind, onProgress, resolve, reject };

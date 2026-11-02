@@ -3,7 +3,7 @@
     <div
       ref="pagerRef"
       class="record-pager"
-      :class="{ 'is-locked': curtainOpen }"
+      :class="{ 'is-locked': curtainOpen || dailyOpen }"
       @scroll.passive="onPagerScroll"
     >
       <section class="record-pager-pane" data-pane="home" aria-label="首页">
@@ -15,7 +15,6 @@
         class="record-pager-pane record-pager-center"
         data-pane="record"
         aria-label="记账"
-        @scroll.passive="onCenterScroll"
       >
         <RecordPane />
       </section>
@@ -25,10 +24,6 @@
       </section>
     </div>
 
-    <RecordPullHandle
-      v-show="activePane === 'record'"
-      :scroll-top="centerScrollTop"
-    />
     <RecordCurtain />
   </div>
 </template>
@@ -39,10 +34,10 @@ import { useRoute } from 'vue-router';
 import HomeView from './HomeView.vue';
 import HistoryView from './HistoryView.vue';
 import RecordPane from '../components/RecordPane.vue';
-import RecordPullHandle from '../components/RecordPullHandle.vue';
 import RecordCurtain from '../components/RecordCurtain.vue';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
+import { useRecordsView } from '../composables/useRecordsView';
 import { LEDGER_PANES, useLedgerPanes } from '../composables/useLedgerPanes';
 import {
   isDownwardPull,
@@ -58,10 +53,10 @@ const route = useRoute();
 const { ready, currentStage } = useLedger();
 const { activePane, paneRequest } = useLedgerPanes();
 const { curtainOpen, curtainPull, curtainDragging, beginCurtainPull, updateCurtainPull, endCurtainPull, resetRecord } = useRecordEntry();
+const { dailyOpen } = useRecordsView();
 
 const pagerRef = ref(null);
 const centerPaneRef = ref(null);
-const centerScrollTop = ref(0);
 
 let activePointerId = null;
 let startX = 0;
@@ -195,10 +190,6 @@ function onPagerScroll() {
     const pane = LEDGER_PANES[index] || 'record';
     if (activePane.value !== pane) activePane.value = pane;
   });
-}
-
-function onCenterScroll() {
-  centerScrollTop.value = centerPaneRef.value?.scrollTop || 0;
 }
 
 function centerPaneAtTop() {

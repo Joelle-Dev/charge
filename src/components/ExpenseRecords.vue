@@ -77,7 +77,7 @@
               <span v-if="selectedDayExpenses.length">
                 {{ selectedDayExpenses.length }} 笔 · ¥{{ formatMoney(selectedDayTotal) }}
               </span>
-              <span v-else>没有支出</span>
+              <span v-else>果冻没花钱</span>
             </div>
             <button class="day-pop-close" type="button" aria-label="关闭当天明细" @click="closeDayPopover">
               ×
@@ -102,16 +102,16 @@
           <p v-else class="day-pop-empty">果冻这天没花钱</p>
 
           <div v-if="selectedDayExpenses.length" class="day-pop-actions">
-            <span class="day-pop-hint">日历仅展示</span>
-            <button class="text-btn" type="button" @click="editInList">去列表修改</button>
+            <span class="day-pop-hint">日历只能看看哦</span>
+            <button class="text-btn" type="button" @click="editInList">去列表改一改</button>
           </div>
         </div>
       </div>
 
       <div v-else class="list-view">
         <div v-if="!monthExpenses.length" class="list-empty">
-          <p>这个月还没有支出</p>
-          <button class="text-btn" type="button" @click="addForSelectedDay">补记这天</button>
+          <p>这个月果冻还没花钱</p>
+          <button class="text-btn" type="button" @click="addForSelectedDay">补记这一天</button>
         </div>
 
         <div v-else class="expense-list">
@@ -141,7 +141,8 @@
                 :key="expense.id"
                 :expense="expense"
                 @edit="record.openRecord"
-                @delete="removeExpense"
+                @delete="removeExpenseWithUndo"
+                @menu="openRowMenu"
               />
             </div>
           </div>
@@ -152,8 +153,8 @@
     </template>
 
     <div v-else class="list-empty">
-      <p>还没有支出</p>
-      <span>点下面的麦克风，说一句就记上</span>
+      <p>果冻还没记过账</p>
+      <span>点下面的麦克风，说一句就记上啦</span>
     </div>
 
     <!-- 日历入口暂时隐藏，代码保留以便以后恢复
@@ -207,18 +208,20 @@
       @select="selectMonth"
     />
 
+    <ExpenseActionSheets ref="rowActionsRef" />
+
   </section>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
+import ExpenseActionSheets from './ExpenseActionSheets.vue';
 import ExpenseRow from './ExpenseRow.vue';
 import ExpenseCalendar from './ExpenseCalendar.vue';
 import MonthPickerSheet from './MonthPickerSheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
-import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useSheets } from '../composables/useSheets';
 import { useRecordsView } from '../composables/useRecordsView';
@@ -231,6 +234,7 @@ import {
   sumAmounts,
   toDateInput
 } from '../utils/format';
+import { groupExpensesByDay } from '../utils/expenses';
 import { addMonths, currentMonthKey, monthLabel } from '../utils/months';
 import { haptic } from '../utils/haptics';
 
@@ -241,11 +245,9 @@ const {
   latestMonthForStage,
   loadMonthExpenses
 } = useLedger();
-const { removeExpense } = useExpenseActions();
+const { removeExpenseWithUndo } = useExpenseActions();
 const record = useRecordEntry();
 const sheets = useSheets();
-const { activePane } = useLedgerPanes();
-const route = useRoute();
 const router = useRouter();
 const {
   viewMode,
@@ -257,6 +259,7 @@ const {
 const todayKey = toDateInput(new Date());
 const currentMonth = currentMonthKey();
 const showMonthPicker = ref(false);
+const rowActionsRef = ref(null);
 const expandedKeys = ref(new Set());
 const loadedMonthExpenses = ref([]);
 const calendarViewRef = ref(null);
@@ -283,23 +286,11 @@ const monthExpenses = computed(() => loadedMonthExpenses.value);
 
 const monthTotal = computed(() => sumAmounts(monthExpenses.value));
 
-const showActions = computed(() => (
-  route.path === '/records' || (route.path === '/' && activePane.value === 'records')
-));
+function openRowMenu(expense) {
+  rowActionsRef.value?.open(expense);
+}
 
-const filteredGroups = computed(() => {
-  const groups = new Map();
-  for (const expense of monthExpenses.value) {
-    const key = dayKey(new Date(expense.spentAt));
-    if (!groups.has(key)) {
-      groups.set(key, { key, label: dayLabel(key), total: 0, items: [] });
-    }
-    const group = groups.get(key);
-    group.items.push(expense);
-    group.total += Number(expense.amount) || 0;
-  }
-  return [...groups.values()];
-});
+const filteredGroups = computed(() => groupExpensesByDay(monthExpenses.value));
 
 const selectedDayExpenses = computed(() =>
   monthExpenses.value.filter((expense) => dayKey(new Date(expense.spentAt)) === selectedDate.value)

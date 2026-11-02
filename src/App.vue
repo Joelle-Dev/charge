@@ -9,6 +9,7 @@
       </RouterView>
     </main>
     <ActionBar v-if="!isImmersive" />
+    <UndoSnackbar />
 
     <StageSheet v-model:show="showStages" />
     <StageFormSheet v-model:show="showStageForm" />
@@ -28,13 +29,16 @@ import StageFormSheet from './components/StageFormSheet.vue';
 import SearchSheet from './components/SearchSheet.vue';
 import AchievementsSheet from './components/AchievementsSheet.vue';
 import StageSummarySheet from './components/StageSummarySheet.vue';
+import UndoSnackbar from './components/UndoSnackbar.vue';
 import { useLedger } from './composables/useLedger';
 import { useRecordEntry } from './composables/useRecordEntry';
 import { useSheets } from './composables/useSheets';
 import { useVoiceEntry } from './composables/useVoiceEntry';
 import { useAchievements } from './composables/useAchievements';
+import { usePreferences } from './composables/usePreferences';
 
 const { init, currentStage } = useLedger();
+const { initPreferences } = usePreferences();
 const { initAchievements } = useAchievements();
 const sheets = useSheets();
 const record = useRecordEntry();
@@ -54,6 +58,7 @@ function scheduleAchievements() {
 }
 
 onMounted(async () => {
+  await initPreferences().catch((err) => console.error(err));
   await init();
   if (typeof window.requestIdleCallback === 'function') {
     window.requestIdleCallback(scheduleAchievements, { timeout: 5000 });

@@ -60,6 +60,10 @@ test('parseSpentAt handles relative days and explicit dates', () => {
 
   const evening = parseSpentAt('昨天晚上8点吃饭', NOW);
   assert.equal(evening.date.getHours(), 20);
+
+  const half = parseSpentAt('晚上8点半吃饭', NOW);
+  assert.equal(half.date.getHours(), 20);
+  assert.equal(half.date.getMinutes(), 30);
 });
 
 test('parseExpenses splits multiple entries and builds notes', () => {
@@ -99,6 +103,26 @@ test('parseExpenses splits multiple amounts even without punctuation', () => {
     days.map((e) => [e.amount, e.category, e.note]),
     [[35, '餐饮', '吃饭'], [37, '门票', '门票']]
   );
+});
+
+test('parseExpenses splits chinese amounts without units', () => {
+  const entries = parseExpenses('午饭三十五打车二十五', { now: NOW });
+  assert.deepEqual(
+    entries.map((e) => [e.amount, e.category, e.note]),
+    [[35, '餐饮', '午饭'], [25, '交通', '打车']]
+  );
+
+  const mixed = parseExpenses('午饭三十五打车二十五块', { now: NOW });
+  assert.deepEqual(mixed.map((e) => e.amount), [35, 25]);
+
+  const clock = parseExpenses('下午三点买书二十', { now: NOW });
+  assert.equal(clock.length, 1);
+  assert.equal(clock[0].amount, 20);
+});
+
+test('extractAmount prefers the leftmost amount', () => {
+  assert.equal(extractAmount('午饭三十五打车二十五块').amount, 35);
+  assert.equal(extractAmount('三块半').amount, 3.5);
 });
 
 test('multi-amount splitting ignores quantities and dates', () => {

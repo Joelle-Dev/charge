@@ -68,7 +68,7 @@ export function openDB() {
 
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('数据库被其他页面占用，请关闭其他标签页后重试'));
+    request.onblocked = () => reject(new Error('另一个页面还抱着账本，关掉它再试试吧'));
   });
   return dbPromise;
 }

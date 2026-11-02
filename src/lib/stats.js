@@ -1,6 +1,7 @@
 import {
   getAll,
   getAllByRange,
+  scanIndex,
   countRange,
   getRecord,
   getPageByIndex,
@@ -406,19 +407,40 @@ export async function recomputeBoundsFromExpenses(state, stageId) {
 }
 
 
-export async function loadDayStats() {
-  const entries = await getAll('stats');
+export async function loadDayStats({ stageId = null } = {}) {
+  if (stageId) {
+    const days = new Map();
+    await scanIndex(
+      'expenses',
+      'stageId_spentAt',
+      IDBKeyRange.bound([stageId, ''], [stageId, '\uffff']),
+      (expense) => {
+        const date = new Date(expense.spentAt);
+        if (Number.isNaN(date.getTime())) return;
+        const key = dayKey(date);
+        const bucket = days.get(key) || { key, count: 0, total: 0 };
+        bucket.count += 1;
+        bucket.total += Number(expense.amount) || 0;
+        days.set(key, bucket);
+      }
+    );
+    const keys = [...days.keys()].sort();
+    return {
+      days,
+      minDate: keys[0] || '',
+      maxDate: keys[keys.length - 1] || ''
+    };
+  }
+
+  const [global, entries] = await Promise.all([
+    getRecord('stats', 'global'),
+    getAllByRange('stats', IDBKeyRange.bound('day:', 'day:\uffff'))
+  ]);
   const days = new Map();
-  let global = null;
 
   for (const entry of entries) {
     if (!entry?.key) continue;
-    if (entry.key === 'global') {
-      global = entry;
-      continue;
-    }
-    const key = entry.key.startsWith('day:') ? entry.key.slice(4) : entry.key;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(key)) days.set(key, entry);
+    days.set(entry.key.slice(4), entry);
   }
 
   return {

@@ -3,9 +3,9 @@
     <div class="achievement-hero">
       <div class="achievement-cat"><CatMood :mood="'happy'" /></div>
       <div class="achievement-hero-copy">
-        <span class="achievement-eyebrow">果冻当前称号</span>
+        <span class="achievement-eyebrow">果冻现在的称号</span>
         <strong>{{ currentCatTitle }}</strong>
-        <span>连续 {{ stats.streak }} 天 · 共记 {{ stats.totalCount }} 笔</span>
+        <span>连续 {{ stats.streak }} 天 · 一共记了 {{ stats.totalCount }} 笔</span>
       </div>
       <span class="achievement-count">{{ unlockedCount }}/{{ achievements.length }}</span>
     </div>
@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <p class="sheet-note">成就和解锁记录会保存在本机；删除支出后，已经拿到的爪印也不会消失。</p>
+      <p class="sheet-note">成就和爪印都住在你手机里；删掉支出后，已经拿到的爪印也不会消失。</p>
   </SheetFrame>
 </template>
 

@@ -1,5 +1,5 @@
 <template>
-  <SheetFrame v-model:show="show" title="选择月份" max-height="86dvh">
+  <SheetFrame v-model:show="show" title="翻到哪个月" max-height="86dvh">
     <div class="month-picker-year">
       <button class="month-year-arrow" type="button" aria-label="上一年" @click="pickerYear -= 1">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -24,12 +24,12 @@
         @click="choose(item.key)"
       >
         <strong>{{ item.label }}</strong>
-        <span>{{ item.count ? `${item.count} 笔` : '暂无' }}</span>
+          <span>{{ item.count ? `${item.count} 笔` : '空空的' }}</span>
       </button>
     </div>
 
     <div class="month-picker-footer">
-      <button class="secondary-btn" type="button" @click="choose(currentMonthKey())">回到本月</button>
+      <button class="secondary-btn" type="button" @click="choose(currentMonthKey())">回到这个月</button>
       <button v-if="selectedMonth !== currentMonthKey()" class="text-btn" type="button" @click="choose(selectedMonth)">
         取消
       </button>
