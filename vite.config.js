@@ -33,23 +33,23 @@ export default defineConfig(({ mode }) => {
           categories: ['finance', 'productivity', 'lifestyle'],
           shortcuts: [
             {
-              name: '说一笔',
+              name: '说给果冻听',
               short_name: '说一笔',
-              description: '打开语音记账',
+              description: '打开语音记账，说给果冻听',
               url: `${startUrl}?action=voice`,
               icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
             },
             {
               name: '记一笔',
-              short_name: '记账',
-              description: '打开记账页',
+              short_name: '记一笔',
+              description: '打开记账页，记下一笔小账',
               url: `${startUrl}?action=manual`,
               icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
             },
             {
-              name: '支出明细',
-              short_name: '明细',
-              description: '查看支出日历和明细',
+              name: '花过的钱',
+              short_name: '看账本',
+              description: '翻翻花过的钱和明细',
               url: `${startUrl}#/records`,
               icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
             }
