@@ -60,16 +60,36 @@
         </button>
       </div>
 
-      <div class="record-category-strip" aria-label="选择分类">
+      <div class="record-category-row">
+        <div ref="categoryStripRef" class="record-category-strip" aria-label="选择分类">
+          <button
+            v-for="category in categoryOptions"
+            :key="category"
+            class="chip"
+            :class="{ selected: category === selectedCategory }"
+            type="button"
+            @click="chooseCategory(category)"
+          >
+            {{ category }}
+          </button>
+        </div>
         <button
-          v-for="category in categoryOptions"
-          :key="category"
-          class="chip"
-          :class="{ selected: category === selectedCategory }"
+          class="record-category-all"
           type="button"
-          @click="chooseCategory(category)"
+          aria-label="全部分类"
+          @click="openCategoryPicker"
         >
-          {{ category }}
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <circle cx="6" cy="6" r="1.8"></circle>
+            <circle cx="12" cy="6" r="1.8"></circle>
+            <circle cx="18" cy="6" r="1.8"></circle>
+            <circle cx="6" cy="12" r="1.8"></circle>
+            <circle cx="12" cy="12" r="1.8"></circle>
+            <circle cx="18" cy="12" r="1.8"></circle>
+            <circle cx="6" cy="18" r="1.8"></circle>
+            <circle cx="12" cy="18" r="1.8"></circle>
+            <circle cx="18" cy="18" r="1.8"></circle>
+          </svg>
         </button>
       </div>
 
@@ -118,11 +138,38 @@
         @cancel="showDatePicker = false"
       />
     </van-popup>
+
+    <van-popup
+      v-model:show="showCategoryPicker"
+      position="bottom"
+      round
+      teleport="body"
+      class="picker-popup category-picker-popup"
+    >
+      <div class="category-picker">
+        <div class="category-picker-head">
+          <strong>挑个分类</strong>
+          <button type="button" aria-label="关闭分类选择" @click="showCategoryPicker = false">×</button>
+        </div>
+        <div class="category-picker-grid">
+          <button
+            v-for="category in categories"
+            :key="category"
+            class="chip"
+            :class="{ selected: category === selectedCategory }"
+            type="button"
+            @click="pickCategory(category)"
+          >
+            {{ category }}
+          </button>
+        </div>
+      </div>
+    </van-popup>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import { useRouter } from 'vue-router';
 import NumberKeypad from './NumberKeypad.vue';
@@ -180,9 +227,11 @@ const selectedCategory = ref('');
 const date = ref(toDateInput(new Date()));
 const note = ref('');
 const showDatePicker = ref(false);
+const showCategoryPicker = ref(false);
 const dateDraft = ref([]);
 const saving = ref(false);
 const panelHeight = ref(0);
+const categoryStripRef = ref(null);
 const minDate = new Date(2000, 0, 1);
 const maxDate = new Date(2100, 11, 31);
 
@@ -265,9 +314,30 @@ function initialize() {
     (expense?.spentAt ? toDateInput(expense.spentAt) : toDateInput(now));
   if (!expense && draft?.spentAt) date.value = toDateInput(draft.spentAt);
   showDatePicker.value = false;
+  showCategoryPicker.value = false;
+  nextTick(revealSelectedCategory);
 }
 
 watch(recordSession, initialize);
+
+function revealSelectedCategory() {
+  const strip = categoryStripRef.value;
+  if (!strip) return;
+  const chip = strip.querySelector('.chip.selected');
+  if (!chip) return;
+  const left = chip.offsetLeft - (strip.clientWidth - chip.offsetWidth) / 2;
+  strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+}
+
+function openCategoryPicker() {
+  haptic('light');
+  showCategoryPicker.value = true;
+}
+
+function pickCategory(category) {
+  chooseCategory(category);
+  showCategoryPicker.value = false;
+}
 
 function measurePanel() {
   panelHeight.value = panelRef.value?.clientHeight || window.innerHeight;
@@ -287,7 +357,9 @@ watch(curtainOpen, (open) => {
   if (open) {
     previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    nextTick(revealSelectedCategory);
   } else {
+    showCategoryPicker.value = false;
     document.body.style.overflow = previousOverflow;
   }
 });
@@ -496,7 +568,7 @@ function stopCurtainDrag() {
 }
 
 function onKeydown(event) {
-  if (!curtainOpen.value || showDatePicker.value) return;
+  if (!curtainOpen.value || showDatePicker.value || showCategoryPicker.value) return;
 
   const tag = event.target?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;

@@ -198,6 +198,7 @@ const startDate = ref('');
 const endDate = ref('');
 const selectedYear = ref(null);
 const selectedMonthKey = ref('');
+const presetChoice = ref('');
 const yearRailRef = ref(null);
 const monthRailRef = ref(null);
 let initializedScope = '';
@@ -285,28 +286,41 @@ function allRange() {
 }
 
 function useRecentRange() {
+  presetChoice.value = 'recent';
   const rangeValue = recentRange();
   setRange(rangeValue.from, rangeValue.to);
 }
 
 function useThisYear() {
+  presetChoice.value = 'year';
   const rangeValue = thisYearRange();
   setRange(rangeValue.from, rangeValue.to);
 }
 
 function useAllRange() {
+  presetChoice.value = 'all';
   const rangeValue = allRange();
   setRange(rangeValue.from, rangeValue.to);
 }
 
+function presetRanges() {
+  return {
+    recent: recentRange(),
+    year: thisYearRange(),
+    all: allRange()
+  };
+}
+
 const activePreset = computed(() => {
   if (!startDate.value || !endDate.value) return '';
-  const recent = recentRange();
-  if (startDate.value === recent.from && endDate.value === recent.to) return 'recent';
-  const year = thisYearRange();
-  if (startDate.value === year.from && endDate.value === year.to) return 'year';
-  const all = allRange();
-  if (startDate.value === all.from && endDate.value === all.to) return 'all';
+  const ranges = presetRanges();
+  const chosen = ranges[presetChoice.value];
+  if (chosen && startDate.value === chosen.from && endDate.value === chosen.to) {
+    return presetChoice.value;
+  }
+  if (startDate.value === ranges.recent.from && endDate.value === ranges.recent.to) return 'recent';
+  if (startDate.value === ranges.year.from && endDate.value === ranges.year.to) return 'year';
+  if (startDate.value === ranges.all.from && endDate.value === ranges.all.to) return 'all';
   return '';
 });
 
@@ -314,6 +328,7 @@ function setScope(scope) {
   if (scope === 'current' && !currentStage.value) return;
   if (stageScope.value === scope) return;
   stageScope.value = scope;
+  presetChoice.value = '';
   haptic('light');
 }
 
@@ -550,6 +565,14 @@ watch(startDate, (value) => {
 
 watch(endDate, (value) => {
   if (value && startDate.value && value < startDate.value) startDate.value = value;
+});
+
+watch([startDate, endDate], () => {
+  if (!presetChoice.value) return;
+  const chosen = presetRanges()[presetChoice.value];
+  if (!chosen || startDate.value !== chosen.from || endDate.value !== chosen.to) {
+    presetChoice.value = '';
+  }
 });
 
 watch(range, (value) => {
