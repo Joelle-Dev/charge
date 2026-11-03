@@ -5,6 +5,9 @@
       class="record-pager"
       :class="{ 'is-locked': curtainOpen || dailyOpen }"
       @scroll.passive="onPagerScroll"
+      @touchstart.passive="onPagerTouchStart"
+      @touchend.passive="onPagerTouchEnd"
+      @touchcancel.passive="onPagerTouchEnd"
     >
       <section class="record-pager-pane" data-pane="home" aria-label="首页">
         <HomeView />
@@ -73,6 +76,8 @@ let touchPulling = false;
 let suppressClick = false;
 let suppressTimer = null;
 let scrollFrame = 0;
+let snapTimer = null;
+let pagerTouching = false;
 let wheelLocked = false;
 let wheelAccum = 0;
 let wheelTimer = null;
@@ -116,6 +121,7 @@ onUnmounted(() => {
   document.removeEventListener('touchcancel', onTouchCancel, { capture: true });
   removeMoveListeners();
   clearTimeout(suppressTimer);
+  clearTimeout(snapTimer);
   if (scrollFrame) cancelAnimationFrame(scrollFrame);
   resetRecord();
 });
@@ -189,7 +195,36 @@ function onPagerScroll() {
     const index = Math.round(el.scrollLeft / width);
     const pane = LEDGER_PANES[index] || 'record';
     if (activePane.value !== pane) activePane.value = pane;
+    scheduleSnap();
   });
+}
+
+function onPagerTouchStart() {
+  pagerTouching = true;
+  clearTimeout(snapTimer);
+  snapTimer = null;
+}
+
+function onPagerTouchEnd() {
+  pagerTouching = false;
+  scheduleSnap();
+}
+
+function scheduleSnap() {
+  if (pagerTouching || curtainOpen.value || dailyOpen.value) return;
+  clearTimeout(snapTimer);
+  snapTimer = setTimeout(snapToNearestPane, 120);
+}
+
+function snapToNearestPane() {
+  snapTimer = null;
+  const el = pagerRef.value;
+  if (!el || pagerTouching || curtainOpen.value || dailyOpen.value) return;
+  const width = el.clientWidth || 1;
+  const index = Math.max(0, Math.min(LEDGER_PANES.length - 1, Math.round(el.scrollLeft / width)));
+  const target = index * width;
+  if (Math.abs(el.scrollLeft - target) < 2) return;
+  el.scrollTo({ left: target, behavior: 'smooth' });
 }
 
 function centerPaneAtTop() {

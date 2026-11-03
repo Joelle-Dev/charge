@@ -4330,7 +4330,6 @@ input[type='search']::-webkit-search-decoration {
   scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 
@@ -4351,9 +4350,9 @@ input[type='search']::-webkit-search-decoration {
   padding-right: var(--shell-pad);
   padding-bottom: calc(86px + var(--safe-bottom));
   padding-left: var(--shell-pad);
-  scroll-snap-align: center;
+  scroll-snap-align: start;
   scroll-snap-stop: always;
-  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
 }
 
 .record-pager-center {
@@ -6233,6 +6232,7 @@ input[type='search']::-webkit-search-decoration {
   overflow-x: auto;
   padding: 4px 2px 8px;
   scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -6322,6 +6322,7 @@ input[type='search']::-webkit-search-decoration {
   overflow-x: auto;
   padding: 6px 2px 4px;
   scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
