@@ -77,7 +77,9 @@ let suppressClick = false;
 let suppressTimer = null;
 let scrollFrame = 0;
 let snapTimer = null;
+let snapOriginIndex = null;
 let pagerTouching = false;
+let scrollEndSupported = false;
 let wheelLocked = false;
 let wheelAccum = 0;
 let wheelTimer = null;
@@ -90,6 +92,8 @@ onMounted(() => {
   requestAnimationFrame(() => scrollToPaneInstant(initialPane));
   pagerEl = pagerRef.value;
   pagerEl?.addEventListener('wheel', onPagerWheel, { passive: false });
+  scrollEndSupported = 'onscrollend' in window;
+  if (scrollEndSupported) pagerEl?.addEventListener('scrollend', onPagerScrollEnd, { passive: true });
   document.addEventListener('pointerdown', onPointerDown, true);
   document.addEventListener('click', onClickCapture, true);
   document.addEventListener('touchstart', onTouchStart, { capture: true, passive: true });
@@ -111,6 +115,7 @@ watch(
 
 onUnmounted(() => {
   pagerEl?.removeEventListener('wheel', onPagerWheel);
+  pagerEl?.removeEventListener('scrollend', onPagerScrollEnd);
   pagerEl = null;
   clearTimeout(wheelTimer);
   document.removeEventListener('pointerdown', onPointerDown, true);
@@ -195,12 +200,24 @@ function onPagerScroll() {
     const index = Math.round(el.scrollLeft / width);
     const pane = LEDGER_PANES[index] || 'record';
     if (activePane.value !== pane) activePane.value = pane;
-    scheduleSnap();
+    if (!scrollEndSupported) scheduleSnap();
   });
+}
+
+function onPagerScrollEnd() {
+  if (!pagerTouching) snapToNearestPane();
+}
+
+function pagerIndex() {
+  const el = pagerRef.value;
+  if (!el) return 0;
+  const width = el.clientWidth || 1;
+  return Math.max(0, Math.min(LEDGER_PANES.length - 1, Math.round(el.scrollLeft / width)));
 }
 
 function onPagerTouchStart() {
   pagerTouching = true;
+  snapOriginIndex = pagerIndex();
   clearTimeout(snapTimer);
   snapTimer = null;
 }
@@ -213,15 +230,24 @@ function onPagerTouchEnd() {
 function scheduleSnap() {
   if (pagerTouching || curtainOpen.value || dailyOpen.value) return;
   clearTimeout(snapTimer);
-  snapTimer = setTimeout(snapToNearestPane, 120);
+  snapTimer = setTimeout(snapToNearestPane, 160);
 }
 
 function snapToNearestPane() {
   snapTimer = null;
   const el = pagerRef.value;
   if (!el || pagerTouching || curtainOpen.value || dailyOpen.value) return;
+
   const width = el.clientWidth || 1;
-  const index = Math.max(0, Math.min(LEDGER_PANES.length - 1, Math.round(el.scrollLeft / width)));
+  const origin = snapOriginIndex;
+  snapOriginIndex = null;
+
+  let index = Math.round(el.scrollLeft / width);
+  if (origin !== null) {
+    index = Math.max(origin - 1, Math.min(origin + 1, index));
+  }
+  index = Math.max(0, Math.min(LEDGER_PANES.length - 1, index));
+
   const target = index * width;
   if (Math.abs(el.scrollLeft - target) < 2) return;
   el.scrollTo({ left: target, behavior: 'smooth' });

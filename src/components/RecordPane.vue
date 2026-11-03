@@ -2,37 +2,62 @@
   <section class="record-pane">
     <header class="record-pane-head">
       <img class="record-pane-cat" :src="catAvatar" alt="" aria-hidden="true">
-      <div class="record-pane-card">
-        <RecordPullHandle />
-        <div class="record-pane-meta">
-          <div class="record-month-nav">
-            <button class="record-month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m15 18-6-6 6-6"></path>
-              </svg>
-            </button>
-            <button class="record-month-label" type="button" @click="showMonthPicker = true">
-              {{ monthTitle }}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m6 9 6 6 6-6"></path>
-              </svg>
-            </button>
-            <button class="record-month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m9 18 6-6-6-6"></path>
-              </svg>
-            </button>
-          </div>
-          <span class="record-meta-dot" aria-hidden="true"></span>
-          <div class="record-head-total">
-            <span class="record-total-label">花了</span>
-            <strong class="record-month-total">
-              <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
-            </strong>
-          </div>
-        </div>
+      <div class="record-topbar">
+        <button class="record-topbar-button" type="button" aria-label="账本" @click="goLedgers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="12" height="16" rx="2"></rect>
+            <path d="M7 8h4M7 12h3"></path>
+            <path d="M8 20h10.5a2.5 2.5 0 0 0 2.5-2.5V6"></path>
+          </svg>
+        </button>
+        <button
+          class="record-topbar-title"
+          type="button"
+          :aria-label="`切换账本：${currentStage?.name || '选择账本'}`"
+          @click="openStages"
+        >
+          <span class="record-topbar-name">{{ currentStage?.name || '选择账本' }}</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6"></path>
+          </svg>
+        </button>
+        <button class="record-topbar-button" type="button" aria-label="搜索支出" @click="openSearch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-3.5-3.5"></path>
+          </svg>
+        </button>
       </div>
+      <RecordPullHandle class="record-pane-pull" />
+      <span v-if="showPullHint" class="record-pull-hint" aria-hidden="true">下拉记一笔</span>
     </header>
+
+    <div class="record-month-bar">
+      <div class="record-month-nav">
+        <button class="record-month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6"></path>
+          </svg>
+        </button>
+        <button class="record-month-label" type="button" @click="showMonthPicker = true">
+          {{ monthTitle }}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 9 6 6 6-6"></path>
+          </svg>
+        </button>
+        <button class="record-month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="record-head-total">
+        <span class="record-total-label">本月花了</span>
+        <strong class="record-month-total">
+          <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
+        </strong>
+      </div>
+    </div>
 
     <div v-if="loading" class="record-loading">
       <span class="loading-dot"></span>
@@ -225,16 +250,20 @@ import RecordLeaf from './RecordLeaf.vue';
 import RecordPullHandle from './RecordPullHandle.vue';
 import catAvatar from '../assets/cat-avatar.png';
 import { useLedger } from '../composables/useLedger';
+import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
+import { useSheets } from '../composables/useSheets';
 import { categoryColor, dayKey, formatMoney, sumAmounts, toDateInput } from '../utils/format';
 import { groupExpensesByDay } from '../utils/expenses';
 import { haptic } from '../utils/haptics';
 import { addMonths, currentMonthKey, monthLabel, shortMonthLabel } from '../utils/months';
 
 const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
+const { activePane, goToPane } = useLedgerPanes();
 const record = useRecordEntry();
 const { recordMonth, dailyOpen } = useRecordsView();
+const sheets = useSheets();
 
 const month = ref(recordMonth.value || currentMonthKey());
 const monthTitle = computed(() => (
@@ -243,6 +272,7 @@ const monthTitle = computed(() => (
     : monthLabel(month.value)
 ));
 const showMonthPicker = ref(false);
+const showPullHint = ref(false);
 const rowActionsRef = ref(null);
 const expenses = ref([]);
 const loading = ref(true);
@@ -319,6 +349,8 @@ const treeDays = computed(() => (
 ));
 
 const HEAT_HINT_KEY = 'recordHeatHintSeen';
+const PULL_HINT_KEY = 'recordPullHintSeen';
+let pullHintTimer = null;
 let heatHintShown = false;
 
 function maybeShowHeatHint(days) {
@@ -391,6 +423,21 @@ watch(
     month.value = currentMonthKey();
   }
 );
+
+function goLedgers() {
+  haptic('light');
+  goToPane('home');
+}
+
+function openStages() {
+  haptic('light');
+  sheets.openStages();
+}
+
+function openSearch() {
+  haptic('light');
+  sheets.openSearch();
+}
 
 function shiftMonth(delta) {
   month.value = addMonths(month.value, delta);
@@ -475,8 +522,42 @@ watch(
   }
 );
 
+function maybeShowPullHint() {
+  if (showPullHint.value || pullHintTimer) return;
+  try {
+    if (localStorage.getItem(PULL_HINT_KEY)) return;
+    localStorage.setItem(PULL_HINT_KEY, '1');
+  } catch (err) {
+    return;
+  }
+  showPullHint.value = true;
+  pullHintTimer = setTimeout(() => {
+    showPullHint.value = false;
+    pullHintTimer = null;
+  }, 4500);
+}
+
+watch(
+  activePane,
+  (pane) => {
+    if (pane === 'record') maybeShowPullHint();
+  },
+  { immediate: true }
+);
+
+watch(
+  () => record.curtainOpen.value,
+  (open) => {
+    if (!open) return;
+    clearTimeout(pullHintTimer);
+    pullHintTimer = null;
+    showPullHint.value = false;
+  }
+);
+
 onBeforeUnmount(() => {
   dailyOpen.value = false;
+  clearTimeout(pullHintTimer);
 });
 
 function cleanNote(value) {

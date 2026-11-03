@@ -8,7 +8,7 @@
       </button>
       <div class="history-title">
         <span class="history-eyebrow">果冻的账本</span>
-        <h1>花过的钱钱</h1>
+        <h1>花过的钱</h1>
       </div>
     </header>
 

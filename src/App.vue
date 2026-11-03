@@ -34,7 +34,6 @@ import AchievementsSheet from './components/AchievementsSheet.vue';
 import StageSummarySheet from './components/StageSummarySheet.vue';
 import UndoSnackbar from './components/UndoSnackbar.vue';
 import { useLedger } from './composables/useLedger';
-import { useLedgerPanes } from './composables/useLedgerPanes';
 import { useRecordEntry } from './composables/useRecordEntry';
 import { useSheets } from './composables/useSheets';
 import { useVoiceEntry } from './composables/useVoiceEntry';
@@ -48,14 +47,8 @@ const sheets = useSheets();
 const record = useRecordEntry();
 const voice = useVoiceEntry();
 const route = useRoute();
-const { activePane } = useLedgerPanes();
 const isImmersive = computed(() => Boolean(route.meta.immersive));
-const hideHeader = computed(() => (
-  !isImmersive.value &&
-  route.path === '/' &&
-  activePane.value === 'record' &&
-  Boolean(currentStage.value)
-));
+const hideHeader = computed(() => !isImmersive.value && route.path === '/');
 const {
   showStages,
   showStageForm,
