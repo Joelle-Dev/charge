@@ -17,94 +17,124 @@
       </svg>
     </button>
     <div class="record-curtain-body" :inert="!curtainOpen">
-      <header class="record-curtain-head">
-        <div class="record-curtain-heading">
-          <span class="record-curtain-eyebrow">{{ editingExpense ? '改改这笔' : '记一笔' }}</span>
-          <p>记进「{{ currentStage?.name || '当前阶段' }}」</p>
-        </div>
-        <button
-          v-if="editingExpense"
-          class="record-delete-btn"
-          type="button"
-          @click="removeCurrent"
-        >
-          删掉
-        </button>
-      </header>
+      <button
+        v-if="editingExpense"
+        class="record-quick-delete"
+        type="button"
+        @click="removeCurrent"
+      >
+        删掉
+      </button>
 
-      <div class="record-note-field">
-        <svg class="record-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M5 5h14v10H9l-4 4V5Z"></path>
-          <path d="M8 9h8M8 12h5"></path>
-        </svg>
-        <input
-          ref="noteInput"
-          v-model="note"
-          class="record-note-input"
-          type="text"
-          maxlength="40"
-          placeholder="想说点什么（可选）"
-          aria-label="备注"
-          enterkeyhint="done"
-          @keydown.enter.prevent="blurNote"
-          @keydown.esc.prevent="blurNote"
-        >
-        <button
-          v-if="note"
-          class="record-note-clear"
-          type="button"
-          aria-label="清掉备注"
-          @click="clearNote"
-        >
-          ×
-        </button>
+      <div class="record-quick-top">
+        <div class="record-quick-main">
+          <span
+            class="record-current-category"
+            :style="{ '--swatch': categoryColor(selectedCategory) }"
+          >
+            <span class="record-current-dot" aria-hidden="true"></span>
+            <span class="record-current-name">{{ selectedCategory }}</span>
+          </span>
+          <button
+            class="record-stage-hint"
+            type="button"
+            aria-label="切换阶段"
+            @click="sheets.openStages()"
+          >
+            <span class="record-stage-text">{{ editingExpense ? '改改' : '记进' }}「{{ currentStage?.name || '当前阶段' }}」</span>
+            <svg class="record-stage-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </button>
+          <div
+            class="record-quick-amount"
+            :class="{ empty: !amount, long: amount.length > 7, xlong: amount.length > 9 }"
+            aria-live="polite"
+          >
+            <span class="record-quick-currency">¥</span>
+            <span class="record-quick-value">{{ amountDisplay || '0.00' }}</span>
+            <span class="record-quick-caret" aria-hidden="true"></span>
+          </div>
+        </div>
+
+        <div class="record-quick-sub">
+          <div class="record-note-ghost">
+            <svg class="record-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 20h4l10-10a2.8 2.8 0 0 0-4-4L4 16v4Z"></path>
+              <path d="m13.5 6.5 4 4"></path>
+            </svg>
+            <input
+              ref="noteInput"
+              v-model="note"
+              class="record-note-input"
+              type="text"
+              maxlength="40"
+              placeholder="写点备注…"
+              aria-label="备注"
+              enterkeyhint="done"
+              @keydown.enter.prevent="blurNote"
+              @keydown.esc.prevent="blurNote"
+            >
+            <button
+              v-if="note"
+              class="record-note-clear"
+              type="button"
+              aria-label="清掉备注"
+              @click="clearNote"
+            >
+              ×
+            </button>
+          </div>
+          <span class="record-quick-meta">今天 {{ todayStats.count }} 笔</span>
+        </div>
       </div>
 
-      <div class="record-category-row">
-        <div ref="categoryStripRef" class="record-category-strip" aria-label="选择分类">
-          <button
-            v-for="category in categoryOptions"
-            :key="category"
-            class="chip"
-            :class="{ selected: category === selectedCategory }"
-            type="button"
-            @click="chooseCategory(category)"
-          >
-            {{ category }}
-          </button>
-        </div>
+      <div class="record-category-head">
+        <span>分类</span>
         <button
-          class="record-category-all"
+          v-if="categories.length < 40"
+          class="record-category-add"
           type="button"
-          aria-label="全部分类"
-          @click="openCategoryPicker"
+          aria-label="添加分类"
+          @click="toggleAddCategory"
         >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-            <circle cx="6" cy="6" r="1.8"></circle>
-            <circle cx="12" cy="6" r="1.8"></circle>
-            <circle cx="18" cy="6" r="1.8"></circle>
-            <circle cx="6" cy="12" r="1.8"></circle>
-            <circle cx="12" cy="12" r="1.8"></circle>
-            <circle cx="18" cy="12" r="1.8"></circle>
-            <circle cx="6" cy="18" r="1.8"></circle>
-            <circle cx="12" cy="18" r="1.8"></circle>
-            <circle cx="18" cy="18" r="1.8"></circle>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"></path>
           </svg>
         </button>
       </div>
 
-      <div
-        class="record-amount-display"
-        :class="{ empty: !amount, long: amount.length > 7, xlong: amount.length > 9 }"
-        aria-live="polite"
-      >
-        <span class="record-currency">¥</span>
-        <span class="record-amount-value">{{ amountDisplay || '0.00' }}</span>
-        <span class="record-amount-caret" aria-hidden="true"></span>
+      <div v-if="showAddCategory" class="record-category-add-row">
+        <input
+          ref="categoryAddInput"
+          v-model="newCategoryName"
+          class="record-category-add-input"
+          type="text"
+          maxlength="10"
+          placeholder="新分类名字"
+          enterkeyhint="done"
+          @keydown.enter.prevent="submitCategory"
+          @keydown.esc.prevent="cancelAddCategory"
+        >
+        <button class="record-category-add-cancel" type="button" @click="cancelAddCategory">取消</button>
+        <button class="record-category-add-submit" type="button" @click="submitCategory">添加</button>
       </div>
 
-      <div class="record-amount-meta">
-        <span>今天 {{ todayStats.count }} 笔 · ¥{{ formatMoney(todayStats.total) }}</span>
+      <div ref="categoryStripRef" class="record-category-grid" role="listbox" aria-label="选择分类">
+        <button
+          v-for="category in categoryOptions"
+          :key="category"
+          class="record-category-cell"
+          :class="{ selected: category === selectedCategory }"
+          :style="{ '--swatch': categoryColor(category) }"
+          type="button"
+          role="option"
+          :aria-selected="category === selectedCategory"
+          @click="chooseCategory(category)"
+        >
+          <span class="record-category-icon">{{ category.slice(0, 1) }}</span>
+          <span class="record-category-label">{{ category }}</span>
+        </button>
       </div>
 
       <NumberKeypad
@@ -138,33 +168,6 @@
         @cancel="showDatePicker = false"
       />
     </van-popup>
-
-    <van-popup
-      v-model:show="showCategoryPicker"
-      position="bottom"
-      round
-      teleport="body"
-      class="picker-popup category-picker-popup"
-    >
-      <div class="category-picker">
-        <div class="category-picker-head">
-          <strong>挑个分类</strong>
-          <button type="button" aria-label="关闭分类选择" @click="showCategoryPicker = false">×</button>
-        </div>
-        <div class="category-picker-grid">
-          <button
-            v-for="category in categories"
-            :key="category"
-            class="chip"
-            :class="{ selected: category === selectedCategory }"
-            type="button"
-            @click="pickCategory(category)"
-          >
-            {{ category }}
-          </button>
-        </div>
-      </div>
-    </van-popup>
   </div>
 </template>
 
@@ -177,6 +180,7 @@ import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { usePreferences } from '../composables/usePreferences';
 import { useRecordEntry } from '../composables/useRecordEntry';
+import { useSheets } from '../composables/useSheets';
 import {
   amountToInput,
   appendDecimal,
@@ -190,8 +194,8 @@ import {
 } from '../utils/amountInput';
 import {
   applyDateToIso,
+  categoryColor,
   combineLocal,
-  formatMoney,
   pad2,
   toDateInput,
   toTimeInput
@@ -216,9 +220,10 @@ const {
   endCurtainPull,
   resetRecord
 } = useRecordEntry();
-const { categories, currentStage, todayStats, addExpense, updateExpense } = useLedger();
+const { categories, currentStage, todayStats, addExpense, updateExpense, setCategories } = useLedger();
 const { removeExpense: removeExpenseAction } = useExpenseActions();
 const { recordDoneBehavior, initPreferences } = usePreferences();
+const sheets = useSheets();
 
 const panelRef = ref(null);
 const noteInput = ref(null);
@@ -227,7 +232,9 @@ const selectedCategory = ref('');
 const date = ref(toDateInput(new Date()));
 const note = ref('');
 const showDatePicker = ref(false);
-const showCategoryPicker = ref(false);
+const showAddCategory = ref(false);
+const newCategoryName = ref('');
+const categoryAddInput = ref(null);
 const dateDraft = ref([]);
 const saving = ref(false);
 const panelHeight = ref(0);
@@ -314,7 +321,8 @@ function initialize() {
     (expense?.spentAt ? toDateInput(expense.spentAt) : toDateInput(now));
   if (!expense && draft?.spentAt) date.value = toDateInput(draft.spentAt);
   showDatePicker.value = false;
-  showCategoryPicker.value = false;
+  showAddCategory.value = false;
+  newCategoryName.value = '';
   nextTick(revealSelectedCategory);
 }
 
@@ -323,20 +331,10 @@ watch(recordSession, initialize);
 function revealSelectedCategory() {
   const strip = categoryStripRef.value;
   if (!strip) return;
-  const chip = strip.querySelector('.chip.selected');
+  const chip = strip.querySelector('.record-category-cell.selected');
   if (!chip) return;
-  const left = chip.offsetLeft - (strip.clientWidth - chip.offsetWidth) / 2;
-  strip.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
-}
-
-function openCategoryPicker() {
-  haptic('light');
-  showCategoryPicker.value = true;
-}
-
-function pickCategory(category) {
-  chooseCategory(category);
-  showCategoryPicker.value = false;
+  const top = chip.offsetTop - (strip.clientHeight - chip.offsetHeight) / 2;
+  strip.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 
 function measurePanel() {
@@ -359,7 +357,7 @@ watch(curtainOpen, (open) => {
     document.body.style.overflow = 'hidden';
     nextTick(revealSelectedCategory);
   } else {
-    showCategoryPicker.value = false;
+    cancelAddCategory();
     document.body.style.overflow = previousOverflow;
   }
 });
@@ -403,6 +401,49 @@ function onClear() {
 function chooseCategory(category) {
   selectedCategory.value = category;
   haptic('light');
+}
+
+function toggleAddCategory() {
+  if (showAddCategory.value) {
+    cancelAddCategory();
+    return;
+  }
+  if (categories.value.length >= 40) {
+    showToast('分类最多只能有 40 个哦');
+    return;
+  }
+  haptic('light');
+  showAddCategory.value = true;
+  nextTick(() => categoryAddInput.value?.focus());
+}
+
+function cancelAddCategory() {
+  showAddCategory.value = false;
+  newCategoryName.value = '';
+}
+
+async function submitCategory() {
+  const name = newCategoryName.value.trim();
+  if (!name) {
+    showToast('给分类起个名字吧');
+    return;
+  }
+  if (categories.value.includes(name)) {
+    showToast('这个分类已经有啦');
+    return;
+  }
+  if (categories.value.length >= 40) {
+    showToast('分类最多只能有 40 个哦');
+    return;
+  }
+
+  await setCategories([...categories.value, name]);
+  selectedCategory.value = name;
+  rememberCategory(name);
+  haptic('success');
+  showToast(`「${name}」加进来啦`);
+  cancelAddCategory();
+  nextTick(revealSelectedCategory);
 }
 
 function openDatePicker() {
@@ -501,7 +542,7 @@ async function removeCurrent() {
 }
 
 function isInteractiveTarget(target) {
-  return Boolean(target?.closest?.('button, input, textarea, select, a, .record-category-strip, .number-keypad, .record-note-field, .van-popup'));
+  return Boolean(target?.closest?.('button, input, textarea, select, a, .record-category-grid, .record-category-add-row, .record-note-ghost, .number-keypad, .van-popup'));
 }
 
 function onCurtainPointerDown(event) {
@@ -568,7 +609,7 @@ function stopCurtainDrag() {
 }
 
 function onKeydown(event) {
-  if (!curtainOpen.value || showDatePicker.value || showCategoryPicker.value) return;
+  if (!curtainOpen.value || showDatePicker.value) return;
 
   const tag = event.target?.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA') return;

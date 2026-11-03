@@ -45,7 +45,7 @@
       </button>
     </div>
 
-    <p class="sheet-note">最多 20 个分类，「其他」是果冻的默认分类，不能改名或删掉。</p>
+    <p class="sheet-note">最多 40 个分类，「其他」是果冻的默认分类，不能改名或删掉。</p>
   </SheetFrame>
 </template>
 
@@ -118,8 +118,8 @@ async function submit() {
     showToast('这个分类已经有啦');
     return;
   }
-  if (categories.value.length >= 20) {
-    showToast('分类最多只能有 20 个哦');
+  if (categories.value.length >= 40) {
+    showToast('分类最多只能有 40 个哦');
     return;
   }
   await setCategories([...categories.value, name]);

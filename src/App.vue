@@ -1,6 +1,9 @@
 <template>
-  <div class="app-shell" :class="{ 'is-immersive': isImmersive }">
-    <AppHeader v-if="!isImmersive" />
+  <div
+    class="app-shell"
+    :class="{ 'is-immersive': isImmersive, 'is-record-immersive': hideHeader }"
+  >
+    <AppHeader v-if="!isImmersive && !hideHeader" />
     <main class="main">
       <RouterView v-slot="{ Component }">
         <Transition name="page-fade" mode="out-in">
@@ -31,6 +34,7 @@ import AchievementsSheet from './components/AchievementsSheet.vue';
 import StageSummarySheet from './components/StageSummarySheet.vue';
 import UndoSnackbar from './components/UndoSnackbar.vue';
 import { useLedger } from './composables/useLedger';
+import { useLedgerPanes } from './composables/useLedgerPanes';
 import { useRecordEntry } from './composables/useRecordEntry';
 import { useSheets } from './composables/useSheets';
 import { useVoiceEntry } from './composables/useVoiceEntry';
@@ -44,7 +48,14 @@ const sheets = useSheets();
 const record = useRecordEntry();
 const voice = useVoiceEntry();
 const route = useRoute();
+const { activePane } = useLedgerPanes();
 const isImmersive = computed(() => Boolean(route.meta.immersive));
+const hideHeader = computed(() => (
+  !isImmersive.value &&
+  route.path === '/' &&
+  activePane.value === 'record' &&
+  Boolean(currentStage.value)
+));
 const {
   showStages,
   showStageForm,

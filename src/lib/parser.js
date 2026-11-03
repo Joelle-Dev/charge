@@ -1,4 +1,23 @@
-export const PRESET_CATEGORIES = ['餐饮', '交通', '住宿', '购物', '娱乐', '门票', '其他'];
+export const PRESET_CATEGORIES = [
+  '餐饮',
+  '交通',
+  '住宿',
+  '购物',
+  '娱乐',
+  '门票',
+  '咖啡',
+  '零食',
+  '日用',
+  '医疗',
+  '教育',
+  '宠物',
+  '通讯',
+  '水电',
+  '房租',
+  '旅行',
+  '礼物',
+  '其他'
+];
 export const DEFAULT_CATEGORY = '其他';
 
 const RULES = [

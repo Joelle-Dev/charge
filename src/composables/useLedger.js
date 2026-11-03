@@ -345,14 +345,25 @@ async function ensureCurrentStage() {
   }
 }
 
+function mergeCategories(stored) {
+  const presets = PRESET_CATEGORIES.filter((category) => category !== DEFAULT_CATEGORY);
+  const custom = [...new Set(
+    (Array.isArray(stored) ? stored : [])
+      .filter((category) => category && category !== DEFAULT_CATEGORY && !PRESET_CATEGORIES.includes(category))
+  )];
+  return [...presets, ...custom, DEFAULT_CATEGORY];
+}
+
 async function loadCategories() {
   const stored = await getSetting('categories', null);
-  if (Array.isArray(stored) && stored.length) {
-    categories.value = stored.includes(DEFAULT_CATEGORY)
-      ? [...stored]
-      : [...stored, DEFAULT_CATEGORY];
-  }
-  return stored;
+  const merged = mergeCategories(stored);
+  categories.value = merged;
+
+  const unchanged = Array.isArray(stored) &&
+    stored.length === merged.length &&
+    stored.every((category, index) => category === merged[index]);
+  if (!unchanged) await setSetting('categories', merged);
+  return merged;
 }
 
 async function loadStagesAndCurrent() {
@@ -390,11 +401,7 @@ async function init() {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
-      const stored = await loadCategories();
-      if (!Array.isArray(stored) || !stored.length) {
-        await setSetting('categories', categories.value);
-      }
-
+      await loadCategories();
       await loadStagesAndCurrent();
 
       const storedStatsVersion = await getSetting('statsVersion', null);
@@ -562,8 +569,8 @@ async function clearStageExpenses(stageId) {
 }
 
 async function setCategories(next) {
-  let list = next.filter(Boolean);
-  if (!list.includes(DEFAULT_CATEGORY)) list = [...list, DEFAULT_CATEGORY];
+  const list = [...new Set(next.filter(Boolean).filter((category) => category !== DEFAULT_CATEGORY))];
+  list.push(DEFAULT_CATEGORY);
   categories.value = list;
   await setSetting('categories', list);
 }
