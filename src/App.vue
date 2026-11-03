@@ -16,7 +16,7 @@
 
     <StageSheet v-model:show="showStages" />
     <StageFormSheet v-model:show="showStageForm" />
-    <SearchSheet v-model:show="showSearch" />
+    <MergeStageSheet v-model:show="showMerge" />
     <AchievementsSheet v-model:show="showAchievements" />
     <StageSummarySheet v-model:show="showSummary" />
   </div>
@@ -29,7 +29,7 @@ import AppHeader from './components/AppHeader.vue';
 import ActionBar from './components/ActionBar.vue';
 import StageSheet from './components/StageSheet.vue';
 import StageFormSheet from './components/StageFormSheet.vue';
-import SearchSheet from './components/SearchSheet.vue';
+import MergeStageSheet from './components/MergeStageSheet.vue';
 import AchievementsSheet from './components/AchievementsSheet.vue';
 import StageSummarySheet from './components/StageSummarySheet.vue';
 import UndoSnackbar from './components/UndoSnackbar.vue';
@@ -52,7 +52,7 @@ const hideHeader = computed(() => !isImmersive.value && route.path === '/');
 const {
   showStages,
   showStageForm,
-  showSearch,
+  showMerge,
   showAchievements,
   showSummary
 } = sheets;

@@ -1,10 +1,11 @@
 import { ref } from 'vue';
+import router from '../router';
 
 const showStages = ref(false);
 const showStageForm = ref(false);
-const showSearch = ref(false);
 const showAchievements = ref(false);
 const showSummary = ref(false);
+const showMerge = ref(false);
 const editingStage = ref(null);
 const stageDraftName = ref('');
 const summaryStage = ref(null);
@@ -21,11 +22,16 @@ function openStageForm(stage = null, presetName = '') {
 }
 
 function openSearch() {
-  showSearch.value = true;
+  if (router.currentRoute.value.path !== '/search') router.push('/search');
 }
 
 function openAchievements() {
   showAchievements.value = true;
+}
+
+function openMerge() {
+  showStages.value = false;
+  showMerge.value = true;
 }
 
 function openSummary(stage) {
@@ -38,9 +44,9 @@ export function useSheets() {
   return {
     showStages,
     showStageForm,
-    showSearch,
     showAchievements,
     showSummary,
+    showMerge,
     editingStage,
     stageDraftName,
     summaryStage,
@@ -48,6 +54,7 @@ export function useSheets() {
     openStageForm,
     openSearch,
     openAchievements,
+    openMerge,
     openSummary
   };
 }

@@ -32,6 +32,196 @@ function toMessage(error) {
   return String(error?.message || error || '未知错误');
 }
 
+function transactionDone(tx) {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+  });
+}
+
+function uniqueStageIds(stageIds = []) {
+  return [...new Set(
+    (Array.isArray(stageIds) ? stageIds : [])
+      .map((id) => String(id || '').trim())
+      .filter(Boolean)
+  )];
+}
+
+async function readMergeStages(stageIds, targetId) {
+  const allStages = await getAll('stages');
+  const stageMap = new Map(allStages.map((stage) => [stage.id, stage]));
+  const target = stageMap.get(targetId);
+  if (!target) throw new Error('目标阶段已经不在了');
+  if (target.archived) throw new Error('目标阶段已经归档啦');
+
+  const sources = stageIds
+    .filter((id) => id !== targetId)
+    .map((id) => {
+      const stage = stageMap.get(id);
+      if (!stage) throw new Error('有一个阶段已经不在了');
+      if (stage.archived) throw new Error('归档阶段不能参与合并');
+      return stage;
+    });
+
+  return { target, sources };
+}
+
+function processStageCursor(index, sourceStages, sourceIndex, targetId, now, movedExpenses, tx) {
+  const source = sourceStages[sourceIndex];
+  const request = index.openCursor(IDBKeyRange.only(source.id));
+
+  request.onerror = () => {
+    try {
+      tx.abort();
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) {
+      if (sourceIndex + 1 < sourceStages.length) {
+        processStageCursor(index, sourceStages, sourceIndex + 1, targetId, now, movedExpenses, tx);
+      }
+      return;
+    }
+
+    const expense = cursor.value;
+    cursor.update({ ...expense, stageId: targetId, updatedAt: now });
+    movedExpenses.push([expense.id, source.id]);
+    if (movedExpenses.length % 500 === 0) {
+      self.postMessage({ type: 'mergeProgress', moved: movedExpenses.length });
+    }
+    cursor.continue();
+  };
+}
+
+async function mergeStages({ stageIds = [], targetId = '' } = {}) {
+  const ids = uniqueStageIds(stageIds);
+  if (ids.length < 2) throw new Error('至少选两个阶段才能合并');
+  if (!ids.includes(targetId)) throw new Error('合并目标必须是选中的阶段');
+
+  const { target, sources } = await readMergeStages(ids, targetId);
+  if (!sources.length) throw new Error('至少需要一个被合并的阶段');
+
+  const previousCurrentStageId = await getSetting('currentStageId', null);
+  const now = Date.now();
+  const movedExpenses = [];
+  const db = await openDB();
+  const tx = db.transaction(['expenses', 'stages', 'settings'], 'readwrite');
+  const expensesStore = tx.objectStore('expenses');
+  const stagesStore = tx.objectStore('stages');
+  const settingsStore = tx.objectStore('settings');
+  const index = expensesStore.index('stageId');
+
+  for (const source of sources) {
+    stagesStore.put({
+      ...source,
+      archived: true,
+      mergedInto: targetId,
+      mergedAt: now,
+      updatedAt: now
+    });
+  }
+  stagesStore.put({ ...target, updatedAt: now });
+  settingsStore.put({ key: 'currentStageId', value: targetId });
+  settingsStore.put({ key: 'statsDirty', value: true });
+
+  processStageCursor(index, sources, 0, targetId, now, movedExpenses, tx);
+
+  try {
+    await transactionDone(tx);
+  } catch (err) {
+    throw new Error(`合并没完成，账目没有变：${toMessage(err)}`);
+  }
+
+  self.postMessage({
+    type: 'mergeDone',
+    moved: movedExpenses.length,
+    movedExpenses,
+    sourceStages: sources,
+    previousCurrentStageId,
+    targetId
+  });
+}
+
+async function undoMerge({
+  sourceStages = [],
+  movedExpenses = [],
+  previousCurrentStageId = null
+} = {}) {
+  const stageSnapshots = (Array.isArray(sourceStages) ? sourceStages : [])
+    .filter((stage) => stage && stage.id);
+  const expenseMap = new Map(
+    (Array.isArray(movedExpenses) ? movedExpenses : [])
+      .filter((pair) => Array.isArray(pair) && pair[0] && pair[1])
+      .map(([id, stageId]) => [id, stageId])
+  );
+
+  if (!expenseMap.size && !stageSnapshots.length) {
+    throw new Error('没有可撤销的合并记录');
+  }
+
+  const now = Date.now();
+  const db = await openDB();
+  const tx = db.transaction(['expenses', 'stages', 'settings'], 'readwrite');
+  const expensesStore = tx.objectStore('expenses');
+  const stagesStore = tx.objectStore('stages');
+  const settingsStore = tx.objectStore('settings');
+  let restored = 0;
+
+  const request = expensesStore.openCursor();
+  request.onerror = () => {
+    try {
+      tx.abort();
+    } catch (err) {
+      // ignore
+    }
+  };
+  request.onsuccess = () => {
+    const cursor = request.result;
+    if (!cursor) return;
+
+    const expense = cursor.value;
+    const originalStageId = expenseMap.get(expense.id);
+    if (originalStageId) {
+      cursor.update({ ...expense, stageId: originalStageId, updatedAt: now });
+      restored += 1;
+      if (restored % 500 === 0) {
+        self.postMessage({ type: 'undoMergeProgress', restored });
+      }
+    }
+    cursor.continue();
+  };
+
+  for (const stage of stageSnapshots) {
+    const rest = { ...stage };
+    delete rest.mergedInto;
+    delete rest.mergedAt;
+    stagesStore.put({
+      ...rest,
+      archived: false,
+      updatedAt: now
+    });
+  }
+  settingsStore.put({ key: 'currentStageId', value: previousCurrentStageId || null });
+  settingsStore.put({ key: 'statsDirty', value: true });
+
+  try {
+    await transactionDone(tx);
+  } catch (err) {
+    throw new Error(`撤销没完成：${toMessage(err)}`);
+  }
+
+  self.postMessage({
+    type: 'undoMergeDone',
+    restored,
+    previousCurrentStageId: previousCurrentStageId || null
+  });
+}
+
 function monthBounds(month) {
   const [year, monthNumber] = month.split('-').map(Number);
   return [
@@ -501,6 +691,15 @@ async function importBackup({ mode = 'replace' }) {
     };
   });
 
+  for (const stage of manifest.stages) {
+    if (!stage.mergedInto) continue;
+    const imported = importedStages.find((item) => item.id === stageMap.get(stage.id));
+    const mergedInto = stageMap.get(stage.mergedInto) || stage.mergedInto;
+    if (!imported) continue;
+    imported.mergedInto = mergedInto;
+    if (stage.mergedAt) imported.mergedAt = Number(stage.mergedAt) || now;
+  }
+
   const backupCurrentStageId = manifest.currentStageId
     ? stageMap.get(manifest.currentStageId)
     : null;
@@ -638,6 +837,14 @@ self.onmessage = async (event) => {
     }
     if (message.type === 'importBackup') {
       await importBackup(message);
+      return;
+    }
+    if (message.type === 'mergeStages') {
+      await mergeStages(message);
+      return;
+    }
+    if (message.type === 'undoMerge') {
+      await undoMerge(message);
       return;
     }
     if (message.type === 'clearBackup') {

@@ -13,7 +13,9 @@ function ensureWorker() {
     if (
       message.type === 'exportProgress' ||
       message.type === 'importProgress' ||
-      message.type === 'backupProgress'
+      message.type === 'backupProgress' ||
+      message.type === 'mergeProgress' ||
+      message.type === 'undoMergeProgress'
     ) {
       active.onProgress?.(message);
       return;
@@ -34,7 +36,9 @@ function ensureWorker() {
     if (
       message.type === 'backupExportDone' ||
       message.type === 'backupParseDone' ||
-      message.type === 'backupImportDone'
+      message.type === 'backupImportDone' ||
+      message.type === 'mergeDone' ||
+      message.type === 'undoMergeDone'
     ) {
       entry.resolve(message);
       return;
@@ -128,6 +132,32 @@ export function importBackupFile(options = {}, { onProgress } = {}) {
 export function clearPendingBackup() {
   if (!worker) return;
   worker.postMessage({ type: 'clearBackup' });
+}
+
+export function mergeStagesInWorker({ stageIds = [], targetId = '', onProgress } = {}) {
+  ensureWorker();
+  return new Promise((resolve, reject) => {
+    if (!begin('merge', { onProgress, resolve, reject })) return;
+    worker.postMessage({ type: 'mergeStages', stageIds, targetId });
+  });
+}
+
+export function undoMergeInWorker({
+  sourceStages = [],
+  movedExpenses = [],
+  previousCurrentStageId = null,
+  onProgress
+} = {}) {
+  ensureWorker();
+  return new Promise((resolve, reject) => {
+    if (!begin('undoMerge', { onProgress, resolve, reject })) return;
+    worker.postMessage({
+      type: 'undoMerge',
+      sourceStages,
+      movedExpenses,
+      previousCurrentStageId
+    });
+  });
 }
 
 export function saveBlob(blob, filename) {

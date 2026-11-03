@@ -41,8 +41,11 @@
       <div v-if="showArchived" class="sheet-list stage-archived-list">
         <div v-for="stage in archivedStages" :key="stage.id" class="stage-item">
           <button class="stage-item-main" type="button" @click="restore(stage)">
-            <span class="stage-item-name">{{ stage.name }}</span>
-            <span class="stage-item-sub">已收起来 · 点一下恢复</span>
+            <span class="stage-item-name">
+              {{ stage.name }}
+              <span v-if="stage.mergedInto" class="merged-badge">已合并</span>
+            </span>
+            <span class="stage-item-sub">{{ archivedSubtitle(stage) }}</span>
           </button>
           <button class="mini-btn" type="button" :aria-label="`编辑 ${stage.name}`" @click="sheets.openStageForm(stage)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -90,6 +93,14 @@ function stageSubtitle(stage) {
   return `${stats.count} 笔 · 花了 ¥${formatMoney(stats.total)}${budget}`;
 }
 
+function archivedSubtitle(stage) {
+  if (!stage.mergedInto) return '已收起来 · 点一下恢复';
+  const target = stages.value.find((item) => item.id === stage.mergedInto);
+  return target
+    ? `已并入「${target.name}」 · 恢复后是空账本`
+    : '已合并 · 恢复后是空账本';
+}
+
 async function selectStage(stage) {
   if (stage.id !== currentStage.value?.id) {
     await switchStage(stage.id);
@@ -101,9 +112,10 @@ async function selectStage(stage) {
 }
 
 async function restore(stage) {
+  const wasMerged = Boolean(stage.mergedInto);
   await restoreStage(stage);
   haptic('light');
-  showToast(`「${stage.name}」回来啦`);
+  showToast(wasMerged ? `「${stage.name}」回来啦，是空账本哦` : `「${stage.name}」回来啦`);
 }
 
 function openSummary() {

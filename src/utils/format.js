@@ -9,8 +9,13 @@ const CATEGORY_COLORS = {
 };
 
 const PALETTE = ['#6f8fb8', '#d9825b', '#a78bc4', '#db7c9b', '#d9a84e', '#c68a5f', '#8f9bb3'];
+const BOOK_PALETTE = ['#8a6f5c', '#6f859a', '#9a7b8f', '#7f8f6d', '#b08a5e', '#6f8f88', '#93796b'];
 const WEEKDAYS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const moneyFormatters = new Map();
+const fixedAmountFormatter = new Intl.NumberFormat('zh-CN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
 
 function moneyFormatter(maximumFractionDigits) {
   let formatter = moneyFormatters.get(maximumFractionDigits);
@@ -31,6 +36,10 @@ export function uid(prefix = 'id') {
 
 export function formatMoney(value, maximumFractionDigits = 2) {
   return moneyFormatter(maximumFractionDigits).format(Number(value) || 0);
+}
+
+export function formatAmount(value) {
+  return fixedAmountFormatter.format(Number(value) || 0);
 }
 
 export function pad2(value) {
@@ -85,6 +94,16 @@ export function categoryColor(name) {
   let hash = 0;
   for (const ch of String(name)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
   return PALETTE[hash % PALETTE.length];
+}
+
+export function stageColor(stage) {
+  if (stage && typeof stage === 'object' && stage.color) return stage.color;
+  const seed = typeof stage === 'string'
+    ? stage
+    : String(stage?.name || stage?.id || '');
+  let hash = 0;
+  for (const ch of seed) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return BOOK_PALETTE[hash % BOOK_PALETTE.length];
 }
 
 export function sumAmounts(expenses) {

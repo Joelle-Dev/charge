@@ -140,6 +140,7 @@
                 v-for="expense in group.items"
                 :key="expense.id"
                 :expense="expense"
+                @select="record.openRecord"
                 @edit="record.openRecord"
                 @delete="removeExpenseWithUndo"
                 @menu="openRowMenu"

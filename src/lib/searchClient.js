@@ -160,7 +160,15 @@ export async function rebuildDerivedDataInWorker({ onProgress } = {}) {
   return derivedPromise;
 }
 
-export async function searchExpenses({ stageId, query = '', category = '', limit = 500, onProgress } = {}) {
+export async function searchExpenses({
+  stageId,
+  query = '',
+  category = '',
+  limit = 500,
+  minAmount = null,
+  maxAmount = null,
+  onProgress
+} = {}) {
   if (!stageId) return { count: 0, ids: [] };
 
   if (derivedPromise) {
@@ -186,7 +194,9 @@ export async function searchExpenses({ stageId, query = '', category = '', limit
       stageId,
       query,
       category,
-      limit
+      limit,
+      minAmount,
+      maxAmount
     });
   });
 }

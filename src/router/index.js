@@ -38,6 +38,12 @@ const routes = [
     component: () => import('../views/VoiceView.vue')
   },
   {
+    path: '/search',
+    name: 'search',
+    meta: { immersive: true },
+    component: () => import('../views/SearchView.vue')
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue')

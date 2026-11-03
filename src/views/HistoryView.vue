@@ -1,15 +1,20 @@
 <template>
   <section class="history-page">
-    <header class="history-head">
-      <button v-if="!embedded" class="records-back" type="button" aria-label="返回" @click="goBack">
+    <header class="history-head" :class="{ 'is-embedded': embedded }">
+      <button
+        class="records-back"
+        type="button"
+        :aria-label="embedded ? '返回记账' : '返回'"
+        @click="goBack"
+      >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m15 18-6-6 6-6"></path>
         </svg>
       </button>
       <div class="history-title">
-        <span class="history-eyebrow">果冻的账本</span>
         <h1>花过的钱</h1>
       </div>
+      <span v-if="embedded" class="history-head-spacer" aria-hidden="true"></span>
     </header>
 
     <section class="history-range">
@@ -175,6 +180,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import DateTimeField from '../components/DateTimeField.vue';
 import { useLedger } from '../composables/useLedger';
+import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { loadDayStats } from '../lib/stats';
 import { formatMoney, pad2, toDateInput } from '../utils/format';
 import { addMonths, monthLabel } from '../utils/months';
@@ -186,6 +192,7 @@ const props = defineProps({
   active: { type: Boolean, default: true }
 });
 const { ready, dataVersion, currentStage } = useLedger();
+const { goToPane } = useLedgerPanes();
 const today = toDateInput(new Date());
 
 const loading = ref(true);
@@ -607,6 +614,11 @@ function selectMonth(month) {
 }
 
 function goBack() {
+  haptic('light');
+  if (props.embedded) {
+    goToPane('record');
+    return;
+  }
   if (window.history.length > 1) router.back();
   else router.push('/records');
 }

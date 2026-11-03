@@ -1,7 +1,7 @@
 import { monthKey } from '../utils/months.js';
 import { formatMoney } from '../utils/format.js';
 
-export const SEARCH_VERSION = 2;
+export const SEARCH_VERSION = 3;
 export const SEARCH_BUILDING_VERSION = -1;
 
 export function searchTextForExpense(expense) {
@@ -18,6 +18,7 @@ export function compactSearchEntry(expense) {
     id: expense.id,
     s: expense.spentAt,
     c: expense.category || '',
+    a: Number(expense.amount) || 0,
     t: searchTextForExpense(expense)
   };
 }
@@ -79,6 +80,20 @@ export function applySearchChunkChanges(chunk, { removeIds = [], addRows = [] } 
   for (const id of removeIds) rows.delete(id);
   for (const row of addRows) rows.set(row.id, row);
   return [...rows.values()].sort((a, b) => searchEntryTime(b).localeCompare(searchEntryTime(a)));
+}
+
+export function searchEntryAmount(row) {
+  const value = Number(row?.a ?? row?.amount);
+  return Number.isFinite(value) ? value : null;
+}
+
+export function matchesSearchAmount(row, minAmount = null, maxAmount = null) {
+  if (minAmount === null && maxAmount === null) return true;
+  const amount = searchEntryAmount(row);
+  if (amount === null) return false;
+  if (minAmount !== null && amount < minAmount) return false;
+  if (maxAmount !== null && amount > maxAmount) return false;
+  return true;
 }
 
 export function matchesSearchEntry(row, keyword = '', category = '') {

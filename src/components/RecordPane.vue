@@ -1,5 +1,6 @@
 <template>
   <section class="record-pane">
+    <div class="record-header">
     <header class="record-pane-head">
       <img class="record-pane-cat" :src="catAvatar" alt="" aria-hidden="true">
       <div class="record-topbar">
@@ -28,8 +29,6 @@
           </svg>
         </button>
       </div>
-      <RecordPullHandle class="record-pane-pull" />
-      <span v-if="showPullHint" class="record-pull-hint" aria-hidden="true">下拉记一笔</span>
     </header>
 
     <div class="record-month-bar">
@@ -52,11 +51,14 @@
         </button>
       </div>
       <div class="record-head-total">
-        <span class="record-total-label">本月花了</span>
+        <span class="record-total-label">本月 {{ expenses.length }} 笔</span>
         <strong class="record-month-total">
           <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
         </strong>
       </div>
+    </div>
+    <RecordPullHandle class="record-pane-pull" />
+    <span v-if="showPullHint" class="record-pull-hint" aria-hidden="true">下拉记一笔</span>
     </div>
 
     <div v-if="loading" class="record-loading">
@@ -64,86 +66,34 @@
       果冻在翻这个月的小账本…
     </div>
 
-    <div v-else-if="expenses.length" class="record-tree">
-      <div class="record-trunk" aria-hidden="true">
-        <svg viewBox="0 0 22 100" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="record-trunk-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#d7b892"></stop>
-              <stop offset="100%" stop-color="#b88b62"></stop>
-            </linearGradient>
-          </defs>
-          <path d="M11 0 C 7 18, 15 34, 10 52 C 6 70, 14 84, 11 100"></path>
-        </svg>
-        <span class="record-trunk-root"></span>
-      </div>
-
-        <section
-          v-for="(day, dayIndex) in treeDays"
-          :key="day.key"
-          class="record-day"
-        >
-          <button
-            class="record-day-head"
-            type="button"
-            :aria-label="`${day.label}，${day.items.length} 笔，合计 ¥${formatMoney(day.total)}，消费热度 ${day.heat} 级`"
-            :aria-expanded="!isDayCollapsed(day.key)"
-            @click="toggleTreeDay(day.key)"
-          >
-            <span class="record-day-dot" :class="`heat-${day.heat}`" aria-hidden="true"></span>
-            <span class="record-day-label">{{ day.label }}</span>
-            <span class="record-day-meta">¥{{ formatMoney(day.total) }}</span>
-            <svg
-              class="record-day-chevron"
-              :class="{ collapsed: isDayCollapsed(day.key) }"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="m6 9 6 6 6-6"></path>
-            </svg>
-          </button>
-
-          <div v-if="!isDayCollapsed(day.key)" class="record-day-leaves">
-            <article
-              v-for="(expense, index) in day.leaves"
-              :key="expense.id"
-              class="record-branch"
-              :style="{
-                '--swatch': expense.color,
-                '--branch-width': expense.branchWidth,
-                '--branch-delay': `${Math.min(dayIndex * 3 + index, 12) * 35}ms`
-              }"
-            >
-              <svg class="record-branch-arm" viewBox="0 0 20 18" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M0 1 C 0 11, 4 16, 20 16"></path>
-              </svg>
-
-              <div class="record-branch-main">
-                <RecordLeaf
-                  :expense="expense"
-                  @select="openDaily"
-                />
-                <button
-                  class="record-leaf-more"
-                  type="button"
-                  :aria-label="`更多操作：${expense.noteText || expense.category}`"
-                  @click.stop="openRowMenu(expense)"
-                >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-                    <circle cx="5" cy="12" r="1.6"></circle>
-                    <circle cx="12" cy="12" r="1.6"></circle>
-                    <circle cx="19" cy="12" r="1.6"></circle>
-                  </svg>
-                </button>
-              </div>
-            </article>
+    <div v-else-if="expenses.length" class="record-timeline">
+      <section
+        v-for="day in timelineDays"
+        :key="day.key"
+        class="timeline-day"
+      >
+        <div class="timeline-day-head">
+          <div class="timeline-day-main">
+            <span class="timeline-day-node" :class="`heat-${day.heat}`" aria-hidden="true"></span>
+            <span class="timeline-day-label">{{ day.label }}</span>
+            <span class="timeline-day-summary">
+              <span class="timeline-day-count">{{ day.items.length }} 笔</span>
+              <span class="timeline-day-total">¥{{ formatMoney(day.total) }}</span>
+            </span>
           </div>
-        </section>
+        </div>
+
+        <div class="timeline-items">
+          <RecordLeaf
+            v-for="expense in day.items"
+            :key="expense.id"
+            :expense="expense"
+            :style="{ '--swatch': expense.color }"
+            @select="openDaily"
+            @menu="openRowMenu"
+          />
+        </div>
+      </section>
     </div>
 
     <div v-else class="record-empty">
@@ -161,18 +111,18 @@
 
     <Teleport to="body">
       <div v-if="dailyDate" class="daily-page">
-        <header class="daily-page-head">
-          <button class="daily-page-back" type="button" aria-label="返回月视图" @click="closeDaily">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M19 12H5"></path>
-              <path d="m12 19-7-7 7-7"></path>
-            </svg>
-          </button>
-          <h1>果冻的每日账单</h1>
-          <span class="daily-page-spacer" aria-hidden="true"></span>
-        </header>
+        <div class="daily-header">
+          <header class="daily-page-head">
+            <button class="daily-page-back" type="button" aria-label="返回月视图" @click="closeDaily">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 12H5"></path>
+                <path d="m12 19-7-7 7-7"></path>
+              </svg>
+            </button>
+            <h1>每日账单</h1>
+            <span class="daily-page-spacer" aria-hidden="true"></span>
+          </header>
 
-        <div class="daily-page-body">
           <section class="daily-date-card">
             <button class="daily-date-arrow" type="button" aria-label="前一天" @click="shiftDaily(-1)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -199,6 +149,9 @@
             <strong class="daily-summary-total">¥{{ formatMoney(dailyTotal) }}</strong>
             <span class="daily-summary-count">{{ dailyExpenses.length }} 笔</span>
           </section>
+        </div>
+
+        <div class="daily-page-body">
 
           <div v-if="dailyLoading" class="record-loading">
             <span class="loading-dot"></span>
@@ -211,10 +164,7 @@
               :key="expense.id"
               class="expense-row"
             >
-              <ExpenseItem
-                :expense="expense"
-                @select="editExpense"
-              />
+              <ExpenseItem :expense="expense" readonly />
               <button
                 class="expense-more"
                 type="button"
@@ -262,7 +212,7 @@ import { addMonths, currentMonthKey, monthLabel, shortMonthLabel } from '../util
 const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
 const { activePane, goToPane } = useLedgerPanes();
 const record = useRecordEntry();
-const { recordMonth, dailyOpen } = useRecordsView();
+const { recordMonth, dailyOpen, dailyDate } = useRecordsView();
 const sheets = useSheets();
 
 const month = ref(recordMonth.value || currentMonthKey());
@@ -276,11 +226,8 @@ const showPullHint = ref(false);
 const rowActionsRef = ref(null);
 const expenses = ref([]);
 const loading = ref(true);
-const dailyDate = ref('');
 const dailyExpenses = ref([]);
 const dailyLoading = ref(false);
-const collapsedDays = ref(new Set());
-let treeDefaultMonth = '';
 let loadToken = 0;
 let dailyToken = 0;
 
@@ -314,16 +261,10 @@ const dailyYearMonth = computed(() => (
 
 const groups = computed(() => groupExpensesByDay(expenses.value));
 
-const maxAmount = computed(() => (
-  Math.max(1, ...expenses.value.map((expense) => Number(expense.amount) || 0))
-));
-
-function leafMeta(expense) {
-  const amount = Number(expense.amount) || 0;
+function itemMeta(expense) {
   return {
     ...expense,
     color: categoryColor(expense.category),
-    branchWidth: (2 + Math.min(1, amount / maxAmount.value) * 5).toFixed(1),
     noteText: cleanNote(expense.note)
   };
 }
@@ -340,11 +281,12 @@ function dayHeat(total) {
   return 1;
 }
 
-const treeDays = computed(() => (
+const timelineDays = computed(() => (
   groups.value.map((group) => ({
     ...group,
+    label: group.label.replace(/\s*周[日一二三四五六]$/, ''),
     heat: dayHeat(group.total),
-    leaves: group.items.map(leafMeta)
+    items: group.items.map(itemMeta)
   }))
 ));
 
@@ -366,14 +308,9 @@ function maybeShowHeatHint(days) {
 }
 
 watch(
-  treeDays,
+  timelineDays,
   (days) => {
-    if (!days.length) return;
-    if (treeDefaultMonth !== month.value) {
-      treeDefaultMonth = month.value;
-      collapsedDays.value = new Set(days.slice(1).map((day) => day.key));
-    }
-    maybeShowHeatHint(days);
+    if (days.length) maybeShowHeatHint(days);
   },
   { immediate: true }
 );
@@ -410,16 +347,12 @@ watch(
 
 watch(month, (value) => {
   recordMonth.value = value;
-  collapsedDays.value = new Set();
-  treeDefaultMonth = '';
 });
 
 watch(
   () => currentStage.value?.id,
   (id, previous) => {
     if (!id || id === previous) return;
-    treeDefaultMonth = '';
-    collapsedDays.value = new Set();
     month.value = currentMonthKey();
   }
 );
@@ -448,18 +381,6 @@ function selectMonth(next) {
   showMonthPicker.value = false;
   if (next === month.value) return;
   month.value = next;
-  haptic('light');
-}
-
-function isDayCollapsed(key) {
-  return collapsedDays.value.has(key);
-}
-
-function toggleTreeDay(key) {
-  const next = new Set(collapsedDays.value);
-  if (next.has(key)) next.delete(key);
-  else next.add(key);
-  collapsedDays.value = next;
   haptic('light');
 }
 
@@ -506,11 +427,6 @@ async function loadDaily(dateKey) {
   }
 }
 
-function editExpense(expense) {
-  haptic('light');
-  record.openRecord(expense);
-}
-
 function openRowMenu(expense) {
   rowActionsRef.value?.open(expense);
 }
@@ -519,7 +435,8 @@ watch(
   [dailyDate, dataVersion, () => currentStage.value?.id],
   () => {
     if (dailyDate.value) loadDaily(dailyDate.value);
-  }
+  },
+  { immediate: true }
 );
 
 function maybeShowPullHint() {
@@ -557,6 +474,7 @@ watch(
 
 onBeforeUnmount(() => {
   dailyOpen.value = false;
+  dailyDate.value = '';
   clearTimeout(pullHintTimer);
 });
 

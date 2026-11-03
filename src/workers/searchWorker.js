@@ -7,6 +7,7 @@ import {
 } from '../lib/db.js';
 import {
   buildSearchChunks,
+  matchesSearchAmount,
   matchesSearchEntry,
   SEARCH_VERSION,
   SEARCH_BUILDING_VERSION
@@ -41,11 +42,19 @@ async function rebuildSearchIndex() {
   self.postMessage({ type: 'rebuildDone', count: expenses.length });
 }
 
-async function search({ requestId, stageId, query, category, limit }) {
+function amountBound(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+async function search({ requestId, stageId, query, category, limit, minAmount, maxAmount }) {
   activeSearchId = requestId;
   const keyword = String(query || '').trim().toLowerCase();
   const categoryFilter = category || '';
   const maxIds = Number(limit) || 500;
+  const min = amountBound(minAmount);
+  const max = amountBound(maxAmount);
 
   const chunks = await getAllByIndex('searchChunks', 'stageId', stageId);
   chunks.sort((a, b) => (b.month || '').localeCompare(a.month || ''));
@@ -57,7 +66,10 @@ async function search({ requestId, stageId, query, category, limit }) {
     if (activeSearchId !== requestId) return;
     const chunk = chunks[index];
     for (const row of chunk.rows || []) {
-      if (matchesSearchEntry(row, keyword, categoryFilter)) {
+      if (
+        matchesSearchEntry(row, keyword, categoryFilter) &&
+        matchesSearchAmount(row, min, max)
+      ) {
         count += 1;
         if (ids.length < maxIds) ids.push(row.id);
       }

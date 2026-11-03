@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {
   applySearchChunkChanges,
   buildSearchChunks,
+  matchesSearchAmount,
   matchesSearchEntry,
+  searchEntryAmount,
   searchTextForExpense
 } from '../src/lib/searchIndex.js';
 
@@ -63,6 +65,21 @@ test('matchesSearchEntry supports legacy search rows', () => {
   assert.equal(matchesSearchEntry(legacy, '午饭'), true);
   assert.equal(matchesSearchEntry(legacy, '', '餐饮'), true);
   assert.equal(matchesSearchEntry(legacy, '', '交通'), false);
+});
+
+test('search amount helpers filter by range', () => {
+  const [chunk] = buildSearchChunks(expenses).filter((item) => item.month === '2026-02' && item.stageId === 's1');
+  const [dinner, taxi] = chunk.rows;
+
+  assert.equal(searchEntryAmount(dinner), 30);
+  assert.equal(searchEntryAmount({ amount: 9.5 }), 9.5);
+  assert.equal(searchEntryAmount({}), null);
+
+  assert.equal(matchesSearchAmount(dinner, 20, 40), true);
+  assert.equal(matchesSearchAmount(dinner, 31, 40), false);
+  assert.equal(matchesSearchAmount(taxi, null, 8), true);
+  assert.equal(matchesSearchAmount(taxi, 9, null), false);
+  assert.equal(matchesSearchAmount(taxi, null, null), true);
 });
 
 test('applySearchChunkChanges removes and adds rows while staying sorted', () => {

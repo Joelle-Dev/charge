@@ -12,8 +12,7 @@ import {
   setSetting,
   getAllByIndex,
   getPageByIndex,
-  getMany,
-  countRange
+  getMany
 } from '../lib/db';
 import { PRESET_CATEGORIES, DEFAULT_CATEGORY } from '../lib/parser';
 import { toDateInput, uid } from '../utils/format';
@@ -31,6 +30,8 @@ import {
   rebuildDerivedDataInWorker,
   searchExpenses as runWorkerSearch
 } from '../lib/searchClient';
+import { mergeStagesInWorker, undoMergeInWorker } from '../lib/dataClient';
+import { buildMergePlan, mergeStageTotals } from '../utils/mergePlan';
 import {
   STATS_VERSION,
   createStatsState,
@@ -50,6 +51,9 @@ const currentStageId = ref(null);
 const ready = ref(false);
 const loadingHint = ref('果冻在翻小账本…');
 const dataVersion = ref(0);
+const mergeMode = ref(false);
+const mergedStageIds = ref([]);
+const mergeBusy = ref(false);
 const statsState = reactive(createStatsState());
 
 let initPromise = null;
@@ -83,6 +87,30 @@ const currentStageStats = computed(() => (
 ));
 
 const total = computed(() => currentStageStats.value.total || 0);
+
+const mergedStages = computed(() => {
+  const selected = new Set(mergedStageIds.value);
+  return activeStages.value.filter((stage) => selected.has(stage.id));
+});
+
+const mergedTotals = computed(() => mergeStageTotals(mergedStages.value, stageStats));
+
+const overviewStats = computed(() => (
+  mergeMode.value ? mergedTotals.value : currentStageStats.value
+));
+
+const overviewStageLabel = computed(() => {
+  if (!mergeMode.value) return currentStage.value?.name || '';
+  const names = mergedStages.value.map((stage) => stage.name);
+  if (!names.length) return '还没选阶段';
+  return names.join(' · ');
+});
+
+const overviewBudget = computed(() => (
+  mergeMode.value ? 0 : Number(currentStage.value?.budget) || 0
+));
+
+const canMerge = computed(() => activeStages.value.length >= 2);
 
 const globalStats = computed(() => statsState.global);
 
@@ -185,15 +213,6 @@ async function ensureSearchIndex(force = false) {
   if (!force && storedVersion === SEARCH_VERSION) {
     searchIndexPromise = Promise.resolve();
     return searchIndexPromise;
-  }
-
-  if (!force && storedVersion === null) {
-    const existing = await countRange('searchChunks', IDBKeyRange.lowerBound(''));
-    if (existing > 0) {
-      await setSetting('searchVersion', SEARCH_VERSION);
-      searchIndexPromise = Promise.resolve();
-      return searchIndexPromise;
-    }
   }
 
   searchIndexPromise = rebuildSearchIndex().catch((err) => {
@@ -339,6 +358,10 @@ async function reloadStages() {
 
 async function ensureCurrentStage() {
   const active = activeStages.value;
+  if (active.length < 2) {
+    mergeMode.value = false;
+    mergedStageIds.value = [];
+  }
   if (!active.some((stage) => stage.id === currentStageId.value)) {
     currentStageId.value = active[0]?.id || null;
     await setSetting('currentStageId', currentStageId.value);
@@ -450,6 +473,108 @@ async function switchStage(stageId) {
   dataVersion.value += 1;
 }
 
+function enterMergeMode() {
+  if (!currentStage.value || !canMerge.value) return false;
+  mergeMode.value = true;
+  mergedStageIds.value = [currentStage.value.id];
+  return true;
+}
+
+function exitMergeMode() {
+  mergeMode.value = false;
+  mergedStageIds.value = [];
+}
+
+function isMergingStage(stageId) {
+  return mergedStageIds.value.includes(stageId);
+}
+
+function toggleMergeStage(stageId) {
+  const id = String(stageId || '');
+  if (!id || !activeStages.value.some((stage) => stage.id === id)) return;
+  const selected = new Set(mergedStageIds.value);
+  if (selected.has(id)) selected.delete(id);
+  else selected.add(id);
+  mergedStageIds.value = [...selected];
+}
+
+function selectAllMergeStages() {
+  mergedStageIds.value = activeStages.value.map((stage) => stage.id);
+}
+
+function clearMergeStages() {
+  mergedStageIds.value = [];
+}
+
+async function mergeStages(targetId, { onProgress } = {}) {
+  if (mergeBusy.value) throw new Error('果冻还在合并账本，等一下下吧');
+  const plan = buildMergePlan({
+    stages: stages.value,
+    selectedIds: mergedStageIds.value,
+    targetId,
+    getStats: stageStats
+  });
+  if (!plan.ok) throw new Error(plan.error);
+
+  const previousCurrentStageId = currentStageId.value;
+  const sourceStages = plan.sources.map((stage) => ({ ...stage }));
+  mergeBusy.value = true;
+  try {
+    const result = await mergeStagesInWorker({
+      stageIds: mergedStageIds.value,
+      targetId,
+      onProgress: (progress) => {
+        loadingHint.value = `果冻在合并账本… 已搬 ${progress.moved || 0} 笔`;
+        onProgress?.(progress);
+      }
+    });
+
+    await reloadStages();
+    currentStageId.value = targetId;
+    await setSetting('currentStageId', targetId);
+    await rebuildAndApplyStats();
+    await refreshStageViews();
+    dataVersion.value += 1;
+    mergeMode.value = false;
+    mergedStageIds.value = [];
+
+    return {
+      targetId,
+      previousCurrentStageId,
+      sourceStages,
+      movedExpenses: result.movedExpenses || []
+    };
+  } finally {
+    mergeBusy.value = false;
+    loadingHint.value = '果冻在翻小账本…';
+  }
+}
+
+async function undoMergeStages(snapshot) {
+  if (!snapshot || mergeBusy.value) return false;
+  mergeBusy.value = true;
+  try {
+    await undoMergeInWorker({
+      sourceStages: snapshot.sourceStages,
+      movedExpenses: snapshot.movedExpenses,
+      previousCurrentStageId: snapshot.previousCurrentStageId
+    });
+
+    await reloadStages();
+    currentStageId.value = await getSetting('currentStageId', null);
+    await ensureCurrentStage();
+    await rebuildAndApplyStats();
+    await refreshStageViews();
+    dataVersion.value += 1;
+    mergeMode.value = false;
+    mergedStageIds.value = [];
+    return true;
+  } finally {
+    mergeBusy.value = false;
+    loadingHint.value = '果冻在翻小账本…';
+  }
+}
+
 async function createStage({ name, budget }) {
   const now = Date.now();
   const record = {
@@ -464,6 +589,8 @@ async function createStage({ name, budget }) {
   await reloadStages();
   currentStageId.value = record.id;
   await setSetting('currentStageId', record.id);
+  mergeMode.value = false;
+  mergedStageIds.value = [];
   await refreshStageViews();
   dataVersion.value += 1;
   return record;
@@ -488,13 +615,17 @@ async function archiveStage(stage) {
   if (stage.archived) return;
   await putRecord('stages', { ...stage, archived: true, updatedAt: Date.now() });
   await reloadStages();
+  mergedStageIds.value = mergedStageIds.value.filter((id) => id !== stage.id);
   await ensureCurrentStage();
   await refreshStageViews();
   dataVersion.value += 1;
 }
 
 async function restoreStage(stage) {
-  await putRecord('stages', { ...stage, archived: false, updatedAt: Date.now() });
+  const record = { ...stage, archived: false, updatedAt: Date.now() };
+  delete record.mergedInto;
+  delete record.mergedAt;
+  await putRecord('stages', record);
   await reloadStages();
   await ensureCurrentStage();
   await refreshStageViews();
@@ -506,6 +637,7 @@ async function deleteStage(stage) {
   await deleteByIndexRange('expenses', 'stageId', stage.id);
   await deleteRecord('stages', stage.id);
   await reloadStages();
+  mergedStageIds.value = mergedStageIds.value.filter((id) => id !== stage.id);
   await ensureCurrentStage();
   await rebuildAndApplyStats();
   await refreshStageViews();
@@ -635,6 +767,15 @@ export function useLedger() {
     currentStageStats,
     globalStats,
     total,
+    mergeMode,
+    mergedStageIds,
+    mergedStages,
+    mergedTotals,
+    mergeBusy,
+    overviewStats,
+    overviewStageLabel,
+    overviewBudget,
+    canMerge,
     todayStats,
     currentCatTitle,
     categoryGroups,
@@ -653,6 +794,14 @@ export function useLedger() {
     init,
     reloadAfterImport,
     switchStage,
+    enterMergeMode,
+    exitMergeMode,
+    isMergingStage,
+    toggleMergeStage,
+    selectAllMergeStages,
+    clearMergeStages,
+    mergeStages,
+    undoMergeStages,
     createStage,
     updateStage,
     archiveStage,
