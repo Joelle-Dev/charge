@@ -31,16 +31,16 @@ export function validateBackupManifest(manifest) {
   }
 
   if (!Array.isArray(manifest.stages)) {
-    return '备份缺少阶段数据';
+    return '备份缺少账本数据';
   }
 
   const stageIds = new Set();
   for (const stage of manifest.stages) {
-    if (!stage || typeof stage !== 'object') return '备份里的阶段格式不正确';
+    if (!stage || typeof stage !== 'object') return '备份里的账本格式不正确';
     const id = String(stage.id || '').trim();
     const name = String(stage.name || '').trim();
-    if (!id || !name) return '备份里的阶段缺少 ID 或名称';
-    if (stageIds.has(id)) return `备份里的阶段 ID 重复：${name}`;
+    if (!id || !name) return '备份里的账本缺少 ID 或名称';
+    if (stageIds.has(id)) return `备份里的账本 ID 重复：${name}`;
     stageIds.add(id);
   }
 
@@ -76,7 +76,7 @@ export function validateBackupExpense(expense, stageIds) {
   if (!id) return '支出缺少 ID';
 
   const stageId = String(expense.stageId || '').trim();
-  if (!stageId || !stageIds.has(stageId)) return '支出找不到所属阶段';
+  if (!stageId || !stageIds.has(stageId)) return '支出找不到所属账本';
 
   const amount = Number(expense.amount);
   if (!Number.isFinite(amount) || amount <= 0) return '支出金额无效';

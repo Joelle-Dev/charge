@@ -18,7 +18,7 @@ test('CSV includes stage title and summary rows', () => {
   });
 
   assert.ok(csv.startsWith('\ufeff'));
-  assert.match(csv, /^﻿阶段,国庆旅行/m);
+  assert.match(csv, /^﻿账本,国庆旅行/m);
   assert.match(csv, /^导出时间,2026-10-23 16:30/m);
   assert.match(csv, /^支出笔数,1/m);
   assert.match(csv, /^总支出,35\.00/m);

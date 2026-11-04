@@ -1,11 +1,11 @@
 <template>
-  <SheetFrame v-model:show="show" title="果冻的阶段小结" max-height="92dvh">
+  <SheetFrame v-model:show="show" title="果冻的账本小结" max-height="92dvh">
     <template v-if="summary">
       <div ref="cardRef" class="summary-card">
         <div class="summary-top">
           <div class="summary-cat"><CatMood :mood="mood" /></div>
           <div class="summary-heading">
-            <span class="summary-eyebrow">果冻的阶段小结</span>
+            <span class="summary-eyebrow">果冻的账本小结</span>
             <strong>{{ summary.stage.name }}</strong>
             <span>{{ rangeText }}</span>
           </div>
@@ -41,7 +41,7 @@
           {{ busy ? '果冻在画画…' : '分享 / 保存这张图' }}
         </button>
       </div>
-      <p class="sheet-note">图片由本机画出来，不会上传阶段数据。</p>
+      <p class="sheet-note">图片由本机画出来，不会上传账本数据。</p>
     </template>
 
     <div v-else class="list-empty">
@@ -123,7 +123,7 @@ async function shareSummary() {
       try {
         await navigator.share({
           files: [file],
-          title: `${summary.value.stage.name} · 果冻的阶段小结`,
+          title: `${summary.value.stage.name} · 果冻的账本小结`,
           text: `${summary.value.stage.name} 一共花了 ¥${formatMoney(summary.value.total)}`
         });
         showToast('分享打开啦');

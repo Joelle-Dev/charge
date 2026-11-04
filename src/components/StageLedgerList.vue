@@ -1,18 +1,18 @@
 <template>
-  <section class="ledger-stages" aria-label="阶段账本">
-    <div v-if="mergeMode" class="ledger-select-bar">
-      <span class="ledger-select-label">选择要合并的账本</span>
-      <span class="ledger-select-actions">
+  <section class="bookshelf" :class="{ 'is-merging': mergeMode }" aria-label="账本">
+    <div class="bookshelf-head">
+      <span class="bookshelf-label">{{ mergeMode ? '选择要合并的账本' : '账本' }}</span>
+      <div v-if="mergeMode" class="bookshelf-actions">
         <button class="text-btn" type="button" @click="selectAllMergeStages">全选</button>
         <button class="text-btn" type="button" @click="clearMergeStages">清空</button>
-      </span>
+      </div>
     </div>
 
-    <div class="ledger-list">
+    <div class="book-grid">
       <button
         v-for="stage in orderedStages"
         :key="stage.id"
-        class="ledger-card"
+        class="book"
         :class="{
           current: stage.id === currentStage?.id,
           selected: mergeMode && isMergingStage(stage.id)
@@ -26,29 +26,29 @@
           : `切换到 ${stage.name}`"
         @click="selectStage(stage)"
       >
-        <span v-if="mergeMode" class="ledger-check" aria-hidden="true">
-          <svg v-if="isMergingStage(stage.id)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <span class="book-title">{{ stage.name }}</span>
+        <span class="book-foot">
+          <span class="book-amount">¥{{ displayMoney(stageStats(stage.id).total, hideAmount) }}</span>
+          <span class="book-count">{{ stageStats(stage.id).count }} 笔</span>
+        </span>
+        <span v-if="stage.id === currentStage?.id" class="book-mark" aria-hidden="true">现在</span>
+        <span v-if="mergeMode" class="book-check" aria-hidden="true">
+          <svg v-if="isMergingStage(stage.id)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
             <path d="m5 12 4.5 4.5L19 7"></path>
           </svg>
         </span>
-        <span v-else class="ledger-emblem" aria-hidden="true">{{ stage.name.slice(0, 1) }}</span>
+      </button>
 
-        <span class="ledger-card-body">
-          <span class="ledger-card-name">
-            {{ stage.name }}
-            <span v-if="stage.id === currentStage?.id" class="current-badge">现在</span>
-          </span>
-          <span class="ledger-card-meta">{{ stageMeta(stage) }}</span>
-        </span>
-
-        <span class="ledger-card-total">¥{{ formatMoney(stageStats(stage.id).total) }}</span>
-        <span v-if="!mergeMode" class="ledger-card-arrow" aria-hidden="true">›</span>
+      <button v-if="!mergeMode" class="book book-create" type="button" aria-label="新建账本" @click="sheets.openStageForm()">
+        <span class="book-create-plus" aria-hidden="true">＋</span>
       </button>
     </div>
 
+    <p v-if="!mergeMode && activeStages.length === 1" class="ledger-single-hint">再建一个账本就能合并</p>
+
     <div v-if="mergeMode" class="ledger-merge-bar">
       <span class="ledger-merge-summary">
-        已选 <b>{{ mergedStages.length }}</b> 个 · 共 ¥{{ formatMoney(mergedTotals.total) }}
+        已选 <b>{{ mergedStages.length }}</b> 个 · 共 ¥{{ displayMoney(mergedTotals.total, hideAmount) }}
       </span>
       <button
         class="primary-btn ledger-merge-btn"
@@ -59,15 +59,6 @@
         {{ mergedStages.length < 2 ? '再选一个账本' : '选择目标账本' }}
       </button>
     </div>
-
-    <template v-else>
-      <p v-if="activeStages.length === 1" class="ledger-single-hint">再建一个账本就能合并</p>
-      <button class="ledger-create" type="button" @click="sheets.openStageForm()">
-        <span class="ledger-create-plus" aria-hidden="true">＋</span>
-        <span class="ledger-create-text">新建阶段账本</span>
-        <span class="ledger-create-arrow" aria-hidden="true">›</span>
-      </button>
-    </template>
   </section>
 </template>
 
@@ -76,10 +67,12 @@ import { computed } from 'vue';
 import { showToast } from 'vant';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
-import { formatMoney, stageColor } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
+import { displayMoney, stageColor } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
 const sheets = useSheets();
+const { hideAmount } = usePrivacy();
 const {
   activeStages,
   currentStage,
@@ -102,22 +95,6 @@ const orderedStages = computed(() => {
     return (a.createdAt || 0) - (b.createdAt || 0);
   });
 });
-
-function stageMeta(stage) {
-  const stats = stageStats(stage.id);
-  const budget = Number(stage.budget) || 0;
-  const date = stats.maxDate || stats.minDate;
-  const base = date && stats.count
-    ? `最近 ${shortDate(date)} · ${stats.count} 笔`
-    : '还没记过账';
-  return budget > 0 ? `${base} · 预算 ¥${formatMoney(budget)}` : base;
-}
-
-function shortDate(date) {
-  const [year, month, day] = date.split('-').map(Number);
-  const prefix = year === new Date().getFullYear() ? '' : `${year}/`;
-  return `${prefix}${month}/${day}`;
-}
 
 async function selectStage(stage) {
   if (mergeMode.value) {

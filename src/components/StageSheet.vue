@@ -1,8 +1,8 @@
 <template>
-  <SheetFrame v-model:show="show" title="果冻的阶段">
+  <SheetFrame v-model:show="show" title="果冻的账本">
     <template v-if="!stages.length">
-      <p class="sheet-intro">给果冻建个小阶段吧，比如「国庆旅行」或「十一月日常」，之后的花销都会装进这里。</p>
-      <button class="primary-btn btn-block" type="button" @click="sheets.openStageForm()">建个新阶段</button>
+      <p class="sheet-intro">给果冻建个小账本吧，比如「国庆旅行」或「十一月日常」，之后的花销都会装进这里。</p>
+      <button class="primary-btn btn-block" type="button" @click="sheets.openStageForm()">建个新账本</button>
     </template>
 
     <template v-else>
@@ -35,7 +35,7 @@
         type="button"
         @click="showArchived = !showArchived"
       >
-        {{ showArchived ? '收起旧阶段' : `翻翻旧阶段（${archivedStages.length}）` }}
+        {{ showArchived ? '收起旧账本' : `翻翻旧账本（${archivedStages.length}）` }}
       </button>
 
       <div v-if="showArchived" class="sheet-list stage-archived-list">
@@ -57,10 +57,10 @@
       </div>
 
       <div class="sheet-footer">
-        <button v-if="currentStage" class="secondary-btn" type="button" @click="openSummary">阶段小结</button>
-        <button class="primary-btn" type="button" @click="sheets.openStageForm()">建个新阶段</button>
+        <button v-if="currentStage" class="secondary-btn" type="button" @click="openSummary">账本小结</button>
+        <button class="primary-btn" type="button" @click="sheets.openStageForm()">建个新账本</button>
       </div>
-      <p class="sheet-note">阶段可以收起来，收起来不会弄丢花销，随时能翻出来。</p>
+      <p class="sheet-note">账本可以收起来，收起来不会弄丢花销，随时能翻出来。</p>
     </template>
   </SheetFrame>
 </template>
@@ -122,7 +122,7 @@ function openSummary() {
   if (!currentStage.value) return;
   const stats = stageStats(currentStage.value.id);
   if (!stats.count) {
-    showToast('这个阶段果冻还没花过钱');
+    showToast('这个账本果冻还没花过钱');
     return;
   }
   sheets.openSummary(currentStage.value);

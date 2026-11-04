@@ -9,10 +9,10 @@
       </div>
 
       <span class="empty-eyebrow">果冻在这里</span>
-      <h1>先给果冻一个阶段吧</h1>
-      <p>旅行、装修、这个月的日常……<br>把钱钱都装进同一个阶段里。</p>
+      <h1>先给果冻一个账本吧</h1>
+      <p>旅行、装修、这个月的日常……<br>把钱钱都装进同一个账本里。</p>
 
-      <div class="empty-examples" aria-label="阶段示例">
+      <div class="empty-examples" aria-label="账本示例">
         <button
           v-for="example in examples"
           :key="example"
@@ -24,7 +24,7 @@
         </button>
       </div>
 
-      <button class="primary-btn" type="button" @click="openStageForm">建个阶段</button>
+      <button class="primary-btn" type="button" @click="openStageForm">建个账本</button>
       <p class="empty-note">建好后随时可以换着用</p>
     </div>
   </section>

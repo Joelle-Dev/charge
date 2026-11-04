@@ -12,7 +12,7 @@
   <van-action-sheet
     v-model:show="showMoveActions"
     :actions="moveActions"
-    title="把这笔搬到别的阶段"
+    title="把这笔搬到别的账本"
     cancel-text="取消"
     close-on-click-action
     teleport="body"
@@ -41,7 +41,7 @@ const rowActionTarget = ref(null);
 const rowActions = computed(() => {
   const actions = [{ name: '改改这笔', key: 'edit' }];
   if (moveTargets(rowActionTarget.value).length) {
-    actions.push({ name: '搬到别的阶段', key: 'move', subname: '换个地方放' });
+    actions.push({ name: '搬到别的账本', key: 'move', subname: '换个地方放' });
   }
   actions.push({ name: '删掉这笔', key: 'delete', color: DANGER_COLOR });
   return actions;

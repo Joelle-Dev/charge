@@ -1,6 +1,6 @@
 <template>
   <SheetFrame v-model:show="show" title="账本与备份">
-    <p class="sheet-intro">完整备份里装着全部阶段、花销、分类和爪印。文件只在这台设备里生成，不会上传。</p>
+    <p class="sheet-intro">完整备份里装着全部账本、花销、分类和爪印。文件只在这台设备里生成，不会上传。</p>
 
     <p class="backup-last">上次打包：{{ lastBackupText }}</p>
 

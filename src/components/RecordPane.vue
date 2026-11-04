@@ -1,5 +1,5 @@
 <template>
-  <section class="record-pane">
+  <section ref="rootRef" class="record-pane">
     <div class="record-header">
     <header class="record-pane-head">
       <img class="record-pane-cat" :src="catAvatar" alt="" aria-hidden="true">
@@ -51,9 +51,9 @@
         </button>
       </div>
       <div class="record-head-total">
-        <span class="record-total-label">本月 {{ expenses.length }} 笔</span>
+        <span class="record-total-label">当月支出</span>
         <strong class="record-month-total">
-          <span class="record-total-currency">¥</span>{{ formatMoney(total) }}
+          <span class="record-total-currency">¥</span>{{ formatMoney(activeMonthTotal) }}
         </strong>
       </div>
     </div>
@@ -63,14 +63,16 @@
 
     <div v-if="loading" class="record-loading">
       <span class="loading-dot"></span>
-      果冻在翻这个月的小账本…
+      果冻在翻账本…
     </div>
 
-    <div v-else-if="expenses.length" class="record-timeline">
+    <template v-else>
+    <div v-if="expenses.length" class="record-timeline">
       <section
         v-for="day in timelineDays"
         :key="day.key"
         class="timeline-day"
+        :data-month="day.key.slice(0, 7)"
       >
         <div class="timeline-day-head">
           <div class="timeline-day-main">
@@ -97,13 +99,19 @@
     </div>
 
     <div v-else class="record-empty">
-      <strong>这个月果冻还没花钱</strong>
-      <span>果冻在等第一笔</span>
+      <strong>果冻还没花过钱</strong>
+      <span>记一笔试试嘛</span>
     </div>
+
+    <div v-if="loadingMore" class="record-loading record-loading-more">
+      <span class="loading-dot"></span>
+      再往前翻翻…
+    </div>
+    </template>
 
     <MonthPickerSheet
       v-model:show="showMonthPicker"
-      :selected-month="month"
+      :selected-month="activeMonth"
       @select="selectMonth"
     />
 
@@ -191,7 +199,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import ExpenseActionSheets from './ExpenseActionSheets.vue';
 import ExpenseItem from './ExpenseItem.vue';
@@ -216,10 +224,12 @@ const { recordMonth, dailyOpen, dailyDate } = useRecordsView();
 const sheets = useSheets();
 
 const month = ref(recordMonth.value || currentMonthKey());
+const visibleMonth = ref('');
+const activeMonth = computed(() => visibleMonth.value || month.value);
 const monthTitle = computed(() => (
-  month.value.slice(0, 4) === String(new Date().getFullYear())
-    ? shortMonthLabel(month.value)
-    : monthLabel(month.value)
+  activeMonth.value.slice(0, 4) === String(new Date().getFullYear())
+    ? shortMonthLabel(activeMonth.value)
+    : monthLabel(activeMonth.value)
 ));
 const showMonthPicker = ref(false);
 const showPullHint = ref(false);
@@ -231,7 +241,24 @@ const dailyLoading = ref(false);
 let loadToken = 0;
 let dailyToken = 0;
 
+const rootRef = ref(null);
+const loadedMonths = ref([]);
+const feedDone = ref(false);
+const loadingMore = ref(false);
+let feedKey = '';
+let filling = false;
+let scrollEl = null;
+let scrollRaf = 0;
+
 const total = computed(() => sumAmounts(expenses.value));
+const activeMonthExpenses = computed(() => (
+  expenses.value.filter((e) => dayKey(new Date(e.spentAt)).slice(0, 7) === activeMonth.value)
+));
+const activeMonthTotal = computed(() => sumAmounts(activeMonthExpenses.value));
+
+watch(expenses, () => {
+  nextTick(updateVisibleMonth);
+});
 const dailyTotal = computed(() => sumAmounts(dailyExpenses.value));
 const dailyDateObj = computed(() => (
   dailyDate.value ? new Date(`${dailyDate.value}T12:00:00`) : null
@@ -287,7 +314,7 @@ const timelineDays = computed(() => (
     label: group.label.replace(/\s*周[日一二三四五六]$/, ''),
     heat: dayHeat(group.total),
     items: group.items.map(itemMeta)
-  }))
+  })).sort((a, b) => (a.key < b.key ? 1 : -1))
 ));
 
 const HEAT_HINT_KEY = 'recordHeatHintSeen';
@@ -315,33 +342,144 @@ watch(
   { immediate: true }
 );
 
-async function loadMonth() {
+function oldestMonth() {
+  if (!loadedMonths.value.length) return month.value;
+  return loadedMonths.value.reduce((min, key) => (key < min ? key : min), loadedMonths.value[0]);
+}
+
+async function appendMonth(stageId, monthKey, token) {
+  if (loadedMonths.value.includes(monthKey)) return false;
+  const items = await loadMonthExpenses(stageId, monthKey);
+  if (token !== loadToken) return false;
+  loadedMonths.value.push(monthKey);
+  expenses.value = expenses.value.concat(items);
+  return items.length > 0;
+}
+
+// 往更早的月份翻，跳过空月直到翻到有记录的月份（或到达下限）。
+async function loadEarlier(stageId, token, maxLoops = 12) {
+  let loops = 0;
+  while (loops < maxLoops && token === loadToken && !feedDone.value) {
+    const prev = addMonths(oldestMonth(), -1);
+    if (prev < '2000-01') {
+      feedDone.value = true;
+      return;
+    }
+    const hasData = await appendMonth(stageId, prev, token);
+    if (token !== loadToken) return;
+    loops += 1;
+    if (hasData) return;
+  }
+}
+
+async function loadFeed() {
+  const stage = currentStage.value;
+  const token = ++loadToken;
   if (!ready.value) {
     loading.value = true;
     return;
   }
-
-  const stage = currentStage.value;
-  const token = ++loadToken;
   if (!stage) {
     expenses.value = [];
+    loadedMonths.value = [];
+    feedDone.value = false;
     loading.value = false;
     return;
   }
 
+  const key = `${stage.id}|${month.value}`;
+  const fresh = key !== feedKey;
+  feedKey = key;
+
   loading.value = true;
   try {
-    const items = await loadMonthExpenses(stage.id, month.value);
+    if (fresh) {
+      loadedMonths.value = [];
+      expenses.value = [];
+      feedDone.value = false;
+      await appendMonth(stage.id, month.value, token);
+      if (token !== loadToken) return;
+      // 当月没记账也继续往早翻，别让首屏空着
+      if (!expenses.value.length) await loadEarlier(stage.id, token);
+    } else {
+      const keys = [...loadedMonths.value];
+      const acc = [];
+      for (const key of keys) {
+        const items = await loadMonthExpenses(stage.id, key);
+        if (token !== loadToken) return;
+        acc.push(...items);
+      }
+      expenses.value = acc;
+    }
     if (token !== loadToken) return;
-    expenses.value = items;
   } finally {
     if (token === loadToken) loading.value = false;
   }
+  ensureFilled();
+}
+
+async function loadMore() {
+  const stage = currentStage.value;
+  if (!stage || loading.value || loadingMore.value || feedDone.value) return;
+  const token = ++loadToken;
+  loadingMore.value = true;
+  try {
+    await loadEarlier(stage.id, token);
+    if (token !== loadToken) return;
+  } finally {
+    loadingMore.value = false;
+  }
+}
+
+function needsMore() {
+  const el = scrollEl;
+  if (!el) return false;
+  return el.scrollTop + el.clientHeight >= el.scrollHeight - 240;
+}
+
+async function ensureFilled() {
+  if (filling) return;
+  filling = true;
+  try {
+    let guard = 0;
+    while (!feedDone.value && guard < 24 && needsMore()) {
+      await loadMore();
+      guard += 1;
+    }
+  } finally {
+    filling = false;
+  }
+}
+
+function updateVisibleMonth() {
+  const root = rootRef.value;
+  if (!root) return;
+  const days = root.querySelectorAll('.timeline-day');
+  if (!days.length) return;
+  const headerH = root.querySelector('.record-header')?.offsetHeight || 100;
+  const contentTop = (scrollEl?.getBoundingClientRect().top ?? 0) + headerH;
+  let current = null;
+  for (const el of days) {
+    if (el.getBoundingClientRect().bottom > contentTop) {
+      current = el.dataset.month;
+      break;
+    }
+  }
+  if (current && current !== visibleMonth.value) visibleMonth.value = current;
+}
+
+function onScroll() {
+  if (scrollRaf) return;
+  scrollRaf = requestAnimationFrame(() => {
+    scrollRaf = 0;
+    updateVisibleMonth();
+    if (needsMore()) ensureFilled();
+  });
 }
 
 watch(
   [ready, dataVersion, () => currentStage.value?.id, month],
-  loadMonth,
+  loadFeed,
   { immediate: true }
 );
 
@@ -373,13 +511,13 @@ function openSearch() {
 }
 
 function shiftMonth(delta) {
-  month.value = addMonths(month.value, delta);
+  month.value = addMonths(activeMonth.value, delta);
   haptic('light');
 }
 
 function selectMonth(next) {
   showMonthPicker.value = false;
-  if (next === month.value) return;
+  if (next === activeMonth.value) return;
   month.value = next;
   haptic('light');
 }
@@ -472,10 +610,19 @@ watch(
   }
 );
 
+onMounted(() => {
+  scrollEl = rootRef.value?.closest('.record-pager-pane') || rootRef.value;
+  if (scrollEl) scrollEl.addEventListener('scroll', onScroll, { passive: true });
+  ensureFilled();
+});
+
 onBeforeUnmount(() => {
   dailyOpen.value = false;
   dailyDate.value = '';
   clearTimeout(pullHintTimer);
+  if (scrollEl) scrollEl.removeEventListener('scroll', onScroll);
+  scrollEl = null;
+  if (scrollRaf) cancelAnimationFrame(scrollRaf);
 });
 
 function cleanNote(value) {

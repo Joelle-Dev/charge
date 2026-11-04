@@ -30,7 +30,7 @@
 
       <div class="import-stats">
         <span v-if="preview.format === 'backup'">
-          <b>{{ preview.manifest.stages.length }}</b> 个阶段
+          <b>{{ preview.manifest.stages.length }}</b> 个账本
         </span>
         <span v-if="preview.format === 'backup'">
           <b>{{ preview.manifest.categories?.length || 0 }}</b> 个分类
@@ -81,10 +81,10 @@
         </div>
 
         <p v-if="mode === 'replace'" class="import-danger-note">
-          全部换掉会清空现在的阶段、花销、分类和爪印，而且没法后悔。
+          全部换掉会清空现在的账本、花销、分类和爪印，而且没法后悔。
         </p>
         <p v-else class="import-hint">
-          现在的账本都会留着，备份里的阶段会作为新阶段搬进来；同一份备份搬两次会出现重复。
+          现在的账本都会留着，备份里的账本会作为新账本搬进来；同一份备份搬两次会出现重复。
         </p>
 
         <button
@@ -104,9 +104,9 @@
 
       <template v-else>
         <label class="field">
-          <span class="field-label">搬进哪个阶段</span>
+          <span class="field-label">搬进哪个账本</span>
           <select v-model="targetStageId" class="select">
-            <option value="__new__">建个新阶段</option>
+            <option value="__new__">建个新账本</option>
             <option v-for="stage in stages" :key="stage.id" :value="stage.id">
               {{ stage.name }}{{ stage.archived ? '（已收起来）' : '' }}
             </option>
@@ -114,7 +114,7 @@
         </label>
 
         <label v-if="targetStageId === '__new__'" class="field">
-          <span class="field-label">新阶段名字</span>
+          <span class="field-label">新账本名字</span>
           <input v-model="newStageName" class="input" type="text" maxlength="24" placeholder="搬进来的账本">
         </label>
 
@@ -139,7 +139,7 @@
     </div>
 
     <p class="sheet-note">
-      完整备份里装着全部阶段、花销、分类和爪印；CSV 只搬花销。文件只在本机看，不会上传。
+      完整备份里装着全部账本、花销、分类和爪印；CSV 只搬花销。文件只在本机看，不会上传。
     </p>
   </SheetFrame>
 </template>
@@ -255,7 +255,7 @@ function phaseLabel(phase, elapsed) {
     writeStats: '在写统计…',
     buildSearch: '在建搜索小本子…',
     writeSearch: '在写搜索小本子…',
-    stages: '在搬阶段…'
+    stages: '在搬账本…'
   };
   const base = labels[phase] || '果冻在整理…';
   return elapsed ? `${base} ${Math.round(elapsed / 1000)}s` : base;
@@ -441,7 +441,7 @@ async function importBackup() {
     try {
       await showConfirmDialog({
         title: '全部换掉',
-        message: `会把现在的 ${stages.value.length} 个阶段和全部花销清空，再把备份搬进来。先打包现在的账本更安心。`,
+        message: `会把现在的 ${stages.value.length} 个账本和全部花销清空，再把备份搬进来。先打包现在的账本更安心。`,
         confirmButtonText: '全部换掉',
         confirmButtonColor: DANGER_COLOR
       });
@@ -471,8 +471,8 @@ async function importBackup() {
   haptic('success');
   showToast(
     mode.value === 'replace'
-      ? `搬回来 ${result.stages} 个阶段、${result.imported} 笔花销`
-      : `放进来 ${result.stages} 个阶段、${result.imported} 笔花销`
+      ? `搬回来 ${result.stages} 个账本、${result.imported} 笔花销`
+      : `放进来 ${result.stages} 个账本、${result.imported} 笔花销`
   );
   return true;
 }

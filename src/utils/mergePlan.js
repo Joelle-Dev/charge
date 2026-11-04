@@ -49,20 +49,20 @@ export function buildMergePlan({ stages = [], selectedIds = [], targetId = '', g
   );
 
   if (selectedStages.length < 2) {
-    return { ok: false, error: '至少选两个阶段才能合并' };
+    return { ok: false, error: '至少选两个账本才能合并' };
   }
 
   const target = selectedStages.find((stage) => stage.id === targetId);
   if (!target) {
-    return { ok: false, error: '合并目标必须是选中的阶段' };
+    return { ok: false, error: '合并目标必须是选中的账本' };
   }
   if (target.archived) {
-    return { ok: false, error: '合并目标不能是已归档阶段' };
+    return { ok: false, error: '合并目标不能是已归档账本' };
   }
 
   const sources = selectedStages.filter((stage) => stage.id !== targetId);
   if (!sources.length) {
-    return { ok: false, error: '至少需要一个被合并的阶段' };
+    return { ok: false, error: '至少需要一个被合并的账本' };
   }
 
   return {

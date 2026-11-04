@@ -17,7 +17,7 @@
       <button class="settings-action" type="button" @click="openYearSummary">
         <span>
           花过的钱
-          <small>翻翻全部或当前阶段的年/月花销</small>
+          <small>翻翻全部或当前账本的年/月花销</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M4 20V10"></path>
@@ -28,7 +28,7 @@
       </button>
       <button class="settings-action" type="button" @click="openSummary">
         <span>
-          果冻的阶段小结
+          果冻的账本小结
           <small>果冻风格图片，可以分享或保存</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -39,8 +39,8 @@
       </button>
       <button class="settings-action" type="button" @click="exportCsv">
         <span>
-          导出这个阶段的 CSV
-          <small>可以用 Excel 打开，带着阶段标题</small>
+          导出这个账本的 CSV
+          <small>可以用 Excel 打开，带着账本标题</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12"></path>
@@ -155,11 +155,11 @@
     </section>
 
     <p class="settings-privacy settings-privacy-plain">
-      账目和阶段都乖乖待在这台设备里，不会上传。语音识别由浏览器和系统提供，要不要上传音频要看浏览器的实现。
+      账目和账本都乖乖待在这台设备里，不会上传。语音识别由浏览器和系统提供，要不要上传音频要看浏览器的实现。
     </p>
 
     <button class="settings-danger-link" type="button" @click="clearCurrentStage">
-      清空这个阶段的花销
+      清空这个账本的花销
     </button>
 
     <p class="settings-footer">守财小果 · 果冻陪你记账 · 数据只属于你</p>
@@ -263,7 +263,7 @@ async function shareApp() {
 
 function openVoiceTest() {
   if (!currentStage.value) {
-    showToast('先给果冻建个阶段吧');
+    showToast('先给果冻建个账本吧');
     sheets.openStageForm();
     return;
   }
@@ -272,11 +272,11 @@ function openVoiceTest() {
 
 function openSummary() {
   if (!currentStage.value) {
-    showToast('果冻还没有阶段呢');
+    showToast('果冻还没有账本呢');
     return;
   }
   if (!currentStageStats.value.count) {
-    showToast('这个阶段果冻还没花过钱');
+    showToast('这个账本果冻还没花过钱');
     return;
   }
   sheets.openSummary(currentStage.value);
@@ -294,11 +294,11 @@ async function install() {
 
 async function exportCsv() {
   if (!currentStage.value) {
-    showToast('果冻还没有阶段呢');
+    showToast('果冻还没有账本呢');
     return;
   }
   if (!currentStageStats.value.count) {
-    showToast('这个阶段果冻还没花过钱');
+    showToast('这个账本果冻还没花过钱');
     return;
   }
 
@@ -307,12 +307,12 @@ async function exportCsv() {
     const result = await exportStageCsvInWorker(currentStage.value);
     closeToast();
     if (result.empty) {
-      showToast('这个阶段果冻还没花过钱');
+      showToast('这个账本果冻还没花过钱');
       return;
     }
     saveBlob(result.blob, result.filename);
     haptic('success');
-    showToast('打包好啦（带着阶段标题）');
+    showToast('打包好啦（带着账本标题）');
   } catch (err) {
     closeToast();
     console.error(err);
@@ -323,12 +323,12 @@ async function exportCsv() {
 async function clearCurrentStage() {
   if (!currentStage.value) return;
   if (!currentStageStats.value.count) {
-    showToast('这个阶段果冻还没花过钱');
+    showToast('这个账本果冻还没花过钱');
     return;
   }
   try {
     await showConfirmDialog({
-      title: '清空这个阶段的花销',
+      title: '清空这个账本的花销',
       message: `要把「${currentStage.value.name}」里的花销都清掉吗？清掉就找不回来啦。`,
       confirmButtonText: '清空吧',
       confirmButtonColor: DANGER_COLOR
@@ -338,6 +338,6 @@ async function clearCurrentStage() {
   }
   await clearStageExpenses(currentStage.value.id);
   haptic('warning');
-  showToast('这个阶段的花销清空啦');
+  showToast('这个账本的花销清空啦');
 }
 </script>

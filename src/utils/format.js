@@ -38,6 +38,10 @@ export function formatMoney(value, maximumFractionDigits = 2) {
   return moneyFormatter(maximumFractionDigits).format(Number(value) || 0);
 }
 
+export function displayMoney(value, hide = false) {
+  return hide ? '•••' : formatMoney(value);
+}
+
 export function formatAmount(value) {
   return fixedAmountFormatter.format(Number(value) || 0);
 }

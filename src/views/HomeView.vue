@@ -8,14 +8,6 @@
     <div v-else :key="currentStage.id" class="dashboard ledger-home">
       <header class="ledger-home-head">
         <div class="ledger-home-side">
-          <button
-            v-if="!mergeMode"
-            class="ledger-text-btn"
-            type="button"
-            @click="sheets.openStages()"
-          >
-            管理
-          </button>
         </div>
         <div class="ledger-home-title">
           <h1>{{ mergeMode ? '合并账本' : '我的账本' }}</h1>
@@ -48,12 +40,10 @@
 
 <script setup>
 import { useLedger } from '../composables/useLedger';
-import { useSheets } from '../composables/useSheets';
 import EmptyState from '../components/EmptyState.vue';
 import HeroSummary from '../components/HeroSummary.vue';
 import StageLedgerList from '../components/StageLedgerList.vue';
 
-const sheets = useSheets();
 const {
   ready,
   loadingHint,

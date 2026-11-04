@@ -126,7 +126,7 @@
     <div class="search-page-results">
       <div v-if="!currentStage" class="list-empty">
         <p>还没有可搜索的账本</p>
-        <span>先建一个阶段，再来翻账本</span>
+        <span>先建一个账本，再来翻账本</span>
       </div>
 
       <div v-else-if="loading" class="loading-state">

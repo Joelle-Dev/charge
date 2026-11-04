@@ -75,7 +75,7 @@ test('buildMergePlan rejects fewer than two selected stages', () => {
   });
 
   assert.equal(plan.ok, false);
-  assert.match(plan.error, /两个阶段/);
+  assert.match(plan.error, /两个账本/);
 });
 
 test('buildMergePlan rejects a target outside the selection', () => {

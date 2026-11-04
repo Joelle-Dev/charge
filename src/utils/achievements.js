@@ -68,15 +68,15 @@ export const ACHIEVEMENTS = [
   {
     id: 'budget-keeper',
     name: '猫粮守护者',
-    description: '有猫粮罐的阶段都没花超',
+    description: '有猫粮罐的账本都没花超',
     icon: 'bowl',
     target: 1,
     value: (stats) => stats.budgetKeptStages
   },
   {
     id: 'stage-master',
-    name: '阶段收藏家',
-    description: '建过 3 个阶段',
+    name: '账本收藏家',
+    description: '建过 3 个账本',
     icon: 'star',
     target: 3,
     value: (stats) => stats.stageCount

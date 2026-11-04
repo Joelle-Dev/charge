@@ -95,19 +95,23 @@ const mergedStages = computed(() => {
 
 const mergedTotals = computed(() => mergeStageTotals(mergedStages.value, stageStats));
 
+const allLedgerStats = computed(() => mergeStageTotals(activeStages.value, stageStats));
+
 const overviewStats = computed(() => (
-  mergeMode.value ? mergedTotals.value : currentStageStats.value
+  mergeMode.value ? mergedTotals.value : allLedgerStats.value
 ));
 
 const overviewStageLabel = computed(() => {
-  if (!mergeMode.value) return currentStage.value?.name || '';
-  const names = mergedStages.value.map((stage) => stage.name);
-  if (!names.length) return '还没选阶段';
-  return names.join(' · ');
+  if (mergeMode.value) {
+    const names = mergedStages.value.map((stage) => stage.name);
+    return names.length ? names.join(' · ') : '还没选账本';
+  }
+  const n = activeStages.value.length;
+  return n ? `${n} 个账本` : '还没有账本';
 });
 
 const overviewBudget = computed(() => (
-  mergeMode.value ? 0 : Number(currentStage.value?.budget) || 0
+  mergeMode.value ? 0 : allLedgerStats.value.budget
 ));
 
 const canMerge = computed(() => activeStages.value.length >= 2);
@@ -646,7 +650,7 @@ async function deleteStage(stage) {
 
 async function addExpenses(entries) {
   const stage = currentStage.value;
-  if (!stage) throw new Error('果冻还没有阶段呢');
+  if (!stage) throw new Error('果冻还没有账本呢');
   const now = Date.now();
   const records = entries.map((entry) => ({
     id: uid('expense'),
@@ -663,7 +667,7 @@ async function addExpenses(entries) {
 
 async function addExpense(expense) {
   const stage = currentStage.value;
-  if (!stage) throw new Error('果冻还没有阶段呢');
+  if (!stage) throw new Error('果冻还没有账本呢');
   const record = {
     id: uid('expense'),
     stageId: stage.id,
@@ -771,6 +775,7 @@ export function useLedger() {
     mergedStageIds,
     mergedStages,
     mergedTotals,
+    allLedgerStats,
     mergeBusy,
     overviewStats,
     overviewStageLabel,

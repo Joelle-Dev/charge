@@ -1,24 +1,51 @@
 <template>
   <section class="hero">
-    <div class="hero-glow" aria-hidden="true"></div>
-
     <div class="hero-top">
-      <span class="eyebrow">{{ mergeMode ? '合并账本' : '账本总额' }}</span>
+      <span class="eyebrow">{{ mergeMode ? '合并账本' : '所有账本' }}</span>
       <div class="hero-side">
-        <span class="hero-count">{{ overviewStats.count }} 笔</span>
+        <button
+          class="hero-eye"
+          type="button"
+          :aria-label="hideAmount ? '显示金额' : '隐藏金额'"
+          :aria-pressed="hideAmount"
+          @click="toggleHideAmount"
+        >
+          <svg v-if="!hideAmount" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19"></path>
+            <path d="M6.61 6.61A18.5 18.5 0 0 0 2 12s3.5 8 10 8a9.12 9.12 0 0 0 5.39-1.61"></path>
+            <line x1="2" x2="22" y1="2" y2="22"></line>
+          </svg>
+        </button>
         <span class="hero-mood"><CatMood :mood="mood" /></span>
       </div>
     </div>
 
     <div class="hero-stage-row">
       <div class="hero-stage">{{ overviewStageLabel }}</div>
-      <span v-if="mergeMode" class="hero-merge-badge">
-        {{ mergedStages.length }} 个账本
-      </span>
+      <span v-if="mergeMode" class="hero-merge-badge">{{ mergedStages.length }} 个账本</span>
     </div>
 
     <div class="hero-amount">
-      <span class="currency">¥</span><span>{{ formatMoney(spent) }}</span>
+      <span class="currency">¥</span><span>{{ displayMoney(overviewStats.total, hideAmount) }}</span>
+    </div>
+
+    <div class="hero-stats" role="list" aria-label="账本统计">
+      <span class="hero-stat" role="listitem">
+        <b>{{ overviewStats.count }}</b>
+        <small>笔</small>
+      </span>
+      <span class="hero-stat" role="listitem">
+        <b>{{ stageCount }}</b>
+        <small>账本</small>
+      </span>
+      <span class="hero-stat" role="listitem">
+        <b>{{ recordDays }}</b>
+        <small>记账天</small>
+      </span>
     </div>
 
     <p class="hero-caption">{{ moodLine }}</p>
@@ -26,17 +53,10 @@
     <div v-if="!mergeMode && overviewBudget > 0" class="budget-block">
       <div class="budget-line">
         <span class="budget-label">
-          <span class="bowl-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 11h16"></path>
-              <path d="M6.5 11c0 4.6 2 7 5.5 7s5.5-2.4 5.5-7"></path>
-              <path d="M9 8c.4-1.8 1.4-2.8 3-3.2"></path>
-            </svg>
-          </span>
-          猫粮罐 ¥<b>{{ formatMoney(overviewBudget) }}</b>
+          猫粮罐 ¥<b>{{ displayMoney(overviewBudget, hideAmount) }}</b>
         </span>
         <span :class="{ over: remaining < 0 }">
-          {{ remaining >= 0 ? `还剩 ¥${formatMoney(remaining)}` : `花超啦 ¥${formatMoney(Math.abs(remaining))}` }}
+          {{ remaining >= 0 ? `还剩 ¥${displayMoney(remaining, hideAmount)}` : `花超啦 ¥${displayMoney(Math.abs(remaining), hideAmount)}` }}
         </span>
       </div>
       <div class="progress">
@@ -54,18 +74,26 @@
 import { computed } from 'vue';
 import CatMood from './CatMood.vue';
 import { useLedger } from '../composables/useLedger';
-import { formatMoney } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
+import { displayMoney } from '../utils/format';
 
 const {
-  currentStage,
+  activeStages,
   mergeMode,
   mergedStages,
+  globalStats,
   overviewStats,
   overviewStageLabel,
   overviewBudget
 } = useLedger();
 
+const { hideAmount, toggleHideAmount } = usePrivacy();
+
 const spent = computed(() => overviewStats.value.total);
+const stageCount = computed(() => (
+  mergeMode.value ? mergedStages.value.length : activeStages.value.length
+));
+const recordDays = computed(() => Number(globalStats.value.recordDays) || 0);
 const ratio = computed(() => (overviewBudget.value ? spent.value / overviewBudget.value : 0));
 const remaining = computed(() => overviewBudget.value - spent.value);
 const progress = computed(() => Math.min(100, Math.max(0, ratio.value * 100)));
@@ -86,8 +114,10 @@ const moodLine = computed(() => {
       : n < 2 ? '再选一个账本就能合并'
       : '确认后会并入你选的目标账本';
   }
-  if (!currentStage.value || !overviewStats.value.count) return '果冻还没花钱，真乖';
-  if (!overviewBudget.value) return '果冻今天也把钱看得紧紧的';
+
+  if (!overviewStats.value.count) return '果冻还没花钱，真乖';
+  if (!overviewBudget.value) return '果冻把每个账本都看得紧紧的';
+
   if (ratio.value > 1) return '猫粮罐见底啦，果冻有点慌';
   if (ratio.value >= 0.8) return '快碰到猫粮罐底啦，省着点花哦';
   if (ratio.value >= 0.5) return '果冻在盯着猫粮罐，慢慢花';

@@ -52,15 +52,15 @@ async function readMergeStages(stageIds, targetId) {
   const allStages = await getAll('stages');
   const stageMap = new Map(allStages.map((stage) => [stage.id, stage]));
   const target = stageMap.get(targetId);
-  if (!target) throw new Error('目标阶段已经不在了');
-  if (target.archived) throw new Error('目标阶段已经归档啦');
+  if (!target) throw new Error('目标账本已经不在了');
+  if (target.archived) throw new Error('目标账本已经归档啦');
 
   const sources = stageIds
     .filter((id) => id !== targetId)
     .map((id) => {
       const stage = stageMap.get(id);
-      if (!stage) throw new Error('有一个阶段已经不在了');
-      if (stage.archived) throw new Error('归档阶段不能参与合并');
+      if (!stage) throw new Error('有一个账本已经不在了');
+      if (stage.archived) throw new Error('归档账本不能参与合并');
       return stage;
     });
 
@@ -100,11 +100,11 @@ function processStageCursor(index, sourceStages, sourceIndex, targetId, now, mov
 
 async function mergeStages({ stageIds = [], targetId = '' } = {}) {
   const ids = uniqueStageIds(stageIds);
-  if (ids.length < 2) throw new Error('至少选两个阶段才能合并');
-  if (!ids.includes(targetId)) throw new Error('合并目标必须是选中的阶段');
+  if (ids.length < 2) throw new Error('至少选两个账本才能合并');
+  if (!ids.includes(targetId)) throw new Error('合并目标必须是选中的账本');
 
   const { target, sources } = await readMergeStages(ids, targetId);
-  if (!sources.length) throw new Error('至少需要一个被合并的阶段');
+  if (!sources.length) throw new Error('至少需要一个被合并的账本');
 
   const previousCurrentStageId = await getSetting('currentStageId', null);
   const now = Date.now();
@@ -248,7 +248,7 @@ function csvRow(expense) {
 function csvHeader(stage, month, count, total, now = new Date()) {
   const budget = Number(stage.budget) || 0;
   const rows = [
-    ['阶段', stage.name],
+    ['账本', stage.name],
     ...(month ? [['月份', monthLabel(month)]] : []),
     ['导出时间', `${toDateInput(now)} ${formatTime(now)}`],
     ['支出笔数', String(count)],
@@ -262,7 +262,7 @@ function csvHeader(stage, month, count, total, now = new Date()) {
 }
 
 async function exportCsv({ stage, month }) {
-  if (!stage?.id) throw new Error('没有可导出的阶段');
+  if (!stage?.id) throw new Error('没有可导出的账本');
   const db = await openDB();
   const tx = db.transaction('expenses', 'readonly');
   const index = tx.objectStore('expenses').index('stageId_spentAt');

@@ -1,8 +1,8 @@
 <template>
-  <SheetFrame v-model:show="show" :title="editingStage ? '改改阶段' : '建个新阶段'" max-height="88dvh">
+  <SheetFrame v-model:show="show" :title="editingStage ? '改改账本' : '建个新账本'" max-height="88dvh">
     <form novalidate @submit.prevent="save">
       <label class="field">
-        <span class="field-label">阶段名字</span>
+        <span class="field-label">账本名字</span>
         <input
           v-model="name"
           class="input"
@@ -41,11 +41,11 @@
         type="button"
         @click="removeStage"
       >
-        把这个阶段删掉
+        把这个账本删掉
       </button>
 
       <p class="sheet-note">
-        {{ editingStage ? '预算只用来算还剩多少，不影响记账。' : '建好后会马上换到这个阶段。' }}
+        {{ editingStage ? '预算只用来算还剩多少，不影响记账。' : '建好后会马上换到这个账本。' }}
       </p>
     </form>
   </SheetFrame>
@@ -95,7 +95,7 @@ async function save() {
   const budgetValue = budgetRaw === '' ? null : Number(budgetRaw);
 
   if (!trimmed) {
-    error.value = '给阶段起个名字吧';
+    error.value = '给账本起个名字吧';
     return;
   }
   if (budgetRaw !== '' && (!Number.isFinite(budgetValue) || budgetValue < 0)) {
@@ -106,7 +106,7 @@ async function save() {
   if (editingStage.value) {
     await updateStage(editingStage.value, { name: trimmed, budget: budgetValue });
     haptic('success');
-    showToast('阶段改好啦');
+    showToast('账本改好啦');
   } else {
     await createStage({ name: trimmed, budget: budgetValue });
     haptic('success');
@@ -137,7 +137,7 @@ async function removeStage() {
   const count = stageStats(stage.id).count;
   try {
     await showConfirmDialog({
-      title: '删掉这个阶段',
+      title: '删掉这个账本',
       message: `要把「${stage.name}」和里面的 ${count} 笔花销一起删掉吗？删掉就找不回来啦。`,
       confirmButtonText: '删掉吧',
       confirmButtonColor: DANGER_COLOR
@@ -147,7 +147,7 @@ async function removeStage() {
   }
   await deleteStage(stage);
   haptic('warning');
-  showToast('阶段删掉啦');
+  showToast('账本删掉啦');
   show.value = false;
 }
 </script>

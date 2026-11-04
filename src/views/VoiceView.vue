@@ -24,7 +24,6 @@
       </p>
 
       <section class="voice-hero">
-        <div class="voice-hero-glow" aria-hidden="true"></div>
         <div class="voice-stage">
       <button
         v-if="supported"
@@ -248,7 +247,7 @@ const debugRows = computed(() => {
     { label: '安全环境', value: secure ? '是' : '否（需 HTTPS 或 localhost）' },
     { label: '麦克风', value: preparing.value ? '准备中' : micReady ? '已授权' : '未确认' },
     { label: '识别状态', value: restarting.value ? '重连中' : recording.value ? '聆听中' : '未开始' },
-    { label: '当前阶段', value: currentStage.value?.name || '无' },
+    { label: '当前账本', value: currentStage.value?.name || '无' },
     { label: '识别原文', value: text.value ? `${text.value.length} 字` : '空' },
     { label: '已定稿', value: finalText ? `${finalText.length} 字` : '空' },
     { label: '临时结果', value: interimText ? `${interimText.length} 字` : '空' },

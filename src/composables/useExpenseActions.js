@@ -56,7 +56,7 @@ export function useExpenseActions() {
 
   async function moveExpense(expense, stageId) {
     const target = stages.value.find((stage) => stage.id === stageId);
-    if (!target) throw new Error('还没有这个阶段呢');
+    if (!target) throw new Error('还没有这个账本呢');
     await updateExpense(expense, { stageId });
     return target;
   }

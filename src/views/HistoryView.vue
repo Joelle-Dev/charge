@@ -26,20 +26,20 @@
             :class="{ active: stageScope === 'current' }"
             @click="setScope('current')"
           >
-            当前阶段
+            当前账本
           </button>
           <button
             type="button"
             :class="{ active: stageScope === 'all' }"
             @click="setScope('all')"
           >
-            全部阶段
+            全部账本
           </button>
         </div>
         <span class="history-scope-note">
           {{ stageScope === 'current'
-            ? `只看「${currentStage?.name || '当前阶段'}」`
-            : '全部阶段都算上（含已归档）' }}
+            ? `只看「${currentStage?.name || '当前账本'}」`
+            : '全部账本都算上（含已归档）' }}
         </span>
       </div>
       <div class="history-range-head">
@@ -169,7 +169,7 @@
     <div v-else class="history-empty">
       <p>这段时间果冻没花钱</p>
       <button class="secondary-btn" type="button" @click="showAllHistory">
-        {{ stageScope === 'current' && !allDays.length ? '看看全部阶段' : '看看全部历史' }}
+        {{ stageScope === 'current' && !allDays.length ? '看看全部账本' : '看看全部历史' }}
       </button>
     </div>
   </section>

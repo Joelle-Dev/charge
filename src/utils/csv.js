@@ -15,7 +15,7 @@ export function buildStageCsv(stage, expenses, options = {}) {
   const budget = Number(stage.budget) || 0;
 
   const rows = [
-    ['阶段', stage.name],
+    ['账本', stage.name],
     ...(options.month ? [['月份', monthLabel(options.month)]] : []),
     ['导出时间', `${toDateInput(now)} ${formatTime(now)}`],
     ['支出笔数', String(expenses.length)],
@@ -134,8 +134,9 @@ export function parseStageCsv(text) {
   const metadata = {};
   for (let index = 0; index < headerIndex; index += 1) {
     const key = String(rows[index][0] ?? '').trim();
-    if (key === '阶段' || key === '预算' || key === '月份') {
-      metadata[key] = String(rows[index][1] ?? '').trim();
+    const canonical = key === '阶段' ? '账本' : key;
+    if (canonical === '账本' || canonical === '预算' || canonical === '月份') {
+      metadata[canonical] = String(rows[index][1] ?? '').trim();
     }
   }
 
@@ -180,7 +181,7 @@ export function parseStageCsv(text) {
   }
 
   return {
-    stageName: metadata['阶段'] || '',
+    stageName: metadata['账本'] || '',
     budget: Number(metadata['预算']) > 0 ? Math.round(Number(metadata['预算']) * 100) / 100 : null,
     month: metadata['月份'] || '',
     expenses,
