@@ -6197,6 +6197,36 @@ input[type='search']::-webkit-search-decoration {
   height: 36px;
 }
 
+.history-hero-side {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-eye {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.history-eye:active {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+}
+
+.history-eye svg {
+  width: 18px;
+  height: 18px;
+}
+
 .history-title {
   display: flex;
   flex-direction: column;

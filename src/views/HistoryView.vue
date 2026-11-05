@@ -83,7 +83,7 @@
         </div>
       </div>
       <p v-if="!loading && range.count" class="history-range-summary">
-        这段时间 {{ range.count }} 笔 · ¥{{ formatMoney(range.total) }}
+        这段时间 {{ range.count }} 笔 · ¥{{ displayMoney(range.total, hideAmount) }}
       </p>
     </section>
 
@@ -99,15 +99,18 @@
             <span class="history-hero-eyebrow">{{ selection.isMonth ? '这个月花了' : '这一年花了' }}</span>
             <h2>{{ selection.label }}</h2>
           </div>
-          <span class="history-hero-count">{{ selection.count }} 笔</span>
+          <div class="history-hero-side">
+            <span class="history-hero-count">{{ selection.count }} 笔</span>
+            <PrivacyToggle class="history-eye" />
+          </div>
         </div>
         <strong class="history-hero-total">
-          <span class="currency">¥</span>{{ formatMoney(selection.total) }}
+          <span class="currency">¥</span>{{ displayMoney(selection.total, hideAmount) }}
         </strong>
         <div class="history-stats">
           <div class="history-stat">
             <span>{{ selection.isMonth ? '日均' : '月均' }}</span>
-            <b>¥{{ formatMoney(selection.average) }}</b>
+            <b>¥{{ displayMoney(selection.average, hideAmount) }}</b>
             <small>{{ selection.isMonth ? `按 ${selection.days} 天` : `按 ${selection.months} 个月` }}</small>
           </div>
           <div class="history-stat">
@@ -118,7 +121,7 @@
             <span>{{ selection.isMonth ? '较上月' : '较上年' }}</span>
             <b :class="`history-compare-${selection.comparison.tone}`">{{ selection.comparison.text }}</b>
             <small v-if="selection.comparison.previous">
-              {{ selection.previousLabel }} ¥{{ formatMoney(selection.comparison.previous) }}
+              {{ selection.previousLabel }} ¥{{ displayMoney(selection.comparison.previous, hideAmount) }}
             </small>
             <small v-else-if="selection.comparison.note">{{ selection.comparison.note }}</small>
           </div>
@@ -137,7 +140,7 @@
           >
             <span class="history-year-dot" aria-hidden="true"></span>
             <span class="history-year-year">{{ year.year }}</span>
-            <span class="history-year-total">¥{{ formatMoney(year.total) }}</span>
+            <span class="history-year-total">¥{{ displayMoney(year.total, hideAmount) }}</span>
             <span class="history-year-count">{{ year.count }} 笔</span>
           </button>
         </div>
@@ -160,7 +163,7 @@
               <span :style="{ height: `${month.percent}%` }"></span>
             </span>
             <span class="history-month-name">{{ month.month }}月</span>
-            <span class="history-month-amount">{{ month.total ? `¥${formatMoney(month.total)}` : '—' }}</span>
+            <span class="history-month-amount">{{ month.total ? `¥${displayMoney(month.total, hideAmount)}` : '—' }}</span>
           </button>
         </div>
       </section>
@@ -179,12 +182,14 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import DateTimeField from '../components/DateTimeField.vue';
+import PrivacyToggle from '../components/PrivacyToggle.vue';
 import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { loadDayStats } from '../lib/stats';
-import { formatMoney, pad2, toDateInput } from '../utils/format';
+import { displayMoney, pad2, toDateInput } from '../utils/format';
 import { addMonths, monthLabel } from '../utils/months';
 import { haptic } from '../utils/haptics';
+import { usePrivacy } from '../composables/usePrivacy';
 
 const router = useRouter();
 const props = defineProps({
@@ -193,6 +198,7 @@ const props = defineProps({
 });
 const { ready, dataVersion, currentStage } = useLedger();
 const { goToPane } = useLedgerPanes();
+const { hideAmount } = usePrivacy();
 const today = toDateInput(new Date());
 
 const loading = ref(true);
