@@ -92,6 +92,12 @@
       果冻在翻旧账本…
     </div>
 
+    <div v-else-if="loadError" class="list-empty">
+      <p>账本没翻成</p>
+      <span>果冻绊了一跤，再试一次吧</span>
+      <button class="text-btn" type="button" @click="reload">重新翻翻</button>
+    </div>
+
     <template v-else-if="selection">
       <section class="history-hero">
         <div class="history-hero-top">
@@ -202,6 +208,8 @@ const { hideAmount } = usePrivacy();
 const today = toDateInput(new Date());
 
 const loading = ref(true);
+const loadError = ref(false);
+const reloadTick = ref(0);
 const initialized = ref(false);
 const stageScope = ref('all');
 const allDays = ref([]);
@@ -516,7 +524,7 @@ const selection = computed(() => {
 });
 
 watch(
-  [ready, dataVersion, () => props.active, stageScope, () => currentStage.value?.id],
+  [ready, dataVersion, reloadTick, () => props.active, stageScope, () => currentStage.value?.id],
   async () => {
     if (props.embedded && !props.active) return;
     if (!ready.value) {
@@ -538,6 +546,7 @@ watch(
     }
 
     loading.value = true;
+    loadError.value = false;
     try {
       const state = await loadDayStats(stageId ? { stageId } : {});
       allDays.value = [...state.days.entries()]
@@ -565,12 +574,19 @@ watch(
           endDate.value = today;
         }
       }
+    } catch (err) {
+      console.error('加载历史失败', err);
+      loadError.value = true;
     } finally {
       loading.value = false;
     }
   },
   { immediate: true }
 );
+
+function reload() {
+  reloadTick.value += 1;
+}
 
 watch(startDate, (value) => {
   if (value && endDate.value && value > endDate.value) endDate.value = value;

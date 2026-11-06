@@ -47,7 +47,7 @@ const props = defineProps({
   title: { type: String, default: '' },
   maxHeight: { type: String, default: '92dvh' },
   fill: { type: Boolean, default: false },
-  keyboardPadding: { type: Boolean, default: false }
+  keyboardPadding: { type: Boolean, default: true }
 });
 
 const show = defineModel('show', { type: Boolean, default: false });

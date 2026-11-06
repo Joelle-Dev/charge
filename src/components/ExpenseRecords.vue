@@ -1,24 +1,8 @@
 <template>
   <section class="expense-section" aria-label="支出明细">
     <div class="expense-sticky">
-      <div class="month-nav">
-        <button class="month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m15 18-6-6 6-6"></path>
-          </svg>
-        </button>
-        <button class="month-label" type="button" @click="showMonthPicker = true">
-          {{ monthLabel(selectedMonth) }}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m6 9 6 6 6-6"></path>
-          </svg>
-        </button>
-        <button class="month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m9 18 6-6-6-6"></path>
-          </svg>
-        </button>
-        <div class="month-nav-actions">
+      <MonthNav :label="monthLabel(selectedMonth)" @shift="shiftMonth" @pick="showMonthPicker = true">
+        <template #actions>
           <button
             class="section-icon"
             type="button"
@@ -42,73 +26,19 @@
               <path d="m16 16 4 4"></path>
             </svg>
           </button>
-        </div>
-      </div>
+        </template>
+      </MonthNav>
 
       <div class="month-summary">
         <div class="month-summary-left">
-          <span class="month-total">¥{{ formatMoney(monthTotal) }}</span>
+          <span class="month-total">¥{{ displayMoney(monthTotal, hideAmount) }}</span>
           <span class="month-count">{{ monthExpenses.length }} 笔</span>
         </div>
       </div>
     </div>
 
     <template v-if="currentStageStats.count">
-      <div v-if="viewMode === 'calendar'" ref="calendarViewRef" class="calendar-view">
-        <ExpenseCalendar
-          :month="selectedMonth"
-          :expenses="monthExpenses"
-          :selected-date="selectedDate"
-          @select-day="selectDay"
-        />
-
-        <div
-          v-if="dayPopover.show"
-          ref="dayPopoverRef"
-          class="day-popover"
-          :class="{ 'is-ready': dayPopover.ready, 'is-top': dayPopover.placement === 'top' }"
-          :style="{ top: `${dayPopover.top}px`, left: `${dayPopover.left}px`, '--arrow-x': `${dayPopover.arrowX}px` }"
-          role="dialog"
-          :aria-label="`${selectedDayLabel} 支出`"
-        >
-          <div class="day-pop-head">
-            <div class="day-pop-heading">
-              <strong>{{ selectedDayLabel }}</strong>
-              <span v-if="selectedDayExpenses.length">
-                {{ selectedDayExpenses.length }} 笔 · ¥{{ formatMoney(selectedDayTotal) }}
-              </span>
-              <span v-else>果冻没花钱</span>
-            </div>
-            <button class="day-pop-close" type="button" aria-label="关闭当天明细" @click="closeDayPopover">
-              ×
-            </button>
-          </div>
-
-          <div v-if="selectedDayExpenses.length" class="day-pop-list">
-            <div
-              v-for="expense in selectedDayExpenses"
-              :key="expense.id"
-              class="day-pop-row"
-              :style="{ '--swatch': categoryColor(expense.category) }"
-            >
-              <span class="day-pop-icon">{{ (expense.category || '其他').slice(0, 1) }}</span>
-              <span class="day-pop-main">
-                <strong>{{ expense.note || expense.category }}</strong>
-                <small>{{ expense.category }} · {{ formatTime(expense.spentAt) }}</small>
-              </span>
-              <span class="day-pop-amount">¥{{ formatMoney(expense.amount) }}</span>
-            </div>
-          </div>
-          <p v-else class="day-pop-empty">果冻这天没花钱</p>
-
-          <div v-if="selectedDayExpenses.length" class="day-pop-actions">
-            <span class="day-pop-hint">日历只能看看哦</span>
-            <button class="text-btn" type="button" @click="editInList">去列表改一改</button>
-          </div>
-        </div>
-      </div>
-
-      <div v-else class="list-view">
+      <div class="list-view">
         <div v-if="!monthExpenses.length" class="list-empty">
           <p>这个月果冻还没花钱</p>
           <button class="text-btn" type="button" @click="addForSelectedDay">补记这一天</button>
@@ -128,7 +58,7 @@
                 <span class="day-count">{{ group.items.length }} 笔</span>
               </span>
               <span class="day-side">
-                <span class="day-total">¥{{ formatMoney(group.total) }}</span>
+                <span class="day-total">¥{{ displayMoney(group.total, hideAmount) }}</span>
                 <svg class="day-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m6 9 6 6 6-6"></path>
                 </svg>
@@ -148,8 +78,6 @@
             </div>
           </div>
         </div>
-
-
       </div>
     </template>
 
@@ -157,51 +85,6 @@
       <p>果冻还没记过账</p>
       <span>点下面的麦克风，说一句就记上啦</span>
     </div>
-
-    <!-- 日历入口暂时隐藏，代码保留以便以后恢复
-    <Teleport to="body">
-      <div
-        v-if="showActions"
-        class="records-actions"
-        aria-label="明细操作"
-      >
-        <button
-          class="records-action"
-          type="button"
-          :aria-label="viewMode === 'calendar' ? '切换到列表' : '切换到日历'"
-          @click="toggleCalendar"
-        >
-          <svg
-            v-if="viewMode === 'calendar'"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M8 6h12M8 12h12M8 18h12"></path>
-            <path d="M4 6h.01M4 12h.01M4 18h.01"></path>
-          </svg>
-          <svg
-            v-else
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect>
-            <path d="M8 3v4M16 3v4M3.5 10h17"></path>
-          </svg>
-          <span>{{ viewMode === 'calendar' ? '列表' : '日历' }}</span>
-        </button>
-      </div>
-    </Teleport>
-    -->
 
     <MonthPickerSheet
       v-model:show="showMonthPicker"
@@ -215,23 +98,21 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import ExpenseActionSheets from './ExpenseActionSheets.vue';
 import ExpenseRow from './ExpenseRow.vue';
-import ExpenseCalendar from './ExpenseCalendar.vue';
+import MonthNav from './MonthNav.vue';
 import MonthPickerSheet from './MonthPickerSheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
+import { usePrivacy } from '../composables/usePrivacy';
 import { useSheets } from '../composables/useSheets';
 import { useRecordsView } from '../composables/useRecordsView';
 import {
-  categoryColor,
   dayKey,
-  dayLabel,
-  formatMoney,
-  formatTime,
+  displayMoney,
   sumAmounts,
   toDateInput
 } from '../utils/format';
@@ -248,10 +129,10 @@ const {
 } = useLedger();
 const { removeExpenseWithUndo } = useExpenseActions();
 const record = useRecordEntry();
+const { hideAmount } = usePrivacy();
 const sheets = useSheets();
 const router = useRouter();
 const {
-  viewMode,
   selectedMonth,
   selectedDate,
   stageId
@@ -263,16 +144,6 @@ const showMonthPicker = ref(false);
 const rowActionsRef = ref(null);
 const expandedKeys = ref(new Set());
 const loadedMonthExpenses = ref([]);
-const calendarViewRef = ref(null);
-const dayPopoverRef = ref(null);
-const dayPopover = reactive({
-  show: false,
-  ready: false,
-  top: 0,
-  left: 0,
-  placement: 'bottom',
-  arrowX: 0
-});
 let loadToken = 0;
 
 if (!selectedMonth.value || stageId.value !== currentStage.value?.id) {
@@ -292,12 +163,6 @@ function openRowMenu(expense) {
 }
 
 const filteredGroups = computed(() => groupExpensesByDay(monthExpenses.value));
-
-const selectedDayExpenses = computed(() =>
-  monthExpenses.value.filter((expense) => dayKey(new Date(expense.spentAt)) === selectedDate.value)
-);
-const selectedDayTotal = computed(() => sumAmounts(selectedDayExpenses.value));
-const selectedDayLabel = computed(() => dayLabel(selectedDate.value));
 
 function emptyDateForMonth(month) {
   return month === currentMonth ? todayKey : `${month}-01`;
@@ -350,109 +215,12 @@ function toggleDay(key) {
   expandedKeys.value = next;
 }
 
-function setView(mode) {
-  if (viewMode.value === mode) return;
-  closeDayPopover();
-  viewMode.value = mode;
-  haptic('light');
-  if (mode === 'list') {
-    const first = monthExpenses.value[0];
-    expandedKeys.value = new Set(first ? [dayKey(new Date(first.spentAt))] : []);
-  }
-}
-
-function toggleCalendar() {
-  setView(viewMode.value === 'calendar' ? 'list' : 'calendar');
-}
-
 function goHistory() {
-  closeDayPopover();
   haptic('light');
   router.push('/history');
 }
 
-function closeDayPopover() {
-  if (!dayPopover.show) return;
-  dayPopover.show = false;
-  dayPopover.ready = false;
-}
-
-function positionDayPopover() {
-  const wrap = calendarViewRef.value;
-  const pop = dayPopoverRef.value;
-  if (!wrap || !pop) return;
-
-  const cell = wrap.querySelector(`.calendar-day[data-date="${selectedDate.value}"]`);
-  if (!cell) return;
-
-  const wrapRect = wrap.getBoundingClientRect();
-  const cellRect = cell.getBoundingClientRect();
-  const pad = 8;
-  const gap = 8;
-  const wrapW = wrap.clientWidth;
-  const wrapH = wrap.clientHeight;
-  const popW = pop.offsetWidth;
-  const popH = pop.offsetHeight;
-  const cellCenter = cellRect.left - wrapRect.left + cellRect.width / 2;
-  const cellTop = cellRect.top - wrapRect.top;
-  const cellBottom = cellRect.bottom - wrapRect.top;
-
-  const left = Math.min(
-    Math.max(cellCenter - popW / 2, pad),
-    Math.max(pad, wrapW - popW - pad)
-  );
-  let top = cellBottom + gap;
-  let placement = 'bottom';
-
-  if (top + popH > wrapH - pad) {
-    const above = cellTop - popH - gap;
-    if (above >= pad) {
-      placement = 'top';
-      top = above;
-    } else {
-      top = Math.max(pad, wrapH - popH - pad);
-    }
-  }
-
-  dayPopover.placement = placement;
-  dayPopover.top = Math.round(top);
-  dayPopover.left = Math.round(left);
-  dayPopover.arrowX = Math.round(
-    Math.min(Math.max(cellCenter - left, 18), Math.max(18, popW - 18))
-  );
-}
-
-async function selectDay(dateKey) {
-  if (dayPopover.show && selectedDate.value === dateKey) {
-    closeDayPopover();
-    return;
-  }
-
-  const wasOpen = dayPopover.show;
-  selectedDate.value = dateKey;
-  haptic('light');
-  dayPopover.show = true;
-  if (!wasOpen) dayPopover.ready = false;
-
-  await nextTick();
-  positionDayPopover();
-  dayPopover.ready = true;
-}
-
-async function editInList() {
-  const date = selectedDate.value;
-  closeDayPopover();
-  viewMode.value = 'list';
-  haptic('light');
-  expandedKeys.value = new Set(date ? [date] : []);
-  await nextTick();
-  document
-    .querySelector(`.list-view .day-group[data-day="${date}"]`)
-    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
 function addForSelectedDay() {
-  closeDayPopover();
   haptic('light');
   record.openRecord(null, { date: selectedDate.value });
 }
@@ -465,16 +233,6 @@ function shiftMonth(delta) {
 function selectMonth(month) {
   selectedMonth.value = month;
   haptic('light');
-}
-
-function onDocumentPointerDown(event) {
-  if (!dayPopover.show) return;
-  if (calendarViewRef.value?.contains(event.target)) return;
-  closeDayPopover();
-}
-
-function onResize() {
-  if (dayPopover.show) positionDayPopover();
 }
 
 watch(
@@ -491,7 +249,6 @@ watch(
 watch(
   [selectedMonth, () => currentStage.value?.id, dataVersion],
   async ([month, id], previous) => {
-    closeDayPopover();
     const previousId = previous?.[1];
     const previousMonth = previous?.[0];
 
@@ -516,14 +273,4 @@ watch(
   },
   { immediate: true }
 );
-
-onMounted(() => {
-  window.addEventListener('resize', onResize);
-  document.addEventListener('pointerdown', onDocumentPointerDown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', onResize);
-  document.removeEventListener('pointerdown', onDocumentPointerDown);
-});
 </script>

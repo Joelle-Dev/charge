@@ -35,11 +35,11 @@
         </div>
         <div class="merge-preview-row">
           <span>合并后账目</span>
-          <b>{{ mergedTotals.count }} 笔 · ¥{{ formatMoney(mergedTotals.total) }}</b>
+          <b>{{ mergedTotals.count }} 笔 · ¥{{ displayMoney(mergedTotals.total, hideAmount) }}</b>
         </div>
         <div class="merge-preview-row">
           <span>预算</span>
-          <b>{{ targetBudget > 0 ? `沿用 ¥${formatMoney(targetBudget)}` : '目标账本没设预算' }}</b>
+          <b>{{ targetBudget > 0 ? `沿用 ¥${displayMoney(targetBudget, hideAmount)}` : '目标账本没设预算' }}</b>
         </div>
         <div class="merge-preview-row">
           <span>会收进旧账本</span>
@@ -73,11 +73,13 @@ import { showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
 import { useLedger } from '../composables/useLedger';
 import { useUndo } from '../composables/useUndo';
-import { formatMoney } from '../utils/format';
+import { displayMoney } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
 import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const { showUndo } = useUndo();
+const { hideAmount } = usePrivacy();
 const {
   currentStage,
   mergedStages,
@@ -110,7 +112,7 @@ const busyText = computed(() => (
 
 function stageLine(stage) {
   const stats = stageStats(stage.id);
-  return `${stats.count} 笔 · ¥${formatMoney(stats.total)}`;
+  return `${stats.count} 笔 · ¥${displayMoney(stats.total, hideAmount.value)}`;
 }
 
 watch(

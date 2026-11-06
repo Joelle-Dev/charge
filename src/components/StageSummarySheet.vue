@@ -14,7 +14,7 @@
 
         <div class="summary-total">
           <span>一共花了</span>
-          <strong>¥{{ formatMoney(summary.total) }}</strong>
+          <strong>¥{{ displayMoney(summary.total, hideAmount) }}</strong>
           <small>{{ summary.count }} 笔 · {{ budgetText }}</small>
         </div>
 
@@ -22,7 +22,7 @@
           <div v-for="item in summary.topCategories" :key="item.category" class="summary-category">
             <div class="summary-category-line">
               <span>{{ item.category }}</span>
-              <span>¥{{ formatMoney(item.amount) }} · {{ Math.round(item.percent) }}%</span>
+              <span>¥{{ displayMoney(item.amount, hideAmount) }} · {{ Math.round(item.percent) }}%</span>
             </div>
             <div class="summary-track">
               <div class="summary-fill" :style="{ width: `${item.percent}%`, background: categoryColor(item.category) }"></div>
@@ -59,12 +59,14 @@ import CatMood from './CatMood.vue';
 import PawIcon from './PawIcon.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
-import { categoryColor, formatMoney } from '../utils/format';
+import { categoryColor, displayMoney } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
 import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
 const { stageSummary } = useLedger();
+const { hideAmount } = usePrivacy();
 const cardRef = ref(null);
 const busy = ref(false);
 
@@ -90,8 +92,9 @@ const mood = computed(() => {
 
 const budgetText = computed(() => {
   if (!summary.value || !summary.value.budget) return '还没放猫粮预算';
-  if (summary.value.remaining >= 0) return `猫粮罐 ¥${formatMoney(summary.value.budget)} · 还剩 ¥${formatMoney(summary.value.remaining)}`;
-  return `猫粮罐 ¥${formatMoney(summary.value.budget)} · 花超啦 ¥${formatMoney(Math.abs(summary.value.remaining))}`;
+  const budget = displayMoney(summary.value.budget, hideAmount.value);
+  if (summary.value.remaining >= 0) return `猫粮罐 ¥${budget} · 还剩 ¥${displayMoney(summary.value.remaining, hideAmount.value)}`;
+  return `猫粮罐 ¥${budget} · 花超啦 ¥${displayMoney(Math.abs(summary.value.remaining), hideAmount.value)}`;
 });
 
 function download(dataUrl, filename) {
@@ -124,7 +127,7 @@ async function shareSummary() {
         await navigator.share({
           files: [file],
           title: `${summary.value.stage.name} · 果冻的账本小结`,
-          text: `${summary.value.stage.name} 一共花了 ¥${formatMoney(summary.value.total)}`
+          text: `${summary.value.stage.name} 一共花了 ¥${displayMoney(summary.value.total, hideAmount.value)}`
         });
         showToast('分享打开啦');
       } catch (err) {

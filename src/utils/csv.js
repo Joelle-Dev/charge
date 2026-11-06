@@ -40,22 +40,6 @@ export function buildStageCsv(stage, expenses, options = {}) {
   return `\ufeff${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
 }
 
-export function exportStageCsv(stage, expenses, options = {}) {
-  const csv = buildStageCsv(stage, expenses, options);
-  if (!csv) return false;
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${stage.name.replace(/[\\/:*?"<>|]/g, '_')}-支出.csv`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  return true;
-}
-
 
 export function parseCsv(text) {
   const source = String(text ?? '').replace(/^\uFEFF/, '');

@@ -611,8 +611,9 @@ function stopCurtainDrag() {
 function onKeydown(event) {
   if (!curtainOpen.value || showDatePicker.value) return;
 
-  const tag = event.target?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  const target = event.target;
+  const tag = target?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
 
   if (event.key === 'Escape') {
     closeCurtain();

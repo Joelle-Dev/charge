@@ -9,12 +9,14 @@ import {
   clearStores,
   scanAll,
   getSetting,
-  setSetting
+  setSetting,
+  transactionDone
 } from '../lib/db.js';
-import { parseStageCsv } from '../utils/csv.js';
+import { toMessage } from '../lib/errors.js';
+import { buildStageCsv, parseStageCsv } from '../utils/csv.js';
 import { DEFAULT_CATEGORY } from '../lib/parser.js';
-import { formatTime, toDateInput, uid } from '../utils/format.js';
-import { monthLabel } from '../utils/months.js';
+import { toDateInput, uid } from '../utils/format.js';
+import { monthBounds } from '../utils/months.js';
 import { rebuildDerivedData, STATS_VERSION } from '../lib/stats.js';
 import {
   BACKUP_APP,
@@ -27,18 +29,6 @@ import {
 
 let parsedCsv = null;
 let pendingBackup = null;
-
-function toMessage(error) {
-  return String(error?.message || error || '未知错误');
-}
-
-function transactionDone(tx) {
-  return new Promise((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
-  });
-}
 
 function uniqueStageIds(stageIds = []) {
   return [...new Set(
@@ -172,29 +162,25 @@ async function undoMerge({
   const settingsStore = tx.objectStore('settings');
   let restored = 0;
 
-  const request = expensesStore.openCursor();
-  request.onerror = () => {
-    try {
-      tx.abort();
-    } catch (err) {
-      // ignore
-    }
-  };
-  request.onsuccess = () => {
-    const cursor = request.result;
-    if (!cursor) return;
-
-    const expense = cursor.value;
-    const originalStageId = expenseMap.get(expense.id);
-    if (originalStageId) {
-      cursor.update({ ...expense, stageId: originalStageId, updatedAt: now });
+  for (const [id, originalStageId] of expenseMap) {
+    const request = expensesStore.get(id);
+    request.onerror = () => {
+      try {
+        tx.abort();
+      } catch (err) {
+        // ignore
+      }
+    };
+    request.onsuccess = () => {
+      const expense = request.result;
+      if (!expense) return;
+      expensesStore.put({ ...expense, stageId: originalStageId, updatedAt: now });
       restored += 1;
       if (restored % 500 === 0) {
         self.postMessage({ type: 'undoMergeProgress', restored });
       }
-    }
-    cursor.continue();
-  };
+    };
+  }
 
   for (const stage of stageSnapshots) {
     const rest = { ...stage };
@@ -222,45 +208,6 @@ async function undoMerge({
   });
 }
 
-function monthBounds(month) {
-  const [year, monthNumber] = month.split('-').map(Number);
-  return [
-    new Date(year, monthNumber - 1, 1).toISOString(),
-    new Date(year, monthNumber, 1).toISOString()
-  ];
-}
-
-function csvCell(value) {
-  const text = String(value ?? '');
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function csvRow(expense) {
-  return [
-    toDateInput(new Date(expense.spentAt)),
-    formatTime(expense.spentAt),
-    expense.category || DEFAULT_CATEGORY,
-    expense.note || '',
-    Number(expense.amount).toFixed(2)
-  ].map(csvCell).join(',');
-}
-
-function csvHeader(stage, month, count, total, now = new Date()) {
-  const budget = Number(stage.budget) || 0;
-  const rows = [
-    ['账本', stage.name],
-    ...(month ? [['月份', monthLabel(month)]] : []),
-    ['导出时间', `${toDateInput(now)} ${formatTime(now)}`],
-    ['支出笔数', String(count)],
-    ['总支出', total.toFixed(2)],
-    ['预算', budget > 0 ? budget.toFixed(2) : '未设置'],
-    ['剩余', budget > 0 ? (budget - total).toFixed(2) : '未设置'],
-    [],
-    ['日期', '时间', '分类', '备注', '金额']
-  ];
-  return rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
-}
-
 async function exportCsv({ stage, month }) {
   if (!stage?.id) throw new Error('没有可导出的账本');
   const db = await openDB();
@@ -273,9 +220,7 @@ async function exportCsv({ stage, month }) {
     })()
     : IDBKeyRange.bound([stage.id, ''], [stage.id, '\uffff']);
 
-  const rows = [];
-  let count = 0;
-  let total = 0;
+  const items = [];
 
   await new Promise((resolve, reject) => {
     const request = index.openCursor(range, 'prev');
@@ -286,32 +231,25 @@ async function exportCsv({ stage, month }) {
         resolve();
         return;
       }
-      const expense = cursor.value;
-      count += 1;
-      total += Number(expense.amount) || 0;
-      rows.push(csvRow(expense));
-      if (count % 2000 === 0) {
-        self.postMessage({ type: 'exportProgress', count });
+      items.push(cursor.value);
+      if (items.length % 2000 === 0) {
+        self.postMessage({ type: 'exportProgress', count: items.length });
       }
       cursor.continue();
     };
   });
 
-  await new Promise((resolve, reject) => {
-    tx.oncomplete = resolve;
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error || new Error('导出失败'));
-  });
+  await transactionDone(tx);
 
-  if (!count) {
+  if (!items.length) {
     self.postMessage({ type: 'exportDone', empty: true });
     return;
   }
 
-  const text = `\ufeff${csvHeader(stage, month, count, total)}\r\n${rows.join('\r\n')}`;
+  const text = buildStageCsv(stage, items, { month, now: new Date() });
   const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
   const filename = `${String(stage.name || '支出').replace(/[\\/:*?"<>|]/g, '_')}-支出.csv`;
-  self.postMessage({ type: 'exportDone', blob, filename, count });
+  self.postMessage({ type: 'exportDone', blob, filename, count: items.length });
 }
 
 async function parseCsv({ file }) {

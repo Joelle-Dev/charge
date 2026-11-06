@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAchievementStats, getAchievementState } from '../src/utils/achievements.js';
-import { catTitleForExpenses } from '../src/utils/titles.js';
-import { buildStageSummary } from '../src/utils/summary.js';
+import { getAchievementState } from '../src/utils/achievements.js';
+import { catTitleForCategory } from '../src/utils/titles.js';
+import {
+  buildAchievementStatsFromState,
+  buildStageSummaryFromState,
+  buildStatsFromExpenses
+} from '../src/lib/stats.js';
 
 const now = new Date('2026-10-26T12:00:00+08:00');
 const expenses = [
@@ -13,24 +17,26 @@ const expenses = [
 const stages = [{ id: 'a', name: '测试阶段', budget: 100 }];
 
 test('achievement stats and unlock states are derived from history', () => {
-  const stats = buildAchievementStats(expenses, stages, now);
+  const state = buildStatsFromExpenses(expenses);
+  const stats = buildAchievementStatsFromState(state, stages, now);
   assert.equal(stats.totalCount, 3);
   assert.equal(stats.streak, 3);
   assert.equal(stats.budgetKeptStages, 1);
 
-  const state = getAchievementState(stats);
-  assert.equal(state.find((item) => item.id === 'first-paw').unlocked, true);
-  assert.equal(state.find((item) => item.id === 'streak-3').unlocked, true);
-  assert.equal(state.find((item) => item.id === 'streak-7').unlocked, false);
+  const stateList = getAchievementState(stats);
+  assert.equal(stateList.find((item) => item.id === 'first-paw').unlocked, true);
+  assert.equal(stateList.find((item) => item.id === 'streak-3').unlocked, true);
+  assert.equal(stateList.find((item) => item.id === 'streak-7').unlocked, false);
 });
 
-test('cat title follows the top category', () => {
-  assert.equal(catTitleForExpenses(expenses), '干饭猫');
-  assert.equal(catTitleForExpenses([]), '小财迷');
+test('cat title maps categories to nicknames', () => {
+  assert.equal(catTitleForCategory('餐饮'), '干饭猫');
+  assert.equal(catTitleForCategory(''), '小财迷');
 });
 
 test('stage summary includes range, totals and top categories', () => {
-  const summary = buildStageSummary(stages[0], expenses);
+  const state = buildStatsFromExpenses(expenses);
+  const summary = buildStageSummaryFromState(stages[0], state);
   assert.equal(summary.count, 3);
   assert.equal(summary.total, 65);
   assert.equal(summary.remaining, 35);

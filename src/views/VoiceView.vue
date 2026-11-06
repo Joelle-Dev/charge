@@ -81,50 +81,16 @@
           <h2>果冻记成这样</h2>
           <span>{{ parsedEntries.length }} 笔</span>
         </div>
-        <div class="parsed-list">
-      <div v-for="(entry, index) in parsedEntries" :key="entry.key" class="parsed-card">
-        <div class="parsed-head">
-          <span class="parsed-head-left">
-            <span class="parsed-index"><PawIcon />{{ index + 1 }}</span>
-            <span class="parsed-raw">{{ entry.raw || entry.note || '果冻听到的' }}</span>
-          </span>
-          <button class="remove-chip" type="button" @click="removeEntry(index)">删掉这条</button>
-        </div>
-        <div class="parsed-grid">
-          <div class="field full">
-            <span class="field-label">金额</span>
-            <div class="amount-input">
-              <span class="currency">¥</span>
-              <input v-model.number="entry.amount" type="number" inputmode="decimal" min="0" step="0.01">
-            </div>
-          </div>
-          <label class="field">
-            <span class="field-label">分类</span>
-            <select v-model="entry.category" class="select">
-              <option v-for="category in categoryOptions(entry)" :key="category" :value="category">
-                {{ category }}
-              </option>
-            </select>
-          </label>
-          <div class="field">
-            <span class="field-label">日期</span>
-            <DateTimeField
-              :model-value="toDateInput(entry.spentAt)"
-              type="date"
-              @update:model-value="updateEntryDate(entry, $event)"
-            />
-          </div>
-          <label class="field full">
-            <span class="field-label">备注</span>
-            <input v-model="entry.note" class="input" type="text" maxlength="40" :placeholder="entry.category">
-          </label>
-        </div>
-      </div>
-    </div>
+        <ParsedEntryList
+          :entries="parsedEntries"
+          :categories="categories"
+          paw
+          @remove="(_, index) => removeEntry(index)"
+        />
 
         <div class="parsed-actions">
           <button class="primary-btn" type="button" :disabled="saving" @click="saveParsed">
-            {{ saving ? '果冻在记…' : `都记上 · ¥${formatMoney(parsedTotal)}` }}
+            {{ saving ? '果冻在记…' : `都记上 · ¥${displayMoney(parsedTotal, hideAmount)}` }}
           </button>
           <button class="secondary-btn" type="button" @click="parseText">再听一遍</button>
         </div>
@@ -169,18 +135,20 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import { useRoute, useRouter } from 'vue-router';
-import DateTimeField from '../components/DateTimeField.vue';
 import PawIcon from '../components/PawIcon.vue';
+import ParsedEntryList from '../components/ParsedEntryList.vue';
 import { parseExpenses } from '../lib/parser';
 import { useLedger } from '../composables/useLedger';
 import { useVoiceEntry } from '../composables/useVoiceEntry';
-import { applyDateToIso, formatMoney, toDateInput, uid } from '../utils/format';
+import { displayMoney, uid } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
 import { haptic } from '../utils/haptics';
 
 const router = useRouter();
 const route = useRoute();
 const isTest = computed(() => route.meta.voiceTest === true);
 const voice = useVoiceEntry();
+const { hideAmount } = usePrivacy();
 const { ready, currentStage, categories, addExpenses } = useLedger();
 
 const RecognitionCtor = typeof window !== 'undefined'
@@ -253,7 +221,7 @@ const debugRows = computed(() => {
     { label: '临时结果', value: interimText ? `${interimText.length} 字` : '空' },
     { label: '重连次数', value: String(restartAttempts) },
     { label: '解析条数', value: `${parsedEntries.value.length} 笔` },
-    { label: '解析合计', value: `¥${formatMoney(parsedTotal.value)}` },
+    { label: '解析合计', value: `¥${displayMoney(parsedTotal.value, hideAmount.value)}` },
     { label: '最近错误', value: error.value || '无' }
   ];
 });
@@ -598,16 +566,6 @@ function parseText() {
   }));
 }
 
-function categoryOptions(entry) {
-  return categories.value.includes(entry.category)
-    ? categories.value
-    : [entry.category, ...categories.value];
-}
-
-function updateEntryDate(entry, value) {
-  entry.spentAt = applyDateToIso(entry.spentAt, value);
-}
-
 function removeEntry(index) {
   parsedEntries.value.splice(index, 1);
 }
@@ -658,17 +616,6 @@ watch(
     if (isReady && !stage) router.replace('/');
   },
   { immediate: true }
-);
-
-watch(
-  () => voice.voiceStopTick.value,
-  () => {
-    pendingStop = true;
-    if (recording.value) {
-      pendingStop = false;
-      stopRecording();
-    }
-  }
 );
 
 onUnmounted(cleanup);

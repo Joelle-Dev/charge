@@ -30,7 +30,7 @@
 
     <div class="month-picker-footer">
       <button class="secondary-btn" type="button" @click="choose(currentMonthKey())">回到这个月</button>
-      <button v-if="selectedMonth !== currentMonthKey()" class="text-btn" type="button" @click="choose(selectedMonth)">
+      <button v-if="selectedMonth !== currentMonthKey()" class="text-btn" type="button" @click="show = false">
         取消
       </button>
     </div>

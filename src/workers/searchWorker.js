@@ -13,12 +13,9 @@ import {
   SEARCH_BUILDING_VERSION
 } from '../lib/searchIndex.js';
 import { rebuildDerivedData } from '../lib/stats.js';
+import { toMessage } from '../lib/errors.js';
 
 let activeSearchId = 0;
-
-function toMessage(error) {
-  return String(error?.message || error || '未知错误');
-}
 
 async function rebuildSearchIndex() {
   self.postMessage({ type: 'rebuildProgress', value: 0 });

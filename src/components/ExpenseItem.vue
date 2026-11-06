@@ -14,34 +14,32 @@
       <span class="expense-meta">
         <span>{{ expense.category }}</span>
         <span class="dot"></span>
-        <template v-if="showDate">
-          <span>{{ dateLabel }}</span>
-          <span class="dot"></span>
-        </template>
         <span>{{ formatTime(expense.spentAt) }}</span>
       </span>
     </span>
-    <span class="expense-amount">¥{{ formatMoney(expense.amount) }}</span>
+    <span class="expense-amount">¥{{ amountLabel }}</span>
   </component>
 </template>
 
 <script setup>
 import { computed } from 'vue';
-import { categoryColor, dayKey, dayLabel, formatMoney, formatTime } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
+import { categoryColor, displayMoney, formatTime } from '../utils/format';
 
 const props = defineProps({
   expense: { type: Object, required: true },
-  showDate: { type: Boolean, default: false },
   readonly: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['select']);
 
+const { hideAmount } = usePrivacy();
+
 const title = computed(() => props.expense.note || props.expense.category);
 const initial = computed(() => (props.expense.category || '其他').slice(0, 1));
-const dateLabel = computed(() => dayLabel(dayKey(new Date(props.expense.spentAt))));
+const amountLabel = computed(() => displayMoney(props.expense.amount, hideAmount.value));
 const itemLabel = computed(() => {
-  const amount = `¥${formatMoney(props.expense.amount)}`;
+  const amount = `¥${amountLabel.value}`;
   return props.readonly ? `${title.value} ${amount}` : `编辑 ${title.value} ${amount}`;
 });
 

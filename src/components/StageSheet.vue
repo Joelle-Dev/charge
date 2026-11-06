@@ -71,10 +71,12 @@ import { showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
-import { formatMoney } from '../utils/format';
+import { displayMoney } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
 import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
+const { hideAmount } = usePrivacy();
 const showArchived = ref(false);
 const sheets = useSheets();
 const {
@@ -89,8 +91,8 @@ const {
 
 function stageSubtitle(stage) {
   const stats = stageStats(stage.id);
-  const budget = stage.budget ? ` · 猫粮罐 ¥${formatMoney(stage.budget)}` : '';
-  return `${stats.count} 笔 · 花了 ¥${formatMoney(stats.total)}${budget}`;
+  const budget = stage.budget ? ` · 猫粮罐 ¥${displayMoney(stage.budget, hideAmount.value)}` : '';
+  return `${stats.count} 笔 · 花了 ¥${displayMoney(stats.total, hideAmount.value)}${budget}`;
 }
 
 function archivedSubtitle(stage) {

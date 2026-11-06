@@ -13,8 +13,8 @@
       <span v-if="mergeMode" class="hero-merge-badge">{{ mergedStages.length }} 个账本</span>
     </div>
 
-    <div class="hero-amount">
-      <span class="currency">¥</span><span>{{ displayMoney(overviewStats.total, hideAmount) }}</span>
+    <div class="hero-amount" :class="{ 'is-counting': counting }">
+      <span class="currency">¥</span><span>{{ hideAmount ? '•••' : formatMoney(animatedTotal) }}</span>
     </div>
 
     <div class="hero-stats" role="list" aria-label="账本统计">
@@ -55,12 +55,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import CatMood from './CatMood.vue';
 import PrivacyToggle from './PrivacyToggle.vue';
 import { useLedger } from '../composables/useLedger';
 import { usePrivacy } from '../composables/usePrivacy';
-import { displayMoney } from '../utils/format';
+import { displayMoney, formatMoney } from '../utils/format';
 
 const {
   activeStages,
@@ -73,6 +73,47 @@ const {
 } = useLedger();
 
 const { hideAmount } = usePrivacy();
+
+const animatedTotal = ref(0);
+const counting = ref(false);
+let countRaf = 0;
+let countTimer = 0;
+
+const reducedMotion = typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+function animateTotal(to) {
+  cancelAnimationFrame(countRaf);
+  clearTimeout(countTimer);
+  const from = animatedTotal.value;
+  if (reducedMotion || from === to) {
+    animatedTotal.value = to;
+    return;
+  }
+  counting.value = true;
+  const duration = Math.min(900, 320 + Math.abs(to - from) * 0.35);
+  const start = performance.now();
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    animatedTotal.value = from + (to - from) * eased;
+    if (t < 1) {
+      countRaf = requestAnimationFrame(tick);
+    } else {
+      animatedTotal.value = to;
+      countTimer = window.setTimeout(() => { counting.value = false; }, 180);
+    }
+  };
+  countRaf = requestAnimationFrame(tick);
+}
+
+watch(() => overviewStats.value.total, (to) => animateTotal(to));
+
+onMounted(() => animateTotal(overviewStats.value.total));
+onUnmounted(() => {
+  cancelAnimationFrame(countRaf);
+  clearTimeout(countTimer);
+});
 
 const spent = computed(() => overviewStats.value.total);
 const stageCount = computed(() => (

@@ -32,28 +32,11 @@
     </header>
 
     <div class="record-month-bar">
-      <div class="record-month-nav">
-        <button class="record-month-arrow" type="button" aria-label="上个月" @click="shiftMonth(-1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m15 18-6-6 6-6"></path>
-          </svg>
-        </button>
-        <button class="record-month-label" type="button" @click="showMonthPicker = true">
-          {{ monthTitle }}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m6 9 6 6 6-6"></path>
-          </svg>
-        </button>
-        <button class="record-month-arrow" type="button" aria-label="下个月" @click="shiftMonth(1)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m9 18 6-6-6-6"></path>
-          </svg>
-        </button>
-      </div>
+      <MonthNav variant="record" :label="monthTitle" @shift="shiftMonth" @pick="showMonthPicker = true" />
       <div class="record-head-total">
         <span class="record-total-label">当月支出</span>
         <strong class="record-month-total">
-          <span class="record-total-currency">¥</span>{{ formatMoney(activeMonthTotal) }}
+          <span class="record-total-currency">¥</span>{{ displayMoney(activeMonthTotal, hideAmount) }}
         </strong>
       </div>
     </div>
@@ -64,6 +47,12 @@
     <div v-if="loading" class="record-loading">
       <span class="loading-dot"></span>
       果冻在翻账本…
+    </div>
+
+    <div v-else-if="feedError" class="record-empty">
+      <strong>账本没翻成</strong>
+      <span>果冻绊了一跤，再试一次吧</span>
+      <button class="text-btn" type="button" @click="loadFeed">重新翻翻</button>
     </div>
 
     <template v-else>
@@ -80,7 +69,7 @@
             <span class="timeline-day-label">{{ day.label }}</span>
             <span class="timeline-day-summary">
               <span class="timeline-day-count">{{ day.items.length }} 笔</span>
-              <span class="timeline-day-total">¥{{ formatMoney(day.total) }}</span>
+              <span class="timeline-day-total">¥{{ displayMoney(day.total, hideAmount) }}</span>
             </span>
           </div>
         </div>
@@ -154,7 +143,7 @@
 
           <section class="daily-summary">
             <span class="daily-summary-label">这天花了</span>
-            <strong class="daily-summary-total">¥{{ formatMoney(dailyTotal) }}</strong>
+            <strong class="daily-summary-total">¥{{ displayMoney(dailyTotal, hideAmount) }}</strong>
             <span class="daily-summary-count">{{ dailyExpenses.length }} 笔</span>
           </section>
         </div>
@@ -166,26 +155,22 @@
             果冻在翻这一天的账本…
           </div>
 
+          <div v-else-if="dailyError" class="record-empty">
+            <strong>这一天没翻成</strong>
+            <span>果冻绊了一跤，再试一次吧</span>
+            <button class="text-btn" type="button" @click="loadDaily(dailyDate)">重新翻翻</button>
+          </div>
+
           <div v-else-if="dailyExpenses.length" class="daily-list">
-            <div
+            <ExpenseRow
               v-for="expense in dailyExpenses"
               :key="expense.id"
-              class="expense-row"
-            >
-              <ExpenseItem :expense="expense" readonly />
-              <button
-                class="expense-more"
-                type="button"
-                :aria-label="`更多操作：${expense.note || expense.category}`"
-                @click.stop="openRowMenu(expense)"
-              >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-                  <circle cx="5" cy="12" r="1.6"></circle>
-                  <circle cx="12" cy="12" r="1.6"></circle>
-                  <circle cx="19" cy="12" r="1.6"></circle>
-                </svg>
-              </button>
-            </div>
+              :expense="expense"
+              @select="record.openRecord"
+              @edit="record.openRecord"
+              @delete="removeExpenseWithUndo"
+              @menu="openRowMenu"
+            />
           </div>
 
           <div v-else class="record-empty">
@@ -202,24 +187,29 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import ExpenseActionSheets from './ExpenseActionSheets.vue';
-import ExpenseItem from './ExpenseItem.vue';
+import ExpenseRow from './ExpenseRow.vue';
+import MonthNav from './MonthNav.vue';
 import MonthPickerSheet from './MonthPickerSheet.vue';
 import RecordLeaf from './RecordLeaf.vue';
 import RecordPullHandle from './RecordPullHandle.vue';
 import catAvatar from '../assets/cat-avatar.png';
+import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
+import { usePrivacy } from '../composables/usePrivacy';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
 import { useSheets } from '../composables/useSheets';
-import { categoryColor, dayKey, formatMoney, sumAmounts, toDateInput } from '../utils/format';
+import { categoryColor, dayKey, displayMoney, sumAmounts, toDateInput } from '../utils/format';
 import { groupExpensesByDay } from '../utils/expenses';
 import { haptic } from '../utils/haptics';
 import { addMonths, currentMonthKey, monthLabel, shortMonthLabel } from '../utils/months';
 
 const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
+const { removeExpenseWithUndo } = useExpenseActions();
 const { activePane, goToPane } = useLedgerPanes();
 const record = useRecordEntry();
+const { hideAmount } = usePrivacy();
 const { recordMonth, dailyOpen, dailyDate } = useRecordsView();
 const sheets = useSheets();
 
@@ -236,8 +226,10 @@ const showPullHint = ref(false);
 const rowActionsRef = ref(null);
 const expenses = ref([]);
 const loading = ref(true);
+const feedError = ref(false);
 const dailyExpenses = ref([]);
 const dailyLoading = ref(false);
+const dailyError = ref(false);
 let loadToken = 0;
 let dailyToken = 0;
 
@@ -250,7 +242,6 @@ let filling = false;
 let scrollEl = null;
 let scrollRaf = 0;
 
-const total = computed(() => sumAmounts(expenses.value));
 const activeMonthExpenses = computed(() => (
   expenses.value.filter((e) => dayKey(new Date(e.spentAt)).slice(0, 7) === activeMonth.value)
 ));
@@ -392,6 +383,7 @@ async function loadFeed() {
   feedKey = key;
 
   loading.value = true;
+  feedError.value = false;
   try {
     if (fresh) {
       loadedMonths.value = [];
@@ -412,6 +404,9 @@ async function loadFeed() {
       expenses.value = acc;
     }
     if (token !== loadToken) return;
+  } catch (err) {
+    console.error('加载账本失败', err);
+    if (token === loadToken) feedError.value = true;
   } finally {
     if (token === loadToken) loading.value = false;
   }
@@ -426,6 +421,9 @@ async function loadMore() {
   try {
     await loadEarlier(stage.id, token);
     if (token !== loadToken) return;
+  } catch (err) {
+    console.error('加载更早账目失败', err);
+    showToast('再往前翻失败了，等会儿再试试');
   } finally {
     loadingMore.value = false;
   }
@@ -554,14 +552,28 @@ async function loadDaily(dateKey) {
     return;
   }
   dailyLoading.value = true;
+  dailyError.value = false;
   try {
     const items = await loadMonthExpenses(stage.id, dateKey.slice(0, 7));
     if (token !== dailyToken) return;
     dailyExpenses.value = items.filter(
       (expense) => dayKey(new Date(expense.spentAt)) === dateKey
     );
+  } catch (err) {
+    console.error('加载每日账单失败', err);
+    if (token === dailyToken) {
+      dailyExpenses.value = [];
+      dailyError.value = true;
+    }
   } finally {
     if (token === dailyToken) dailyLoading.value = false;
+  }
+}
+
+function onKeydown(event) {
+  if (event.key === 'Escape' && dailyDate.value) {
+    event.preventDefault();
+    closeDaily();
   }
 }
 
@@ -611,12 +623,14 @@ watch(
 );
 
 onMounted(() => {
+  window.addEventListener('keydown', onKeydown);
   scrollEl = rootRef.value?.closest('.record-pager-pane') || rootRef.value;
   if (scrollEl) scrollEl.addEventListener('scroll', onScroll, { passive: true });
   ensureFilled();
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown);
   dailyOpen.value = false;
   dailyDate.value = '';
   clearTimeout(pullHintTimer);

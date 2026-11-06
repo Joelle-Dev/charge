@@ -30,10 +30,10 @@ app.mount('#app');
 const splash = document.getElementById('splash');
 if (splash) {
   const elapsed = performance.now();
-  const delay = Math.max(0, 500 - elapsed);
+  const delay = Math.max(0, 1100 - elapsed);
   window.setTimeout(() => {
     splash.classList.add('is-hidden');
-    window.setTimeout(() => splash.remove(), 400);
+    window.setTimeout(() => splash.remove(), 500);
   }, delay);
 }
 // App-like touch behaviour: block iOS pinch-to-zoom while keeping normal scrolling.

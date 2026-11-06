@@ -4,19 +4,18 @@ import {
   getAll,
   getRecord,
   putRecord,
-  putMany,
   deleteRecord,
-  deleteMany,
   deleteByIndexRange,
   getSetting,
   setSetting,
   getAllByIndex,
   getPageByIndex,
-  getMany
+  getMany,
+  writeExpenses
 } from '../lib/db';
 import { PRESET_CATEGORIES, DEFAULT_CATEGORY } from '../lib/parser';
 import { toDateInput, uid } from '../utils/format';
-import { currentMonthKey } from '../utils/months';
+import { currentMonthKey, monthBounds } from '../utils/months';
 import { catTitleForCategory } from '../utils/titles';
 import {
   SEARCH_VERSION,
@@ -39,10 +38,12 @@ import {
   loadStageMonths,
   loadDays,
   backfillRecordDays,
-  applyRuntimeExpenseDelta,
+  applyRuntimeExpenseDeltas,
   recomputeBoundsFromExpenses,
   buildAchievementStatsFromState,
-  buildStageSummaryFromState
+  buildStageSummaryFromState,
+  stageStatsFromState,
+  monthStatsFromState
 } from '../lib/stats';
 
 const stages = ref([]);
@@ -69,7 +70,9 @@ const REBUILD_PERCENT = {
   writeSearch: 100
 };
 
-const EMPTY_STAGE_STATS = { count: 0, total: 0, categories: {}, minDate: '', maxDate: '' };
+function emptyStageStats() {
+  return { count: 0, total: 0, categories: {}, minDate: '', maxDate: '' };
+}
 
 const sortedStages = computed(() =>
   [...stages.value].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
@@ -83,7 +86,7 @@ const currentStage = computed(() =>
 );
 
 const currentStageStats = computed(() => (
-  currentStage.value ? statsState.stages.get(currentStage.value.id) || EMPTY_STAGE_STATS : EMPTY_STAGE_STATS
+  currentStage.value ? stageStatsFromState(statsState, currentStage.value.id) : emptyStageStats()
 ));
 
 const total = computed(() => currentStageStats.value.total || 0);
@@ -135,13 +138,8 @@ const achievementStats = computed(() => (
 
 const currentStageMonthStats = computed(() => {
   const stageId = currentStage.value?.id;
-  const result = new Map();
-  if (!stageId) return result;
-  const prefix = `${stageId}|`;
-  for (const [key, bucket] of statsState.months) {
-    if (key.startsWith(prefix)) result.set(key.slice(prefix.length), bucket);
-  }
-  return result;
+  if (!stageId) return new Map();
+  return monthStatsFromState(statsState, stageId);
 });
 
 function setStatsState(state) {
@@ -177,14 +175,6 @@ async function refreshTodayStats() {
 async function ensureDaysLoaded() {
   if (statsState.daysLoaded) return;
   await loadDays(statsState);
-}
-
-function monthBounds(month) {
-  const [year, monthNumber] = month.split('-').map(Number);
-  return [
-    new Date(year, monthNumber - 1, 1).toISOString(),
-    new Date(year, monthNumber, 1).toISOString()
-  ];
 }
 
 async function loadMonthExpenses(stageId, month) {
@@ -267,12 +257,10 @@ async function maybeRecomputeBounds(removed) {
 }
 
 async function applyStatsChanges(removed = [], added = []) {
-  for (const expense of removed) {
-    await applyRuntimeExpenseDelta(statsState, expense, -1);
-  }
-  for (const expense of added) {
-    await applyRuntimeExpenseDelta(statsState, expense, 1);
-  }
+  await applyRuntimeExpenseDeltas(statsState, [
+    ...removed.map((expense) => ({ expense, sign: -1 })),
+    ...added.map((expense) => ({ expense, sign: 1 }))
+  ]);
   if (removed.length) await maybeRecomputeBounds(removed);
 }
 
@@ -335,14 +323,15 @@ async function updateSearchChunks(removed = [], added = []) {
 
 async function commitExpenseChanges({ put = [], remove = [] } = {}) {
   if (statsRebuildPromise) await statsRebuildPromise;
-  await setSetting('statsDirty', true);
 
-  if (remove.length) {
-    await deleteMany('expenses', remove.map((expense) => expense.id));
-  }
-  if (put.length) {
-    await putMany('expenses', put);
-  }
+  const putIds = new Set(put.map((expense) => expense.id));
+  const deleteIds = remove.map((expense) => expense.id).filter((id) => !putIds.has(id));
+
+  await writeExpenses({
+    put,
+    deleteIds,
+    settings: [{ key: 'statsDirty', value: true }]
+  });
 
   await applyStatsChanges(remove, put);
   try {
@@ -718,10 +707,7 @@ async function renameCategory(from, to) {
   if (oldName === DEFAULT_CATEGORY) throw new Error('「其他」是果冻的默认分类，不能改名哦');
   if (categories.value.includes(newName)) throw new Error('这个分类已经有啦');
 
-  const expenses = await getAll('expenses');
-  const affected = expenses.filter(
-    (expense) => (expense.category || DEFAULT_CATEGORY) === oldName
-  );
+  const affected = await getAllByIndex('expenses', 'category', oldName);
   if (affected.length) {
     const updatedAt = Date.now();
     const put = affected.map((expense) => ({ ...expense, category: newName, updatedAt }));
@@ -733,7 +719,7 @@ async function renameCategory(from, to) {
 }
 
 function stageStats(stageId) {
-  return statsState.stages.get(stageId) || EMPTY_STAGE_STATS;
+  return stageStatsFromState(statsState, stageId);
 }
 
 function stageSummary(stage) {

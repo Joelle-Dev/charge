@@ -42,7 +42,7 @@
           <b>{{ validCount }}</b> 笔花销
         </span>
         <span>
-          <b>¥{{ formatMoney(validTotal) }}</b>
+          <b>¥{{ displayMoney(validTotal, hideAmount) }}</b>
         </span>
         <span v-if="dateRange">{{ dateRange }}</span>
       </div>
@@ -161,7 +161,8 @@ import {
   saveBlob
 } from '../lib/dataClient';
 import { BACKUP_MAX_SIZE, isBackupFile, isBackupManifest } from '../lib/backupFormat';
-import { formatMoney } from '../utils/format';
+import { displayMoney } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
 
@@ -174,6 +175,7 @@ const {
   ensureSearchIndex,
   reloadAfterImport
 } = useLedger();
+const { hideAmount } = usePrivacy();
 const { initAchievements, reloadAchievements } = useAchievements();
 
 const fileInput = ref(null);

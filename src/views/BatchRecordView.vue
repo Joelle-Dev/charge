@@ -54,51 +54,17 @@
         <span class="batch-count-pill">{{ count }} 笔</span>
       </div>
 
-      <div class="parsed-list batch-parsed-list">
-        <div v-for="(entry, index) in entries" :key="entry.id" class="parsed-card">
-          <div class="parsed-head">
-            <span class="parsed-head-left">
-              <span class="parsed-index">{{ index + 1 }}</span>
-              <span class="parsed-raw">{{ entry.raw || entry.note || '果冻听到的' }}</span>
-            </span>
-            <button class="remove-chip" type="button" @click="removeDraft(entry.id)">删掉这条</button>
-          </div>
-          <div class="parsed-grid">
-            <div class="field full">
-              <span class="field-label">金额</span>
-              <div class="amount-input">
-                <span class="currency">¥</span>
-                <input v-model.number="entry.amount" type="number" inputmode="decimal" min="0" step="0.01">
-              </div>
-            </div>
-            <label class="field">
-              <span class="field-label">分类</span>
-              <select v-model="entry.category" class="select">
-                <option v-for="item in categoryOptions(entry)" :key="item" :value="item">
-                  {{ item }}
-                </option>
-              </select>
-            </label>
-            <div class="field">
-              <span class="field-label">日期</span>
-              <DateTimeField
-                :model-value="toDateInput(entry.spentAt)"
-                type="date"
-                @update:model-value="updateEntryDate(entry, $event)"
-              />
-            </div>
-            <label class="field full">
-              <span class="field-label">备注</span>
-              <input v-model="entry.note" class="input" type="text" maxlength="40" :placeholder="entry.category">
-            </label>
-          </div>
-        </div>
-      </div>
+      <ParsedEntryList
+        class="batch-parsed-list"
+        :entries="entries"
+        :categories="categories"
+        @remove="(entry) => removeDraft(entry.id)"
+      />
 
       <div class="batch-summary">
         <div class="batch-summary-copy">
           <span>一共</span>
-          <strong>¥{{ formatMoney(total) }}</strong>
+          <strong>¥{{ displayMoney(total, hideAmount) }}</strong>
         </div>
         <button class="batch-submit" type="button" :disabled="saving" @click="saveAll">
           {{ saving ? '果冻在记…' : '都记上' }}
@@ -124,16 +90,18 @@
 import { computed, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import { useRouter } from 'vue-router';
-import DateTimeField from '../components/DateTimeField.vue';
+import ParsedEntryList from '../components/ParsedEntryList.vue';
 import { parseExpenses } from '../lib/parser';
 import { useBatchEntries } from '../composables/useBatchEntries';
 import { useLedger } from '../composables/useLedger';
 import { isValidAmount, toAmountNumber } from '../utils/amountInput';
-import { applyDateToIso, formatMoney, toDateInput } from '../utils/format';
+import { displayMoney } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
 import { haptic } from '../utils/haptics';
 
 const router = useRouter();
 const { ready, currentStage, categories, addExpenses } = useLedger();
+const { hideAmount } = usePrivacy();
 const { entries, count, total, replaceEntries, removeEntry, clearEntries } = useBatchEntries();
 
 const text = ref('');
@@ -174,15 +142,6 @@ function removeDraft(id) {
   haptic('light');
 }
 
-function categoryOptions(entry) {
-  return categories.value.includes(entry.category)
-    ? categories.value
-    : [entry.category, ...categories.value];
-}
-
-function updateEntryDate(entry, value) {
-  entry.spentAt = applyDateToIso(entry.spentAt, value);
-}
 
 async function saveAll() {
   if (!count.value || saving.value) return;

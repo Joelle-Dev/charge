@@ -60,6 +60,7 @@ import RecordCurtain from '../components/RecordCurtain.vue';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
+import { useBackClose } from '../composables/useBackClose';
 import { LEDGER_PANES, useLedgerPanes } from '../composables/useLedgerPanes';
 import {
   isDownwardPull,
@@ -78,7 +79,13 @@ const route = useRoute();
 const { ready, currentStage } = useLedger();
 const { activePane, paneRequest, goToPane } = useLedgerPanes();
 const { curtainOpen, curtainPull, curtainDragging, beginCurtainPull, updateCurtainPull, endCurtainPull, resetRecord } = useRecordEntry();
-const { dailyOpen } = useRecordsView();
+const { dailyOpen, dailyDate } = useRecordsView();
+
+useBackClose(curtainOpen, resetRecord);
+useBackClose(dailyOpen, () => {
+  dailyOpen.value = false;
+  dailyDate.value = '';
+});
 
 const pagerRef = ref(null);
 const trackRef = ref(null);
@@ -260,7 +267,7 @@ function stopPagerTracking() {
 }
 
 function onPagerWheel(event) {
-  if (curtainOpen.value) return;
+  if (curtainOpen.value || dailyOpen.value) return;
   if (event.target?.closest?.('.van-popup, .van-overlay, .van-dialog')) return;
   if (isHorizontalScrollerTarget(event.target)) return;
   if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
@@ -306,7 +313,7 @@ function onPointerDown(event) {
   if (event.button !== 0) return;
   if (route.name !== 'record') return;
   if (!onRecordPane()) return;
-  if (pointerTracking || curtainOpen.value) return;
+  if (pointerTracking || curtainOpen.value || dailyOpen.value) return;
   if (event.target?.closest?.('.record-pull-handle, .van-popup, .van-overlay, .van-dialog, input, textarea, select')) return;
 
   activePointerId = event.pointerId;
@@ -384,7 +391,7 @@ function onTouchStart(event) {
   }
   if (route.name !== 'record') return;
   if (!onRecordPane()) return;
-  if (curtainOpen.value || touchTracking) return;
+  if (curtainOpen.value || dailyOpen.value || touchTracking) return;
   if (!centerPaneAtTop()) return;
   if (event.target?.closest?.('.record-pull-handle, .van-popup, .van-overlay, .van-dialog')) return;
 

@@ -4,6 +4,7 @@ import {
   scanIndex,
   countRange,
   getRecord,
+  getMany,
   getPageByIndex,
   clearStores,
   putMany,
@@ -48,29 +49,6 @@ export function createStatsState() {
   };
 }
 
-export function statsStateFromEntries(entries = []) {
-  const state = createStatsState();
-
-  for (const entry of entries) {
-    if (!entry || !entry.key) continue;
-    if (entry.key === 'global') {
-      state.global = entry;
-    } else if (entry.key.startsWith('stage:')) {
-      state.stages.set(entry.key.slice(6), entry);
-    } else if (entry.key.startsWith('day:')) {
-      state.days.set(entry.key.slice(4), entry);
-    } else if (entry.key.startsWith('month:')) {
-      const rest = entry.key.slice(6);
-      const split = rest.lastIndexOf(':');
-      state.months.set(`${rest.slice(0, split)}|${rest.slice(split + 1)}`, entry);
-    }
-  }
-
-  state.monthsStageId = '*';
-  state.daysLoaded = true;
-  return state;
-}
-
 export function statsEntriesFromState(state) {
   return [
     state.global,
@@ -87,29 +65,6 @@ export function statsEntriesFromState(state) {
       };
     })
   ];
-}
-
-export function statKeysForExpense(expense) {
-  if (!expense) return [];
-  const date = new Date(expense.spentAt);
-  if (Number.isNaN(date.getTime())) return [];
-  const day = dayKey(date);
-  const month = monthKey(date);
-  const stageId = expense.stageId;
-  return [
-    'global',
-    `stage:${stageId}`,
-    `day:${day}`,
-    `month:${stageId}:${month}`
-  ];
-}
-
-export function statKeysForExpenses(expenses = []) {
-  const keys = new Set();
-  for (const expense of expenses) {
-    for (const key of statKeysForExpense(expense)) keys.add(key);
-  }
-  return keys;
 }
 
 function ensureStage(state, stageId) {
@@ -208,34 +163,6 @@ export function applyExpenseDelta(state, expense, sign = 1) {
   }
 }
 
-export function statsEntriesAndDeletesForKeys(state, keys) {
-  const entries = [];
-  const deletes = [];
-
-  for (const key of keys) {
-    if (key === 'global') {
-      if (state.global.count > 0) entries.push(state.global);
-      else deletes.push(key);
-    } else if (key.startsWith('stage:')) {
-      const stage = state.stages.get(key.slice(6));
-      if (stage) entries.push(stage);
-      else deletes.push(key);
-    } else if (key.startsWith('day:')) {
-      const bucket = state.days.get(key.slice(4));
-      if (bucket) entries.push({ ...bucket, key });
-      else deletes.push(key);
-    } else if (key.startsWith('month:')) {
-      const rest = key.slice(6);
-      const split = rest.lastIndexOf(':');
-      const bucket = state.months.get(`${rest.slice(0, split)}|${rest.slice(split + 1)}`);
-      if (bucket) entries.push({ ...bucket, key });
-      else deletes.push(key);
-    }
-  }
-
-  return { entries, deletes };
-}
-
 export function buildStatsFromExpenses(expenses = []) {
   const state = createStatsState();
   for (const expense of expenses) applyExpenseDelta(state, expense, 1);
@@ -298,89 +225,132 @@ function monthsLoadedFor(state, stageId) {
   return state.monthsStageId === '*' || state.monthsStageId === stageId;
 }
 
-export async function applyRuntimeExpenseDelta(state, expense, sign = 1) {
-  const amount = Number(expense.amount) || 0;
-  if (!amount || !expense.stageId) return;
-  const date = new Date(expense.spentAt);
-  if (Number.isNaN(date.getTime())) return;
+export async function applyRuntimeExpenseDeltas(state, ops = []) {
+  const items = [];
+  for (const op of ops) {
+    const expense = op?.expense;
+    const sign = op?.sign || 1;
+    const amount = Number(expense?.amount) || 0;
+    if (!amount || !expense.stageId) continue;
+    const date = new Date(expense.spentAt);
+    if (Number.isNaN(date.getTime())) continue;
+    items.push({
+      expense,
+      sign,
+      amount,
+      day: dayKey(date),
+      month: monthKey(date),
+      stageId: expense.stageId,
+      category: expense.category || DEFAULT_CATEGORY
+    });
+  }
+  if (!items.length) return;
 
-  const day = dayKey(date);
-  const month = monthKey(date);
-  const stageId = expense.stageId;
-  const category = expense.category || DEFAULT_CATEGORY;
-  const dayStatsKey = `day:${day}`;
-  const monthStatsKey = `month:${stageId}:${month}`;
-  const monthMapKey = `${stageId}|${month}`;
-
-  const [dayRecord, monthRecord] = await Promise.all([
-    getRecord('stats', dayStatsKey),
-    getRecord('stats', monthStatsKey)
-  ]);
-  const dayBucket = dayRecord || { key: dayStatsKey, count: 0, total: 0 };
-  const monthBucket = monthRecord || { key: monthStatsKey, count: 0, total: 0 };
-  const dayWasEmpty = (dayBucket.count || 0) <= 0;
-
-  const nextDay = {
-    ...dayBucket,
-    count: (dayBucket.count || 0) + sign,
-    total: (dayBucket.total || 0) + sign * amount
-  };
-  const nextMonth = {
-    ...monthBucket,
-    count: (monthBucket.count || 0) + sign,
-    total: (monthBucket.total || 0) + sign * amount
-  };
-
-  state.global.count += sign;
-  state.global.total += sign * amount;
-  updateDateRange(state.global, day, sign);
-
-  const stage = ensureStage(state, stageId);
-  stage.count += sign;
-  stage.total += sign * amount;
-  updateDateRange(stage, day, sign);
-  const categoryStats = stage.categories[category] || { count: 0, amount: 0 };
-  categoryStats.count += sign;
-  categoryStats.amount += sign * amount;
-  stage.categories[category] = categoryStats;
-
-  if (sign > 0) {
-    if (dayWasEmpty) state.global.recordDays = (state.global.recordDays || 0) + 1;
-  } else if (nextDay.count <= 0) {
-    state.global.recordDays = Math.max(0, (state.global.recordDays || 0) - 1);
+  const dayKeys = new Set();
+  const monthKeys = new Set();
+  for (const item of items) {
+    dayKeys.add(`day:${item.day}`);
+    monthKeys.add(`month:${item.stageId}:${item.month}`);
   }
 
-  if (monthsLoadedFor(state, stageId)) {
-    state.months.set(monthMapKey, nextMonth);
-  }
-  if (state.daysLoaded) {
-    state.days.set(day, nextDay);
-  }
+  const allKeys = [...dayKeys, ...monthKeys];
+  const records = await getMany('stats', allKeys);
+  const buckets = new Map();
+  allKeys.forEach((key, index) => {
+    const record = records[index];
+    buckets.set(key, record
+      ? { ...record, count: record.count || 0, total: record.total || 0 }
+      : { key, count: 0, total: 0 });
+  });
 
-  if (sign < 0) {
-    if (nextDay.count <= 0) state.days.delete(day);
-    if (nextMonth.count <= 0) state.months.delete(monthMapKey);
-    if (stage.count <= 0) {
-      state.stages.delete(stageId);
-    } else if (categoryStats.count <= 0) {
-      delete stage.categories[category];
+  for (const item of items) {
+    const { sign, amount, day, month, stageId, category } = item;
+    const dayBucket = buckets.get(`day:${day}`);
+    const monthBucket = buckets.get(`month:${stageId}:${month}`);
+    const dayWasEmpty = dayBucket.count <= 0;
+
+    dayBucket.count += sign;
+    dayBucket.total += sign * amount;
+    monthBucket.count += sign;
+    monthBucket.total += sign * amount;
+
+    state.global.count += sign;
+    state.global.total += sign * amount;
+    updateDateRange(state.global, day, sign);
+
+    const stage = ensureStage(state, stageId);
+    stage.count += sign;
+    stage.total += sign * amount;
+    updateDateRange(stage, day, sign);
+    const categoryStats = stage.categories[category] || { count: 0, amount: 0 };
+    categoryStats.count += sign;
+    categoryStats.amount += sign * amount;
+    stage.categories[category] = categoryStats;
+
+    if (sign > 0) {
+      if (dayWasEmpty) state.global.recordDays = (state.global.recordDays || 0) + 1;
+    } else if (dayBucket.count <= 0) {
+      state.global.recordDays = Math.max(0, (state.global.recordDays || 0) - 1);
     }
-    if (state.global.count <= 0) {
-      state.global.count = 0;
-      state.global.total = 0;
-      state.global.minDate = '';
-      state.global.maxDate = '';
+
+    if (monthsLoadedFor(state, stageId)) {
+      state.months.set(`${stageId}|${month}`, monthBucket);
+    }
+    if (state.daysLoaded) {
+      state.days.set(day, dayBucket);
+    }
+
+    if (sign < 0) {
+      const stageStats = state.stages.get(stageId);
+      if (stageStats && stageStats.count <= 0) {
+        state.stages.delete(stageId);
+      } else if (categoryStats.count <= 0 && stageStats) {
+        delete stageStats.categories[category];
+      }
+      if (state.global.count <= 0) {
+        state.global.count = 0;
+        state.global.total = 0;
+        state.global.minDate = '';
+        state.global.maxDate = '';
+      }
     }
   }
 
   const puts = [state.global];
   const deletes = [];
-  if (stage.count > 0) puts.push(stage);
-  else deletes.push(`stage:${stageId}`);
-  if (nextMonth.count > 0) puts.push(nextMonth);
-  else deletes.push(monthStatsKey);
-  if (nextDay.count > 0) puts.push(nextDay);
-  else deletes.push(dayStatsKey);
+  const touchedStages = new Set(items.map((item) => item.stageId));
+
+  for (const stageId of touchedStages) {
+    const stage = state.stages.get(stageId);
+    if (stage && stage.count > 0) puts.push(stage);
+    else deletes.push(`stage:${stageId}`);
+  }
+
+  for (const key of dayKeys) {
+    const bucket = buckets.get(key);
+    const day = key.slice(4);
+    if (bucket.count > 0) {
+      puts.push(bucket);
+      if (state.daysLoaded) state.days.set(day, bucket);
+    } else {
+      deletes.push(key);
+      state.days.delete(day);
+    }
+  }
+
+  for (const key of monthKeys) {
+    const bucket = buckets.get(key);
+    const rest = key.slice(6);
+    const split = rest.lastIndexOf(':');
+    const mapKey = `${rest.slice(0, split)}|${rest.slice(split + 1)}`;
+    if (bucket.count > 0) {
+      puts.push(bucket);
+      if (monthsLoadedFor(state, rest.slice(0, split))) state.months.set(mapKey, bucket);
+    } else {
+      deletes.push(key);
+      state.months.delete(mapKey);
+    }
+  }
 
   await putMany('stats', puts);
   if (deletes.length) await deleteMany('stats', deletes);
@@ -502,10 +472,6 @@ export function monthStatsFromState(state, stageId) {
     result.set(key.slice(prefix.length), bucket);
   }
   return result;
-}
-
-export function globalStatsFromState(state) {
-  return state.global;
 }
 
 

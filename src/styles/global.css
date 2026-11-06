@@ -42,11 +42,6 @@
   --accent-soft: #fbe7e2;
   --accent-tint: #fdf4ef;
   --paw: #e9958d;
-  --heat-1: #fcf6ef;
-  --heat-2: #f8e7dc;
-  --heat-3: #f2d3c5;
-  --heat-4: #ecbfad;
-
   /* 深色 Hero */
   --hero: #2d2722;
   --hero-soft: #4a3a31;
@@ -452,51 +447,6 @@ svg {
   min-height: calc(100dvh - var(--topbar-height) - 86px - var(--safe-bottom));
   padding-bottom: 64px;
   scroll-margin-top: calc(var(--topbar-height) + 10px);
-}
-
-.records-actions {
-  position: fixed;
-  left: 50%;
-  bottom: calc(73px + var(--safe-bottom));
-  z-index: 35;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  width: min(100%, 600px);
-  padding: 0 14px;
-  transform: translateX(-50%);
-  pointer-events: none;
-}
-
-.records-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  flex: none;
-  min-width: 132px;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 15px;
-  background: var(--surface);
-  box-shadow:
-    0 8px 22px rgba(var(--shadow-rgb), 0.13),
-    0 2px 5px rgba(var(--shadow-rgb), 0.05);
-  color: var(--ink-soft);
-  font-size: 12.5px;
-  font-weight: 650;
-  pointer-events: auto;
-  transition: transform 0.14s ease, background 0.15s ease, color 0.15s ease;
-}
-
-.records-action svg {
-  width: 16px;
-  height: 16px;
-}
-
-.records-action:active {
-  transform: scale(0.97);
 }
 
 .expense-sticky {
@@ -3806,6 +3756,52 @@ input[type='search']::-webkit-search-decoration {
   animation: paw-stamp-in 0.45s cubic-bezier(0.2, 0.85, 0.2, 1);
 }
 
+/* 06. 开屏入场动画 */
+@keyframes home-rise {
+  0% { opacity: 0; transform: translateY(18px) scale(0.98); }
+  70% { opacity: 1; transform: translateY(-3px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes book-pop {
+  0% { opacity: 0; transform: translateY(20px) scale(0.9) rotate(-1.5deg); }
+  65% { opacity: 1; transform: translateY(-4px) scale(1.03) rotate(0.6deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+@keyframes hero-amount-flash {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+.ledger-home.is-entering .ledger-home-head {
+  animation: home-rise 0.55s cubic-bezier(0.2, 0.85, 0.25, 1.1) both;
+}
+
+.ledger-home.is-entering .hero {
+  animation: home-rise 0.6s cubic-bezier(0.2, 0.85, 0.25, 1.1) 0.1s both;
+}
+
+.ledger-home.is-entering .bookshelf {
+  animation: home-rise 0.6s cubic-bezier(0.2, 0.85, 0.25, 1.1) 0.22s both;
+}
+
+.ledger-home.is-entering .book {
+  animation: book-pop 0.5s cubic-bezier(0.2, 0.85, 0.25, 1.15) both;
+}
+
+.ledger-home.is-entering .book:nth-child(1) { animation-delay: 0.3s; }
+.ledger-home.is-entering .book:nth-child(2) { animation-delay: 0.38s; }
+.ledger-home.is-entering .book:nth-child(3) { animation-delay: 0.46s; }
+.ledger-home.is-entering .book:nth-child(4) { animation-delay: 0.54s; }
+.ledger-home.is-entering .book:nth-child(5) { animation-delay: 0.62s; }
+.ledger-home.is-entering .book:nth-child(n + 6) { animation-delay: 0.7s; }
+
+.hero-amount.is-counting {
+  animation: hero-amount-flash 0.35s ease-out;
+}
+
 /* 06. 账本切换动画 */
 .stage-fade-enter-active,
 .stage-fade-leave-active {
@@ -3939,337 +3935,6 @@ input[type='search']::-webkit-search-decoration {
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-/* 04. 明细：日历 */
-.calendar-view {
-  position: relative;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  margin-top: 2px;
-}
-
-.calendar-card {
-  padding: 12px 10px 10px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 253, 249, 0.94);
-  box-shadow: var(--shadow-soft);
-}
-
-.calendar-weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px;
-  padding: 0 2px 6px;
-  color: var(--muted);
-  font-size: 11px;
-  text-align: center;
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px;
-}
-
-.calendar-blank {
-  aspect-ratio: 1;
-}
-
-.calendar-day {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  aspect-ratio: 1;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: var(--ink-soft);
-  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
-}
-
-.calendar-day:active {
-  transform: scale(0.92);
-}
-
-.calendar-day-number {
-  font-size: 12px;
-  font-weight: 550;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.calendar-day.weekend .calendar-day-number {
-  color: var(--muted);
-}
-
-.calendar-day.today:not(.selected) {
-  box-shadow: inset 0 0 0 1.5px var(--accent);
-}
-
-.calendar-day.heat-1 {
-  background: var(--heat-1);
-}
-
-.calendar-day.heat-2 {
-  background: var(--heat-2);
-}
-
-.calendar-day.heat-3 {
-  background: var(--heat-3);
-}
-
-.calendar-day.heat-4 {
-  background: var(--heat-4);
-}
-
-.calendar-day-amount {
-  height: 10px;
-  color: var(--accent-strong);
-  font-size: 10px;
-  font-weight: 650;
-  line-height: 10px;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.calendar-day-empty {
-  width: 10px;
-  height: 10px;
-}
-
-.calendar-legend {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 8px 4px 0;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.calendar-legend i {
-  width: 10px;
-  height: 10px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-}
-
-.calendar-legend .legend-1 { background: var(--heat-1); }
-.calendar-legend .legend-2 { background: var(--heat-2); }
-.calendar-legend .legend-3 { background: var(--heat-3); }
-.calendar-legend .legend-4 { background: var(--heat-4); }
-
-.calendar-day.selected {
-  color: #fff;
-  background: var(--accent-strong);
-  box-shadow: 0 6px 14px rgba(185, 100, 92, 0.24);
-}
-
-.calendar-day.selected .calendar-day-number,
-.calendar-day.selected.weekend .calendar-day-number {
-  color: #fff;
-}
-
-.calendar-day.selected .calendar-day-amount {
-  color: #fff;
-}
-
-/* 04. 明细：日期悬空详情 */
-.day-popover {
-  position: absolute;
-  z-index: 15;
-  width: min(300px, calc(100vw - 40px));
-  padding: 12px 12px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 18px;
-  background: var(--surface);
-  box-shadow: 0 18px 44px rgba(var(--shadow-rgb), 0.22);
-  opacity: 0;
-  transform: translateY(-4px) scale(0.98);
-  transform-origin: var(--arrow-x, 50%) 0;
-  transition: opacity 0.16s var(--ease-out), transform 0.16s var(--ease-out);
-}
-
-.day-popover.is-ready {
-  opacity: 1;
-  transform: none;
-}
-
-.day-popover.is-top {
-  transform-origin: var(--arrow-x, 50%) 100%;
-}
-
-.day-popover.is-top:not(.is-ready) {
-  transform: translateY(4px) scale(0.98);
-}
-
-.day-popover::before {
-  content: "";
-  position: absolute;
-  top: -7px;
-  left: var(--arrow-x, 50%);
-  width: 12px;
-  height: 12px;
-  border-top: 1px solid var(--line-strong);
-  border-left: 1px solid var(--line-strong);
-  background: var(--surface);
-  transform: translateX(-50%) rotate(45deg);
-}
-
-.day-popover.is-top::before {
-  top: auto;
-  bottom: -7px;
-  border-top: 0;
-  border-left: 0;
-  border-right: 1px solid var(--line-strong);
-  border-bottom: 1px solid var(--line-strong);
-}
-
-.day-pop-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.day-pop-heading {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.day-pop-heading strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.day-pop-heading span {
-  color: var(--muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.day-pop-close {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 30px;
-  height: 30px;
-  margin: -4px -4px 0 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--surface-muted);
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1;
-}
-
-.day-pop-close:active {
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-}
-
-.day-pop-list {
-  display: flex;
-  max-height: 160px;
-  margin-top: 8px;
-  flex-direction: column;
-  gap: 2px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.day-pop-row {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 4px;
-  border-radius: 10px;
-  text-align: left;
-}
-
-.day-pop-icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  color: var(--swatch, var(--accent));
-  background: var(--surface-muted);
-  background: color-mix(in srgb, var(--swatch, var(--accent)) 12%, white);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.day-pop-main {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.day-pop-main strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.day-pop-main small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.day-pop-amount {
-  font-size: 12px;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.day-pop-empty {
-  margin: 10px 2px 4px;
-  color: var(--muted);
-  font-size: 12px;
-  text-align: center;
-}
-
-.day-pop-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-}
-
-.day-pop-actions .text-btn {
-  min-height: 32px;
-}
-
-.day-pop-hint {
-  color: var(--muted);
-  font-size: 11px;
 }
 
 /* 04. 明细：月份选择 */
@@ -4434,33 +4099,6 @@ input[type='search']::-webkit-search-decoration {
   }
 }
 
-@media (max-height: 760px) {
-  .day-popover {
-    padding: 10px 10px 8px;
-  }
-
-  .day-pop-list {
-    max-height: 120px;
-  }
-}
-
-@media (max-height: 700px) {
-  .day-pop-list {
-    max-height: 84px;
-  }
-
-  .day-pop-actions {
-    margin-top: 6px;
-    padding-top: 6px;
-  }
-}
-
-@media (max-height: 620px) {
-  .day-pop-list {
-    max-height: 44px;
-  }
-}
-
 @media (min-width: 640px) {
   :root {
     --shell-pad: 24px;
@@ -4522,6 +4160,14 @@ input[type='search']::-webkit-search-decoration {
   min-height: 46vh;
   color: var(--muted);
   font-size: 13px;
+}
+
+.loading-paw {
+  width: 22px;
+  height: 22px;
+  margin-right: 10px;
+  color: var(--paw);
+  animation: paw-bounce 1s ease-in-out infinite;
 }
 
 .loading-dot {

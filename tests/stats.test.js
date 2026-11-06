@@ -6,10 +6,7 @@ import {
   buildStageSummaryFromState,
   buildStatsFromExpenses,
   createStatsState,
-  statKeysForExpense,
-  statsEntriesAndDeletesForKeys,
-  statsEntriesFromState,
-  statsStateFromEntries
+  statsEntriesFromState
 } from '../src/lib/stats.js';
 
 function expense(id, stageId, amount, category, date) {
@@ -69,16 +66,6 @@ test('stats deltas remove records and clean empty buckets', () => {
   assert.equal(state.months.size, 0);
 });
 
-test('stats keys cover all affected buckets', () => {
-  const keys = statKeysForExpense(expenses[0]);
-  assert.deepEqual(keys, [
-    'global',
-    'stage:s1',
-    'day:2026-01-02',
-    'month:s1:2026-01'
-  ]);
-});
-
 test('achievement stats are derived from day and stage aggregates', () => {
   const state = buildStatsFromExpenses(expenses);
   const stats = buildAchievementStatsFromState(state, [stage, otherStage], new Date(2026, 1, 12, 12));
@@ -104,7 +91,7 @@ test('stage summary is built from stats without expense records', () => {
 });
 
 
-test('stats entries use storage key prefixes and round-trip', () => {
+test('stats entries use storage key prefixes', () => {
   const state = buildStatsFromExpenses(expenses);
   const entries = statsEntriesFromState(state);
   const day = entries.find((entry) => entry.key === 'day:2026-01-02');
@@ -112,23 +99,6 @@ test('stats entries use storage key prefixes and round-trip', () => {
 
   assert.equal(day.total, 100);
   assert.equal(month.total, 100);
-
-  const restored = statsStateFromEntries(entries);
-  assert.equal(restored.days.get('2026-01-02').count, 2);
-  assert.equal(restored.months.get('s1|2026-01').total, 100);
-});
-
-test('stats delta keys keep storage key prefixes', () => {
-  const state = buildStatsFromExpenses(expenses);
-  const result = statsEntriesAndDeletesForKeys(state, [
-    'day:2026-01-02',
-    'month:s1:2026-01',
-    'day:2020-01-01'
-  ]);
-
-  assert.deepEqual(result.entries.map((entry) => entry.key), [
-    'day:2026-01-02',
-    'month:s1:2026-01'
-  ]);
-  assert.deepEqual(result.deletes, ['day:2020-01-01']);
+  assert.equal(state.days.get('2026-01-02').count, 2);
+  assert.equal(state.months.get('s1|2026-01').total, 100);
 });

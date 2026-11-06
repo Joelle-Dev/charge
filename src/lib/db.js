@@ -22,7 +22,7 @@ function requestToPromise(request) {
   });
 }
 
-function transactionDone(tx) {
+export function transactionDone(tx) {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -113,14 +113,6 @@ export async function getMany(storeName, keys) {
   const results = await Promise.all(keys.map((key) => requestToPromise(store.get(key))));
   await transactionDone(tx);
   return results;
-}
-
-export async function countByIndex(storeName, indexName, query = null) {
-  const db = await openDB();
-  const tx = db.transaction(storeName, 'readonly');
-  const result = await requestToPromise(tx.objectStore(storeName).index(indexName).count(query));
-  await transactionDone(tx);
-  return result;
 }
 
 export async function getPageByIndex(storeName, indexName, range, options = {}) {
@@ -277,6 +269,17 @@ export async function deleteMany(storeName, keys) {
   const tx = db.transaction(storeName, 'readwrite');
   const store = tx.objectStore(storeName);
   for (const key of keys) store.delete(key);
+  await transactionDone(tx);
+}
+
+export async function writeExpenses({ put = [], deleteIds = [], settings = [] } = {}) {
+  const db = await openDB();
+  const tx = db.transaction(['expenses', 'settings'], 'readwrite');
+  const store = tx.objectStore('expenses');
+  for (const key of deleteIds) store.delete(key);
+  for (const value of put) store.put(toPlain(value));
+  const settingsStore = tx.objectStore('settings');
+  for (const { key, value } of settings) settingsStore.put({ key, value });
   await transactionDone(tx);
 }
 

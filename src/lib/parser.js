@@ -76,7 +76,6 @@ const CN_DIGITS = {
 const CN_UNITS = { 十: 10, 百: 100, 千: 1000, 万: 10000, 亿: 100000000 };
 
 const MEASURE_AFTER = /^[年月日号点时秒分公里人个份杯瓶包张件次天晚位只斤克岁折成]/;
-const CN_MEASURE_AFTER = /^[年月日号点时秒分公里人个份杯瓶包张件次天晚位只斤克岁折成]/;
 const DATE_DAY = /^[日号]/;
 
 export function chineseToNumber(input) {
@@ -249,7 +248,7 @@ export function extractAmount(text) {
     const token = m[2] ? `${m[1]}点${m[2]}` : m[1];
     const after = source.slice(m.index + token.length);
     const before = source.slice(0, m.index);
-    if (CN_MEASURE_AFTER.test(after)) continue;
+    if (MEASURE_AFTER.test(after)) continue;
     if (/[第]$/.test(before)) continue;
     if (!m[2] && token.length < 2 && !/[十百千万亿]/.test(token)) continue;
     const value = chineseToNumber(token);

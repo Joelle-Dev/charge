@@ -151,7 +151,13 @@
       <template v-else>
         <p class="search-summary">{{ summaryText }}</p>
 
-        <div v-if="!totalMatches" class="list-empty">
+        <div v-if="searchError" class="list-empty">
+          <p>搜索没成功</p>
+          <span>果冻绊了一跤，再搜一次吧</span>
+          <button class="text-btn" type="button" @click="runSearchNow">重新搜搜</button>
+        </div>
+
+        <div v-else-if="!totalMatches" class="list-empty">
           <p>果冻没翻到这笔</p>
           <span>换个词或金额范围再找找嘛</span>
         </div>
@@ -163,7 +169,7 @@
                 <span class="day-label">{{ group.label }}</span>
                 <span class="day-count">{{ group.items.length }} 笔</span>
               </span>
-              <span class="day-total">¥{{ formatMoney(group.total) }}</span>
+              <span class="day-total">¥{{ displayMoney(group.total, hideAmount) }}</span>
             </div>
             <div class="day-items">
               <ExpenseRow
@@ -201,7 +207,8 @@ import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
-import { categoryColor, dayKey, formatMoney } from '../utils/format';
+import { categoryColor, dayKey, displayMoney } from '../utils/format';
+import { usePrivacy } from '../composables/usePrivacy';
 import { groupExpensesByDay } from '../utils/expenses';
 import { haptic } from '../utils/haptics';
 
@@ -217,6 +224,7 @@ const {
   loadExpensesByIds,
   searchExpenses
 } = useLedger();
+const { hideAmount } = usePrivacy();
 const { removeExpense } = useExpenseActions();
 
 const searchMode = ref('keyword');
@@ -230,6 +238,7 @@ const results = ref([]);
 const totalMatches = ref(0);
 const loading = ref(false);
 const hasSearched = ref(false);
+const searchError = ref(false);
 const browsingRecent = ref(false);
 const resultLimit = ref(200);
 let searchToken = 0;
@@ -278,6 +287,7 @@ function resetSearchState() {
   loading.value = false;
   hasSearched.value = false;
   browsingRecent.value = false;
+  searchError.value = false;
   resultLimit.value = 200;
 }
 
@@ -300,6 +310,7 @@ async function runSearch() {
     : { minAmount: null, maxAmount: null };
   hasSearched.value = true;
   browsingRecent.value = false;
+  searchError.value = false;
   loading.value = true;
 
   try {
@@ -324,6 +335,7 @@ async function runSearch() {
       console.error(err);
       results.value = [];
       totalMatches.value = 0;
+      searchError.value = true;
     }
   } finally {
     if (token === searchToken) loading.value = false;
@@ -338,6 +350,7 @@ async function browseRecent() {
   const token = searchToken;
   hasSearched.value = true;
   browsingRecent.value = true;
+  searchError.value = false;
   loading.value = true;
 
   try {
@@ -350,6 +363,7 @@ async function browseRecent() {
       console.error(err);
       results.value = [];
       totalMatches.value = 0;
+      searchError.value = true;
     }
   } finally {
     if (token === searchToken) loading.value = false;
