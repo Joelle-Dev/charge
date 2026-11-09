@@ -21,7 +21,7 @@
         <div class="summary-categories">
           <div v-for="item in summary.topCategories" :key="item.category" class="summary-category">
             <div class="summary-category-line">
-              <span>{{ item.category }}</span>
+              <span class="summary-category-name"><CategoryIcon class="summary-category-icon" :name="iconFor(item.category)" /> {{ item.category }}</span>
               <span>¥{{ displayMoney(item.amount, hideAmount) }} · {{ Math.round(item.percent) }}%</span>
             </div>
             <div class="summary-track">
@@ -56,6 +56,7 @@ import { computed, ref } from 'vue';
 import { showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
 import CatMood from './CatMood.vue';
+import CategoryIcon from './CategoryIcon.vue';
 import PawIcon from './PawIcon.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
@@ -65,7 +66,7 @@ import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
-const { stageSummary } = useLedger();
+const { stageSummary , iconFor } = useLedger();
 const { hideAmount } = usePrivacy();
 const cardRef = ref(null);
 const busy = ref(false);

@@ -52,6 +52,14 @@ export function validateBackupManifest(manifest) {
   if (manifest.categories !== undefined && !Array.isArray(manifest.categories)) {
     return '备份里的分类格式不正确';
   }
+  if (
+    manifest.categoryIcons !== undefined &&
+    (typeof manifest.categoryIcons !== 'object' ||
+      manifest.categoryIcons === null ||
+      Array.isArray(manifest.categoryIcons))
+  ) {
+    return '备份里的分类图标格式不正确';
+  }
   if (manifest.achievementUnlocked !== undefined && !Array.isArray(manifest.achievementUnlocked)) {
     return '备份里的成就数据格式不正确';
   }

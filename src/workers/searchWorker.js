@@ -10,7 +10,8 @@ import {
   matchesSearchAmount,
   matchesSearchEntry,
   SEARCH_VERSION,
-  SEARCH_BUILDING_VERSION
+  SEARCH_BUILDING_VERSION,
+  sortSearchChunksByRecency
 } from '../lib/searchIndex.js';
 import { rebuildDerivedData } from '../lib/stats.js';
 import { toMessage } from '../lib/errors.js';
@@ -45,18 +46,30 @@ function amountBound(value) {
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
-async function search({ requestId, stageId, query, category, limit, minAmount, maxAmount }) {
+async function search({ requestId, stageId, stageIds, query, category, limit, minAmount, maxAmount }) {
   activeSearchId = requestId;
   const keyword = String(query || '').trim().toLowerCase();
   const categoryFilter = category || '';
   const maxIds = Number(limit) || 500;
   const min = amountBound(minAmount);
   const max = amountBound(maxAmount);
+  const targetStageIds = (Array.isArray(stageIds) ? stageIds : [])
+    .map((id) => String(id || ''))
+    .filter(Boolean);
+  if (!targetStageIds.length && stageId) targetStageIds.push(String(stageId));
 
-  const chunks = await getAllByIndex('searchChunks', 'stageId', stageId);
-  chunks.sort((a, b) => (b.month || '').localeCompare(a.month || ''));
+  if (!targetStageIds.length) {
+    self.postMessage({ type: 'searchDone', requestId, count: 0, sum: 0, ids: [] });
+    return;
+  }
+
+  const chunkLists = await Promise.all(
+    targetStageIds.map((id) => getAllByIndex('searchChunks', 'stageId', id))
+  );
+  const chunks = sortSearchChunksByRecency(chunkLists.flat());
 
   let count = 0;
+  let sum = 0;
   const ids = [];
 
   for (let index = 0; index < chunks.length; index += 1) {
@@ -68,18 +81,19 @@ async function search({ requestId, stageId, query, category, limit, minAmount, m
         matchesSearchAmount(row, min, max)
       ) {
         count += 1;
+        sum += Number(row.a ?? row.amount) || 0;
         if (ids.length < maxIds) ids.push(row.id);
       }
     }
 
     if (index % 20 === 19) {
-      self.postMessage({ type: 'searchProgress', requestId, count, ids: ids.slice() });
+      self.postMessage({ type: 'searchProgress', requestId, count, sum, ids: ids.slice() });
       await new Promise((resolve) => setTimeout(resolve, 0));
       if (activeSearchId !== requestId) return;
     }
   }
 
-  self.postMessage({ type: 'searchDone', requestId, count, ids });
+  self.postMessage({ type: 'searchDone', requestId, count, sum, ids });
 }
 
 self.onmessage = async (event) => {

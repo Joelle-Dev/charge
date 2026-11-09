@@ -116,15 +116,41 @@
           type="button"
           @click="selectedCategory = category"
         >
-          <PawIcon class="filter-paw" :style="{ '--swatch': categoryColor(category) }" />
+          <CategoryIcon class="filter-paw" :name="iconFor(category)" />
           {{ category }}
         </button>
+      </div>
+
+      <div v-if="activeStages.length > 1" class="search-scope">
+        <span class="search-scope-label">账本范围（不含归档）</span>
+        <div class="filter-row search-scope-row">
+          <button
+            class="filter-chip"
+            :class="{ active: allStagesSelected }"
+            type="button"
+            :aria-pressed="allStagesSelected"
+            @click="toggleAllStages"
+          >
+            全部在用账本
+          </button>
+          <button
+            v-for="stage in activeStages"
+            :key="stage.id"
+            class="filter-chip"
+            :class="{ active: selectedStageIds.includes(stage.id) }"
+            type="button"
+            :aria-pressed="selectedStageIds.includes(stage.id)"
+            @click="toggleStage(stage.id)"
+          >
+            {{ stage.name }}
+          </button>
+        </div>
       </div>
 
     </div>
 
     <div class="search-page-results">
-      <div v-if="!currentStage" class="list-empty">
+      <div v-if="!activeStages.length" class="list-empty">
         <p>还没有可搜索的账本</p>
         <span>先建一个账本，再来翻账本</span>
       </div>
@@ -149,7 +175,19 @@
       </div>
 
       <template v-else>
-        <p class="search-summary">{{ summaryText }}</p>
+        <div v-if="totalMatches > 0 || results.length" class="search-result-summary">
+          <div class="search-result-summary-main">
+            <span class="search-result-summary-count">{{ summaryText }}</span>
+            <span v-if="isTruncated" class="search-result-summary-sub">
+              已显示 {{ results.length }} 笔
+            </span>
+            <span v-else-if="browsingRecent" class="search-result-summary-sub">按时间倒序</span>
+          </div>
+          <div class="search-result-summary-total">
+            <span>{{ isTruncated ? '全部合计' : '合计' }}</span>
+            <strong>¥{{ displayMoney(resultTotal, hideAmount) }}</strong>
+          </div>
+        </div>
 
         <div v-if="searchError" class="list-empty">
           <p>搜索没成功</p>
@@ -176,6 +214,7 @@
                 v-for="expense in group.items"
                 :key="expense.id"
                 :expense="expense"
+                :stage-name="showStageName ? stageNameFor(expense) : ''"
                 @select="openDaily"
                 @edit="editExpense"
                 @delete="removeSearchExpense"
@@ -201,13 +240,13 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import ExpenseRow from '../components/ExpenseRow.vue';
-import PawIcon from '../components/PawIcon.vue';
+import CategoryIcon from '../components/CategoryIcon.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
-import { categoryColor, dayKey, displayMoney } from '../utils/format';
+import { dayKey, displayMoney } from '../utils/format';
 import { usePrivacy } from '../composables/usePrivacy';
 import { groupExpensesByDay } from '../utils/expenses';
 import { haptic } from '../utils/haptics';
@@ -218,11 +257,13 @@ const { dailyOpen, dailyDate } = useRecordsView();
 const { goToPane } = useLedgerPanes();
 const {
   currentStage,
-  currentStageStats,
-  categoryGroups,
-  loadRecentExpenses,
+  activeStages,
+  stageStats,
+  switchStage,
+  loadRecentExpensesForStages,
   loadExpensesByIds,
-  searchExpenses
+  searchExpenses,
+  iconFor
 } = useLedger();
 const { hideAmount } = usePrivacy();
 const { removeExpense } = useExpenseActions();
@@ -230,12 +271,14 @@ const { removeExpense } = useExpenseActions();
 const searchMode = ref('keyword');
 const query = ref('');
 const selectedCategory = ref('all');
+const selectedStageIds = ref([]);
 const minAmount = ref('');
 const maxAmount = ref('');
 const searchInput = ref(null);
 const minAmountInput = ref(null);
 const results = ref([]);
 const totalMatches = ref(0);
+const resultTotal = ref(0);
 const loading = ref(false);
 const hasSearched = ref(false);
 const searchError = ref(false);
@@ -244,19 +287,41 @@ const resultLimit = ref(200);
 let searchToken = 0;
 let searchTimer = null;
 
-const filterCategories = computed(() => categoryGroups.value.map((group) => group.category));
+const activeStageIds = computed(() => activeStages.value.map((stage) => stage.id));
+const allStagesSelected = computed(() => (
+  activeStageIds.value.length > 0 &&
+  activeStageIds.value.every((id) => selectedStageIds.value.includes(id))
+));
+const showStageName = computed(() => selectedStageIds.value.length > 1);
+const stageNameById = computed(() => {
+  const map = new Map();
+  for (const stage of activeStages.value) map.set(stage.id, stage.name);
+  return map;
+});
+const filterCategories = computed(() => {
+  const totals = new Map();
+  for (const stageId of selectedStageIds.value) {
+    const categories = stageStats(stageId).categories || {};
+    for (const [category, value] of Object.entries(categories)) {
+      totals.set(category, (totals.get(category) || 0) + (value.amount || 0));
+    }
+  }
+  return [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([category]) => category);
+});
 const hasAmountFilter = computed(() => Boolean(String(minAmount.value).trim() || String(maxAmount.value).trim()));
 const hasActiveFilters = computed(() => (
   selectedCategory.value !== 'all' ||
   (searchMode.value === 'keyword' ? Boolean(query.value.trim()) : hasAmountFilter.value)
 ));
 const filteredGroups = computed(() => groupExpensesByDay(results.value));
+const isTruncated = computed(() => (
+  !browsingRecent.value && results.value.length < totalMatches.value
+));
 const summaryText = computed(() => {
   if (browsingRecent.value) return `最近 ${results.value.length} 笔`;
-  if (results.value.length < totalMatches.value) {
-    return `找到 ${totalMatches.value} 笔啦 · 已显示 ${results.value.length} 笔`;
-  }
-  return `找到 ${totalMatches.value} 笔啦`;
+  return `找到 ${totalMatches.value} 笔`;
 });
 
 function amountBound(value) {
@@ -284,6 +349,7 @@ function resetSearchState() {
   cancelPendingSearch();
   results.value = [];
   totalMatches.value = 0;
+  resultTotal.value = 0;
   loading.value = false;
   hasSearched.value = false;
   browsingRecent.value = false;
@@ -291,14 +357,60 @@ function resetSearchState() {
   resultLimit.value = 200;
 }
 
+function stageNameFor(expense) {
+  return stageNameById.value.get(expense.stageId) || '';
+}
+
+function ensureStageSelection() {
+  const activeIds = activeStageIds.value;
+  if (!activeIds.length) {
+    selectedStageIds.value = [];
+    return;
+  }
+  const kept = selectedStageIds.value.filter((id) => activeIds.includes(id));
+  if (!kept.length) {
+    const fallback = currentStage.value?.id;
+    kept.push(fallback && activeIds.includes(fallback) ? fallback : activeIds[0]);
+  }
+  if (
+    kept.length !== selectedStageIds.value.length ||
+    kept.some((id, index) => id !== selectedStageIds.value[index])
+  ) {
+    selectedStageIds.value = kept;
+  }
+}
+
+function toggleStage(stageId) {
+  if (selectedStageIds.value.includes(stageId)) {
+    if (selectedStageIds.value.length === 1) return;
+    selectedStageIds.value = selectedStageIds.value.filter((id) => id !== stageId);
+  } else {
+    selectedStageIds.value = [...selectedStageIds.value, stageId];
+  }
+  haptic('light');
+}
+
+function toggleAllStages() {
+  if (allStagesSelected.value) {
+    const fallback = currentStage.value?.id;
+    selectedStageIds.value = [
+      fallback && activeStageIds.value.includes(fallback) ? fallback : activeStageIds.value[0]
+    ];
+  } else {
+    selectedStageIds.value = [...activeStageIds.value];
+  }
+  haptic('light');
+}
+
 async function runSearch() {
   cancelPendingSearch();
   const token = searchToken;
-  const stage = currentStage.value;
+  const stageIds = [...selectedStageIds.value];
 
-  if (!stage || !hasActiveFilters.value) {
+  if (!stageIds.length || !hasActiveFilters.value) {
     results.value = [];
     totalMatches.value = 0;
+    resultTotal.value = 0;
     loading.value = false;
     return;
   }
@@ -315,14 +427,17 @@ async function runSearch() {
 
   try {
     const found = await searchExpenses({
-      stageId: stage.id,
+      stageIds,
       query: keyword,
       category,
       limit: resultLimit.value,
       minAmount: min,
       maxAmount: max,
       onProgress: (message) => {
-        if (token === searchToken) totalMatches.value = message.count;
+        if (token === searchToken) {
+          totalMatches.value = message.count;
+          resultTotal.value = Number(message.sum) || 0;
+        }
       }
     });
     if (token !== searchToken) return;
@@ -330,11 +445,13 @@ async function runSearch() {
     if (token !== searchToken) return;
     results.value = rows;
     totalMatches.value = found.count;
+    resultTotal.value = Number(found.sum) || 0;
   } catch (err) {
     if (err?.code !== 'SEARCH_CANCELLED' && token === searchToken) {
       console.error(err);
       results.value = [];
       totalMatches.value = 0;
+      resultTotal.value = 0;
       searchError.value = true;
     }
   } finally {
@@ -343,8 +460,8 @@ async function runSearch() {
 }
 
 async function browseRecent() {
-  const stage = currentStage.value;
-  if (!stage) return;
+  const stageIds = [...selectedStageIds.value];
+  if (!stageIds.length) return;
 
   cancelPendingSearch();
   const token = searchToken;
@@ -354,15 +471,18 @@ async function browseRecent() {
   loading.value = true;
 
   try {
-    const rows = await loadRecentExpenses(stage.id, resultLimit.value);
+    const rows = await loadRecentExpensesForStages(stageIds, resultLimit.value);
     if (token !== searchToken) return;
     results.value = rows;
-    totalMatches.value = Math.max(rows.length, currentStageStats.value.count || 0);
+    const knownTotal = stageIds.reduce((sum, id) => sum + (stageStats(id).count || 0), 0);
+    totalMatches.value = Math.max(rows.length, knownTotal);
+    resultTotal.value = rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
   } catch (err) {
     if (err?.code !== 'SEARCH_CANCELLED' && token === searchToken) {
       console.error(err);
       results.value = [];
       totalMatches.value = 0;
+      resultTotal.value = 0;
       searchError.value = true;
     }
   } finally {
@@ -439,10 +559,14 @@ async function removeSearchExpense(expense) {
   if (removed) {
     results.value = results.value.filter((row) => row.id !== expense.id);
     totalMatches.value = Math.max(0, totalMatches.value - 1);
+    resultTotal.value = Math.max(0, resultTotal.value - (Number(expense.amount) || 0));
   }
 }
 
-function openDaily(expense) {
+async function openDaily(expense) {
+  if (expense.stageId && expense.stageId !== currentStage.value?.id) {
+    await switchStage(expense.stageId);
+  }
   dailyDate.value = dayKey(new Date(expense.spentAt));
   dailyOpen.value = true;
   goToPane('record');
@@ -450,7 +574,10 @@ function openDaily(expense) {
   haptic('light');
 }
 
-function editExpense(expense) {
+async function editExpense(expense) {
+  if (expense.stageId && expense.stageId !== currentStage.value?.id) {
+    await switchStage(expense.stageId);
+  }
   record.openRecord(expense);
 }
 
@@ -459,28 +586,42 @@ function close() {
   else router.replace('/');
 }
 
-watch([searchMode, query, selectedCategory, minAmount, maxAmount], scheduleSearch);
+watch(
+  [searchMode, query, selectedCategory, minAmount, maxAmount],
+  scheduleSearch
+);
+
+watch(selectedStageIds, () => {
+  if (browsingRecent.value) {
+    browseRecent();
+    return;
+  }
+  scheduleSearch();
+});
 
 watch(
   () => currentStage.value?.id,
-  () => {
-    if (browsingRecent.value) {
-      browseRecent();
+  (id, previous) => {
+    if (!id) return;
+    const selected = selectedStageIds.value;
+    if (!selected.length || (previous && selected.length === 1 && selected[0] === previous)) {
+      selectedStageIds.value = [id];
       return;
     }
-    if (hasActiveFilters.value) scheduleSearch();
-    else resetSearchState();
+    ensureStageSelection();
   }
 );
 
-watch(
-  () => currentStageStats.value.count,
-  (count) => {
-    if (browsingRecent.value) totalMatches.value = Math.max(results.value.length, count || 0);
+watch(activeStageIds, ensureStageSelection);
+
+watch(filterCategories, (list) => {
+  if (selectedCategory.value !== 'all' && !list.includes(selectedCategory.value)) {
+    selectedCategory.value = 'all';
   }
-);
+});
 
 onMounted(() => {
+  ensureStageSelection();
   nextTick(() => focusSearch());
 });
 

@@ -13,6 +13,7 @@
     </div>
 
     <p class="sheet-note">还有问题？可以先打包一份账本，把操作步骤和遇到的情况记下来，再告诉果冻。</p>
+    <p class="sheet-note">分类小图标来自 Twemoji（CC-BY 4.0）。</p>
   </SheetFrame>
 </template>
 

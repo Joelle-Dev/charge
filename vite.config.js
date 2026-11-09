@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
+    build: {
+      assetsInlineLimit(file) {
+        if (file.replace(/\\/g, '/').includes('/category-icons/')) return false;
+      }
+    },
     plugins: [
       vue(),
       Components({

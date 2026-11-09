@@ -482,6 +482,7 @@ async function exportBackup() {
     (a, b) => (a.createdAt || 0) - (b.createdAt || 0)
   );
   const categories = await getSetting('categories', []);
+  const categoryIcons = await getSetting('categoryIcons', {});
   const currentStageId = await getSetting('currentStageId', null);
   const achievementUnlocked = await getSetting('achievementUnlocked', []);
   const global = await getRecord('stats', 'global');
@@ -493,6 +494,9 @@ async function exportBackup() {
     exportedAt: new Date().toISOString(),
     stages,
     categories: Array.isArray(categories) ? categories : [],
+    categoryIcons: categoryIcons && typeof categoryIcons === 'object' && !Array.isArray(categoryIcons)
+      ? categoryIcons
+      : {},
     currentStageId: currentStageId || null,
     achievementUnlocked: Array.isArray(achievementUnlocked) ? achievementUnlocked : [],
     counts: {
@@ -723,6 +727,14 @@ async function importBackup({ mode = 'replace' }) {
   await flush();
 
   await setSetting('categories', [...nextCategories]);
+  const storedIcons = replace ? {} : await getSetting('categoryIcons', {});
+  const nextIcons = {
+    ...(storedIcons && typeof storedIcons === 'object' && !Array.isArray(storedIcons) ? storedIcons : {}),
+    ...(manifest.categoryIcons && typeof manifest.categoryIcons === 'object' && !Array.isArray(manifest.categoryIcons)
+      ? manifest.categoryIcons
+      : {})
+  };
+  await setSetting('categoryIcons', nextIcons);
   await setSetting('achievementUnlocked', nextAchievements);
   await setSetting('currentStageId', currentStageId);
 

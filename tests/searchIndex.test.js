@@ -6,7 +6,8 @@ import {
   matchesSearchAmount,
   matchesSearchEntry,
   searchEntryAmount,
-  searchTextForExpense
+  searchTextForExpense,
+  sortSearchChunksByRecency
 } from '../src/lib/searchIndex.js';
 
 function expense(id, stageId, amount, category, note, date) {
@@ -80,6 +81,14 @@ test('search amount helpers filter by range', () => {
   assert.equal(matchesSearchAmount(taxi, null, 8), true);
   assert.equal(matchesSearchAmount(taxi, 9, null), false);
   assert.equal(matchesSearchAmount(taxi, null, null), true);
+});
+
+test('sortSearchChunksByRecency merges chunks from multiple stages newest first', () => {
+  const chunks = sortSearchChunksByRecency(buildSearchChunks(expenses));
+  assert.deepEqual(
+    chunks.map((chunk) => `${chunk.stageId}:${chunk.month}`),
+    ['s1:2026-02', 's2:2026-02', 's1:2026-01']
+  );
 });
 
 test('applySearchChunkChanges removes and adds rows while staying sorted', () => {

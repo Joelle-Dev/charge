@@ -20,7 +20,7 @@
           <span class="field-label">分类</span>
           <select v-model="entry.category" class="select">
             <option v-for="category in categoryOptions(entry)" :key="category" :value="category">
-              {{ category }}
+              {{ iconFor(category) }} {{ category }}
             </option>
           </select>
         </label>
@@ -44,6 +44,7 @@
 <script setup>
 import DateTimeField from './DateTimeField.vue';
 import PawIcon from './PawIcon.vue';
+import { useLedger } from '../composables/useLedger';
 import { applyDateToIso, toDateInput } from '../utils/format';
 
 const props = defineProps({
@@ -52,6 +53,7 @@ const props = defineProps({
   paw: { type: Boolean, default: false }
 });
 const emit = defineEmits(['remove']);
+const { iconFor } = useLedger();
 
 function categoryOptions(entry) {
   return props.categories.includes(entry.category)

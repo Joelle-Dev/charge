@@ -132,7 +132,7 @@
           :aria-selected="category === selectedCategory"
           @click="chooseCategory(category)"
         >
-          <span class="record-category-icon">{{ category.slice(0, 1) }}</span>
+          <span class="record-category-icon"><CategoryIcon :name="iconFor(category)" /></span>
           <span class="record-category-label">{{ category }}</span>
         </button>
       </div>
@@ -176,6 +176,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { showToast } from 'vant';
 import { useRouter } from 'vue-router';
 import NumberKeypad from './NumberKeypad.vue';
+import CategoryIcon from './CategoryIcon.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { usePreferences } from '../composables/usePreferences';
@@ -220,7 +221,7 @@ const {
   endCurtainPull,
   resetRecord
 } = useRecordEntry();
-const { categories, currentStage, todayStats, addExpense, updateExpense, setCategories } = useLedger();
+const { categories, currentStage, todayStats, addExpense, updateExpense, setCategories, iconFor } = useLedger();
 const { removeExpense: removeExpenseAction } = useExpenseActions();
 const { recordDoneBehavior, initPreferences } = usePreferences();
 const sheets = useSheets();

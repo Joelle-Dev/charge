@@ -11,10 +11,20 @@ import {
   getAllByIndex,
   getPageByIndex,
   getMany,
+  scanIndex,
   writeExpenses
 } from '../lib/db';
-import { PRESET_CATEGORIES, DEFAULT_CATEGORY } from '../lib/parser';
-import { toDateInput, uid } from '../utils/format';
+import { DEFAULT_CATEGORY } from '../lib/parser';
+import {
+  DEFAULT_CATEGORY_ICONS,
+  iconForCategory,
+  moveCategoryInList,
+  normalizeCategories,
+  reorderCategoryList,
+  seedCategories
+} from '../utils/categories';
+import { combineLocal, toDateInput, uid } from '../utils/format';
+import { addCategoryTotal, finalizeCategoryTotals } from '../utils/expenses';
 import { currentMonthKey, monthBounds } from '../utils/months';
 import { catTitleForCategory } from '../utils/titles';
 import {
@@ -47,7 +57,8 @@ import {
 } from '../lib/stats';
 
 const stages = ref([]);
-const categories = ref([...PRESET_CATEGORIES]);
+const categories = ref(seedCategories());
+const categoryIcons = ref({});
 const currentStageId = ref(null);
 const ready = ref(false);
 const loadingHint = ref('果冻在翻小账本…');
@@ -188,6 +199,35 @@ async function loadMonthExpenses(stageId, month) {
   return items.sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
 }
 
+async function loadCategoryTotals({ stageId = null, from, to } = {}) {
+  const start = combineLocal(from, '00:00');
+  const end = combineLocal(to, '00:00');
+  if (!start || !end) return { total: 0, items: [] };
+
+  const startIso = start.toISOString();
+  const endIso = new Date(end.getTime() + 86400000).toISOString();
+  const totals = new Map();
+  const add = (expense) => addCategoryTotal(totals, expense);
+
+  if (stageId) {
+    await scanIndex(
+      'expenses',
+      'stageId_spentAt',
+      IDBKeyRange.bound([stageId, startIso], [stageId, endIso], false, true),
+      add
+    );
+  } else {
+    await scanIndex(
+      'expenses',
+      'spentAt',
+      IDBKeyRange.bound(startIso, endIso, false, true),
+      add
+    );
+  }
+
+  return finalizeCategoryTotals(totals);
+}
+
 async function loadRecentExpenses(stageId, limit = 3) {
   if (!stageId) return [];
   return getPageByIndex(
@@ -196,6 +236,16 @@ async function loadRecentExpenses(stageId, limit = 3) {
     IDBKeyRange.bound([stageId, ''], [stageId, '\uffff']),
     { direction: 'prev', limit }
   );
+}
+
+async function loadRecentExpensesForStages(stageIds, limit = 3) {
+  const ids = (Array.isArray(stageIds) ? stageIds : [stageIds]).filter(Boolean);
+  if (!ids.length) return [];
+  const lists = await Promise.all(ids.map((id) => loadRecentExpenses(id, limit)));
+  return lists
+    .flat()
+    .sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt))
+    .slice(0, limit);
 }
 
 let searchIndexPromise = null;
@@ -361,25 +411,25 @@ async function ensureCurrentStage() {
   }
 }
 
-function mergeCategories(stored) {
-  const presets = PRESET_CATEGORIES.filter((category) => category !== DEFAULT_CATEGORY);
-  const custom = [...new Set(
-    (Array.isArray(stored) ? stored : [])
-      .filter((category) => category && category !== DEFAULT_CATEGORY && !PRESET_CATEGORIES.includes(category))
-  )];
-  return [...presets, ...custom, DEFAULT_CATEGORY];
-}
-
 async function loadCategories() {
   const stored = await getSetting('categories', null);
-  const merged = mergeCategories(stored);
-  categories.value = merged;
+  const list = Array.isArray(stored) && stored.length
+    ? normalizeCategories(stored)
+    : seedCategories();
+  categories.value = list;
 
   const unchanged = Array.isArray(stored) &&
-    stored.length === merged.length &&
-    stored.every((category, index) => category === merged[index]);
-  if (!unchanged) await setSetting('categories', merged);
-  return merged;
+    stored.length === list.length &&
+    stored.every((category, index) => category === list[index]);
+  if (!unchanged) await setSetting('categories', list);
+  return list;
+}
+
+async function loadCategoryIcons() {
+  const stored = await getSetting('categoryIcons', null);
+  categoryIcons.value = stored && typeof stored === 'object' && !Array.isArray(stored)
+    ? { ...stored }
+    : {};
 }
 
 async function loadStagesAndCurrent() {
@@ -418,6 +468,7 @@ async function init() {
   initPromise = (async () => {
     try {
       await loadCategories();
+      await loadCategoryIcons();
       await loadStagesAndCurrent();
 
       const storedStatsVersion = await getSetting('statsVersion', null);
@@ -447,6 +498,7 @@ async function init() {
 
 async function reloadAfterImport() {
   await loadCategories();
+  await loadCategoryIcons();
   await loadStagesAndCurrent();
 
   const hadDays = statsState.daysLoaded;
@@ -694,10 +746,29 @@ async function clearStageExpenses(stageId) {
 }
 
 async function setCategories(next) {
-  const list = [...new Set(next.filter(Boolean).filter((category) => category !== DEFAULT_CATEGORY))];
-  list.push(DEFAULT_CATEGORY);
+  const list = normalizeCategories(next);
   categories.value = list;
   await setSetting('categories', list);
+}
+
+function iconFor(name) {
+  return iconForCategory(name, categoryIcons.value);
+}
+
+async function setCategoryIcon(name, icon) {
+  const next = { ...categoryIcons.value };
+  if (icon) next[name] = icon;
+  else delete next[name];
+  categoryIcons.value = next;
+  await setSetting('categoryIcons', next);
+}
+
+async function moveCategory(name, delta) {
+  return setCategories(moveCategoryInList(categories.value, name, delta));
+}
+
+async function reorderCategories(from, to) {
+  return setCategories(reorderCategoryList(categories.value, from, to));
 }
 
 async function renameCategory(from, to) {
@@ -715,6 +786,9 @@ async function renameCategory(from, to) {
   }
 
   await setCategories(categories.value.map((item) => (item === oldName ? newName : item)));
+  const carriedIcon = categoryIcons.value[oldName] || DEFAULT_CATEGORY_ICONS[oldName];
+  if (carriedIcon) await setCategoryIcon(newName, carriedIcon);
+  if (categoryIcons.value[oldName]) await setCategoryIcon(oldName, '');
   return true;
 }
 
@@ -777,7 +851,9 @@ export function useLedger() {
     isCategoryUsed,
     latestMonthForStage,
     loadMonthExpenses,
+    loadCategoryTotals,
     loadRecentExpenses,
+    loadRecentExpensesForStages,
     ensureSearchIndex,
     searchExpenses,
     loadExpensesByIds,
@@ -805,6 +881,11 @@ export function useLedger() {
     restoreExpense,
     clearStageExpenses,
     setCategories,
-    renameCategory
+    renameCategory,
+    moveCategory,
+    reorderCategories,
+    categoryIcons,
+    iconFor,
+    setCategoryIcon
   };
 }

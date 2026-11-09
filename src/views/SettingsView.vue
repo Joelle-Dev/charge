@@ -79,7 +79,7 @@
       <button class="settings-action" type="button" @click="showCategories = true">
         <span>
           钱钱分类
-          <small>{{ categories.length }} 个 · 可以添加、改名或删掉</small>
+          <small>{{ categories.length }} 个 · 可以换图标、排序、改名或删掉</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m9 6 6 6-6 6"></path>

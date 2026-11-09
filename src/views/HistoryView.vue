@@ -1,5 +1,5 @@
 <template>
-  <section class="history-page">
+  <section ref="pageRef" class="history-page">
     <header class="history-head" :class="{ 'is-embedded': embedded }">
       <button
         class="records-back"
@@ -17,74 +17,130 @@
       <span v-if="embedded" class="history-head-spacer" aria-hidden="true"></span>
     </header>
 
-    <section class="history-range">
-      <div class="history-scope">
-        <div class="history-scope-switch" role="group" aria-label="统计范围">
-          <button
-            type="button"
-            :disabled="!currentStage"
-            :class="{ active: stageScope === 'current' }"
-            @click="setScope('current')"
-          >
-            当前账本
-          </button>
-          <button
-            type="button"
-            :class="{ active: stageScope === 'all' }"
-            @click="setScope('all')"
-          >
-            全部账本
-          </button>
-        </div>
-        <span class="history-scope-note">
-          {{ stageScope === 'current'
-            ? `只看「${currentStage?.name || '当前账本'}」`
-            : '全部账本都算上（含已归档）' }}
+    <div class="history-tabs" role="tablist" aria-label="花过的钱视图">
+      <button
+        id="history-overview-tab"
+        class="history-tab"
+        :class="{ active: activeTab === 'overview' }"
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'overview'"
+        aria-controls="history-overview-panel"
+        @click="setActiveTab('overview')"
+      >
+        概览
+      </button>
+      <button
+        id="history-categories-tab"
+        class="history-tab"
+        :class="{ active: activeTab === 'categories' }"
+        type="button"
+        role="tab"
+        :aria-selected="activeTab === 'categories'"
+        aria-controls="history-categories-panel"
+        @click="setActiveTab('categories')"
+      >
+        分类占比
+      </button>
+    </div>
+
+    <section class="history-range" :class="{ 'is-open': rangeExpanded }">
+      <button
+        class="history-range-toggle"
+        type="button"
+        :aria-expanded="rangeExpanded"
+        aria-controls="history-range-body"
+        @click="toggleRange"
+      >
+        <span class="history-range-toggle-copy">
+          <span class="history-range-toggle-scope">{{ categoryScopeLabel }}</span>
+          <span class="history-range-toggle-dates">{{ rangeDateLabel }}</span>
         </span>
-      </div>
-      <div class="history-range-head">
-        <span class="history-range-label">想翻哪段时间</span>
-        <div class="history-presets">
-          <button
-            class="history-preset"
-            :class="{ active: activePreset === 'recent' }"
-            type="button"
-            @click="useRecentRange"
-          >
-            近一年
-          </button>
-          <button
-            class="history-preset"
-            :class="{ active: activePreset === 'year' }"
-            type="button"
-            @click="useThisYear"
-          >
-            今年
-          </button>
-          <button
-            class="history-preset"
-            :class="{ active: activePreset === 'all' }"
-            type="button"
-            @click="useAllRange"
-          >
-            全部
-          </button>
+        <span class="history-range-toggle-action">{{ rangeExpanded ? '收起' : '改范围' }}</span>
+        <svg
+          class="history-range-toggle-icon"
+          :class="{ 'is-open': rangeExpanded }"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m6 9 6 6 6-6"></path>
+        </svg>
+      </button>
+
+      <div v-show="rangeExpanded" id="history-range-body" class="history-range-body">
+        <div class="history-scope">
+          <div class="history-scope-switch" role="group" aria-label="统计范围">
+            <button
+              type="button"
+              :disabled="!currentStage"
+              :class="{ active: stageScope === 'current' }"
+              @click="setScope('current')"
+            >
+              当前账本
+            </button>
+            <button
+              type="button"
+              :class="{ active: stageScope === 'all' }"
+              @click="setScope('all')"
+            >
+              全部账本
+            </button>
+          </div>
+          <span class="history-scope-note">
+            {{ stageScope === 'current'
+              ? `只看「${currentStage?.name || '当前账本'}」`
+              : '全部账本都算上（含已归档）' }}
+          </span>
         </div>
-      </div>
-      <div class="history-range-fields">
-        <div class="history-date">
-          <span>从</span>
-          <DateTimeField v-model="startDate" type="date" label="开始" title="挑个开始日子" />
+        <div class="history-range-head">
+          <span class="history-range-label">想翻哪段时间</span>
+          <div class="history-presets">
+            <button
+              class="history-preset"
+              :class="{ active: activePreset === 'recent' }"
+              type="button"
+              @click="useRecentRange"
+            >
+              近一年
+            </button>
+            <button
+              class="history-preset"
+              :class="{ active: activePreset === 'year' }"
+              type="button"
+              @click="useThisYear"
+            >
+              今年
+            </button>
+            <button
+              class="history-preset"
+              :class="{ active: activePreset === 'all' }"
+              type="button"
+              @click="useAllRange"
+            >
+              全部
+            </button>
+          </div>
         </div>
-        <span class="history-range-dash" aria-hidden="true">—</span>
-        <div class="history-date">
-          <span>到</span>
-          <DateTimeField v-model="endDate" type="date" label="结束" title="挑个结束日子" />
+        <div class="history-range-fields">
+          <div class="history-date">
+            <span>从</span>
+            <DateTimeField v-model="startDate" type="date" label="开始" title="挑个开始日子" />
+          </div>
+          <span class="history-range-dash" aria-hidden="true">—</span>
+          <div class="history-date">
+            <span>到</span>
+            <DateTimeField v-model="endDate" type="date" label="结束" title="挑个结束日子" />
+          </div>
         </div>
+        <p v-if="!loading && range.count" class="history-range-summary">
+          这段时间 {{ range.count }} 笔 · ¥{{ displayMoney(range.total, hideAmount) }}
+        </p>
       </div>
-      <p v-if="!loading && range.count" class="history-range-summary">
-        这段时间 {{ range.count }} 笔 · ¥{{ displayMoney(range.total, hideAmount) }}
-      </p>
     </section>
 
     <div v-if="loading" class="loading-state">
@@ -99,7 +155,14 @@
     </div>
 
     <template v-else-if="selection">
-      <section class="history-hero">
+      <div
+        v-if="activeTab === 'overview'"
+        id="history-overview-panel"
+        class="history-tab-panel"
+        role="tabpanel"
+        aria-labelledby="history-overview-tab"
+      >
+        <section class="history-hero">
         <div class="history-hero-top">
           <div>
             <span class="history-hero-eyebrow">{{ selection.isMonth ? '这个月花了' : '这一年花了' }}</span>
@@ -173,6 +236,74 @@
           </button>
         </div>
       </section>
+      </div>
+
+      <div
+        v-else
+        id="history-categories-panel"
+        class="history-tab-panel"
+        role="tabpanel"
+        aria-labelledby="history-categories-tab"
+      >
+        <section
+          v-if="categoryData.items.length"
+          class="history-categories"
+          :class="{ 'is-loading': categoryLoading }"
+          aria-label="分类占比"
+        >
+          <div class="history-categories-head">
+            <h3>钱花在哪儿</h3>
+            <span>{{ categoryScopeLabel }} · {{ selection.isMonth ? '这个月' : '这一年' }}</span>
+          </div>
+          <div class="history-categories-total">
+            <span>合计</span>
+            <strong>¥{{ displayMoney(selection.total, hideAmount) }}</strong>
+            <span>{{ selection.count }} 笔 · {{ categoryData.items.length }} 类</span>
+          </div>
+          <div class="history-category-list">
+            <div
+              v-for="item in visibleCategories"
+              :key="item.isRest ? '__rest' : item.category"
+              class="history-category"
+              :class="{ 'is-rest': item.isRest }"
+            >
+              <div class="history-category-line">
+                <span class="history-category-name">
+                  <span v-if="item.isRest" class="history-category-rest-icon" aria-hidden="true">…</span>
+                  <CategoryIcon v-else class="history-category-icon" :name="iconFor(item.category)" />
+                  {{ item.category }}
+                </span>
+                <span class="history-category-amount">¥{{ displayMoney(item.amount, hideAmount) }}</span>
+                <span class="history-category-percent">{{ percentLabel(item.percent) }}%</span>
+              </div>
+              <div class="history-category-track">
+                <div
+                  class="history-category-fill"
+                  :style="{
+                    width: `${item.percent}%`,
+                    background: item.isRest ? 'var(--muted-soft)' : categoryColor(item.category)
+                  }"
+                ></div>
+              </div>
+            </div>
+          </div>
+          <button
+            v-if="hasMoreCategories"
+            class="history-categories-toggle"
+            type="button"
+            :aria-expanded="categoryExpanded"
+            @click="toggleCategoryExpanded"
+          >
+            {{ categoryExpanded ? '收起' : `展开全部 ${categoryData.items.length} 类` }}
+          </button>
+        </section>
+        <div v-else-if="categoryLoading" class="history-category-empty">果冻在算分类占比…</div>
+        <div v-else-if="categoryError" class="history-category-empty">
+          分类占比没算成
+          <button class="text-btn" type="button" @click="retryCategories">再试一次</button>
+        </div>
+        <div v-else class="history-category-empty">这段时间还没有分类占比</div>
+      </div>
     </template>
 
     <div v-else class="history-empty">
@@ -188,11 +319,13 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import DateTimeField from '../components/DateTimeField.vue';
+import CategoryIcon from '../components/CategoryIcon.vue';
 import PrivacyToggle from '../components/PrivacyToggle.vue';
 import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { loadDayStats } from '../lib/stats';
-import { displayMoney, pad2, toDateInput } from '../utils/format';
+import { collapseCategoryTotals } from '../utils/expenses';
+import { categoryColor, displayMoney, pad2, toDateInput } from '../utils/format';
 import { addMonths, monthLabel } from '../utils/months';
 import { haptic } from '../utils/haptics';
 import { usePrivacy } from '../composables/usePrivacy';
@@ -202,7 +335,7 @@ const props = defineProps({
   embedded: { type: Boolean, default: false },
   active: { type: Boolean, default: true }
 });
-const { ready, dataVersion, currentStage } = useLedger();
+const { ready, dataVersion, currentStage, loadCategoryTotals, iconFor } = useLedger();
 const { goToPane } = useLedgerPanes();
 const { hideAmount } = usePrivacy();
 const today = toDateInput(new Date());
@@ -211,7 +344,10 @@ const loading = ref(true);
 const loadError = ref(false);
 const reloadTick = ref(0);
 const initialized = ref(false);
-const stageScope = ref('all');
+const stageScope = ref('current');
+const activeTab = ref('overview');
+const rangeExpanded = ref(false);
+const categoryExpanded = ref(false);
 const allDays = ref([]);
 const minDate = ref('');
 const maxDate = ref('');
@@ -222,7 +358,14 @@ const selectedMonthKey = ref('');
 const presetChoice = ref('');
 const yearRailRef = ref(null);
 const monthRailRef = ref(null);
+const pageRef = ref(null);
+const categoryData = ref({ total: 0, items: [] });
+const categoryLoading = ref(false);
+const categoryError = ref(false);
 let initializedScope = '';
+let categoryToken = 0;
+let loadedCategoryKey = '';
+let stageScopeTouched = false;
 
 const earliestDay = computed(() => minDate.value || allDays.value[0]?.key || '');
 const latestDay = computed(() => maxDate.value || allDays.value[allDays.value.length - 1]?.key || '');
@@ -348,6 +491,7 @@ const activePreset = computed(() => {
 function setScope(scope) {
   if (scope === 'current' && !currentStage.value) return;
   if (stageScope.value === scope) return;
+  stageScopeTouched = true;
   stageScope.value = scope;
   presetChoice.value = '';
   haptic('light');
@@ -355,6 +499,7 @@ function setScope(scope) {
 
 function showAllHistory() {
   if (stageScope.value === 'current' && !allDays.value.length) {
+    stageScopeTouched = true;
     stageScope.value = 'all';
     return;
   }
@@ -522,6 +667,160 @@ const selection = computed(() => {
     comparison: compare(year.total, previous)
   };
 });
+
+const categoryPeriod = computed(() => {
+  if (!selection.value) return null;
+  let from;
+  let to;
+
+  if (selection.value.isMonth) {
+    const month = selectedMonthKey.value;
+    if (!month) return null;
+    const [year, monthNumber] = month.split('-').map(Number);
+    from = `${month}-01`;
+    to = `${month}-${pad2(new Date(year, monthNumber, 0).getDate())}`;
+  } else {
+    if (!selectedYear.value) return null;
+    from = `${selectedYear.value}-01-01`;
+    to = `${selectedYear.value}-12-31`;
+  }
+
+  if (startDate.value && startDate.value > from) from = startDate.value;
+  if (endDate.value && endDate.value < to) to = endDate.value;
+  if (!from || !to || from > to) return null;
+  return { from, to };
+});
+
+const categoryScopeLabel = computed(() => {
+  if (stageScope.value !== 'current') return '全部账本（含归档）';
+  return currentStage.value ? `当前账本 · ${currentStage.value.name}` : '当前账本';
+});
+
+const rangeDateLabel = computed(() => {
+  if (!startDate.value || !endDate.value) return '全部时间';
+  const short = (key) => key.replace(/-/g, '.');
+  return startDate.value === endDate.value
+    ? short(startDate.value)
+    : `${short(startDate.value)} - ${short(endDate.value)}`;
+});
+
+const categoryView = computed(() => collapseCategoryTotals(categoryData.value.items, 5));
+const visibleCategories = computed(() => (
+  categoryExpanded.value ? categoryData.value.items : categoryView.value.items
+));
+const hasMoreCategories = computed(() => categoryView.value.collapsed);
+const categoryKey = computed(() => [
+  stageScope.value,
+  currentStage.value?.id || 'all',
+  categoryPeriod.value?.from || '',
+  categoryPeriod.value?.to || ''
+].join('|'));
+
+const categoryLoadKey = computed(() => (
+  `${categoryKey.value}|${dataVersion.value}|${reloadTick.value}`
+));
+
+watch(categoryKey, () => {
+  categoryExpanded.value = false;
+  loadedCategoryKey = '';
+  categoryError.value = false;
+  if (activeTab.value !== 'categories') {
+    categoryData.value = { total: 0, items: [] };
+    categoryLoading.value = false;
+  }
+});
+
+function setActiveTab(tab) {
+  if (activeTab.value === tab) return;
+  if (tab === 'overview') {
+    categoryToken += 1;
+    categoryLoading.value = false;
+  }
+  activeTab.value = tab;
+  haptic('light');
+  nextTick(() => {
+    const pane = pageRef.value?.closest('.record-pager-pane');
+    if (pane) pane.scrollTo({ top: 0, behavior: 'smooth' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+}
+
+function toggleRange() {
+  rangeExpanded.value = !rangeExpanded.value;
+  haptic('light');
+}
+
+watch(
+  [ready, () => currentStage.value?.id],
+  ([isReady, id]) => {
+    if (!isReady) return;
+    if (!id) {
+      if (stageScope.value === 'current') stageScope.value = 'all';
+      return;
+    }
+    if (!stageScopeTouched) stageScope.value = 'current';
+  },
+  { immediate: true }
+);
+
+function toggleCategoryExpanded() {
+  categoryExpanded.value = !categoryExpanded.value;
+  haptic('light');
+}
+
+function percentLabel(value) {
+  if (!Number.isFinite(value) || value <= 0) return '0';
+  if (value >= 10) return String(Math.round(value));
+  return value.toFixed(1);
+}
+
+async function loadCategories() {
+  const key = categoryLoadKey.value;
+  if (loadedCategoryKey === key) return;
+
+  const period = categoryPeriod.value;
+  const stageId = stageScope.value === 'current' ? currentStage.value?.id : null;
+  if (!period || (stageScope.value === 'current' && !stageId)) {
+    categoryData.value = { total: 0, items: [] };
+    categoryError.value = false;
+    loadedCategoryKey = '';
+    return;
+  }
+
+  const token = ++categoryToken;
+  categoryLoading.value = true;
+  categoryError.value = false;
+  try {
+    const data = await loadCategoryTotals({ stageId, from: period.from, to: period.to });
+    if (token !== categoryToken) return;
+    categoryData.value = data;
+    loadedCategoryKey = key;
+  } catch (err) {
+    if (token === categoryToken) {
+      console.error('加载分类占比失败', err);
+      categoryData.value = { total: 0, items: [] };
+      categoryError.value = true;
+      loadedCategoryKey = '';
+    }
+  } finally {
+    if (token === categoryToken) categoryLoading.value = false;
+  }
+}
+
+function retryCategories() {
+  loadedCategoryKey = '';
+  categoryError.value = false;
+  if (activeTab.value === 'categories' && !loading.value) loadCategories();
+}
+
+watch(
+  [categoryLoadKey, activeTab, loading],
+  () => {
+    if (loading.value || activeTab.value !== 'categories') return;
+    loadCategories();
+  },
+  { immediate: true }
+);
 
 watch(
   [ready, dataVersion, reloadTick, () => props.active, stageScope, () => currentStage.value?.id],

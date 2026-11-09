@@ -162,6 +162,7 @@ export async function rebuildDerivedDataInWorker({ onProgress } = {}) {
 
 export async function searchExpenses({
   stageId,
+  stageIds,
   query = '',
   category = '',
   limit = 500,
@@ -169,7 +170,7 @@ export async function searchExpenses({
   maxAmount = null,
   onProgress
 } = {}) {
-  if (!stageId) return { count: 0, ids: [] };
+  if (!stageIds?.length && !stageId) return { count: 0, sum: 0, ids: [] };
 
   if (derivedPromise) {
     try {
@@ -185,6 +186,7 @@ export async function searchExpenses({
   const cancelError = new Error('搜索已取消');
   cancelError.code = 'SEARCH_CANCELLED';
   rejectPending(cancelError);
+  const plainStageIds = Array.isArray(stageIds) ? [...stageIds] : undefined;
 
   return new Promise((resolve, reject) => {
     pendingSearches.set(requestId, { resolve, reject, onProgress });
@@ -192,6 +194,7 @@ export async function searchExpenses({
       type: 'search',
       requestId,
       stageId,
+      stageIds: plainStageIds,
       query,
       category,
       limit,

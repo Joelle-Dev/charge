@@ -61,6 +61,21 @@ export function searchEntryTime(row) {
   return row.s || row.spentAt || '';
 }
 
+export function searchChunkLatestTime(chunk) {
+  let latest = '';
+  for (const row of chunk?.rows || []) {
+    const time = searchEntryTime(row);
+    if (time > latest) latest = time;
+  }
+  return latest;
+}
+
+export function sortSearchChunksByRecency(chunks = []) {
+  return [...chunks].sort((a, b) =>
+    searchChunkLatestTime(b).localeCompare(searchChunkLatestTime(a))
+  );
+}
+
 export function searchEntryCategory(row) {
   return row.c ?? row.category ?? '';
 }

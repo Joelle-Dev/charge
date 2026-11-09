@@ -1,7 +1,7 @@
 <template>
   <van-swipe-cell ref="cellRef" class="expense-swipe" :left-width="64" :right-width="64">
     <div class="expense-row">
-      <ExpenseItem :expense="expense" @select="select" />
+      <ExpenseItem :expense="expense" :stage-name="stageName" @select="select" />
       <button
         class="expense-more"
         type="button"
@@ -30,7 +30,8 @@ import { ref } from 'vue';
 import ExpenseItem from './ExpenseItem.vue';
 
 const props = defineProps({
-  expense: { type: Object, required: true }
+  expense: { type: Object, required: true },
+  stageName: { type: String, default: '' }
 });
 const emit = defineEmits(['select', 'edit', 'delete', 'menu']);
 const cellRef = ref(null);

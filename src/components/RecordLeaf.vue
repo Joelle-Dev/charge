@@ -6,7 +6,7 @@
       :aria-label="`更多操作：${expense.noteText || expense.category} ¥${amountLabel}`"
       @click.stop="emit('menu', expense)"
     >
-      {{ initial }}
+      <CategoryIcon :name="icon" />
     </button>
 
     <button
@@ -26,6 +26,8 @@
 
 <script setup>
 import { computed } from 'vue';
+import CategoryIcon from './CategoryIcon.vue';
+import { useLedger } from '../composables/useLedger';
 import { usePrivacy } from '../composables/usePrivacy';
 import { displayMoney } from '../utils/format';
 
@@ -36,6 +38,7 @@ const emit = defineEmits(['select', 'menu']);
 
 const { hideAmount } = usePrivacy();
 
-const initial = computed(() => (props.expense.category || '其他').slice(0, 1));
+const { iconFor } = useLedger();
+const icon = computed(() => iconFor(props.expense.category || '其他'));
 const amountLabel = computed(() => displayMoney(props.expense.amount, hideAmount.value));
 </script>
