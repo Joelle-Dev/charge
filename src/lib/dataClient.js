@@ -1,5 +1,17 @@
+import { toCloneable } from './clone.js';
+
 let worker = null;
 let active = null;
+
+function post(message) {
+  try {
+    worker.postMessage(toCloneable(message));
+  } catch (err) {
+    const entry = active;
+    active = null;
+    entry?.reject(err);
+  }
+}
 
 function ensureWorker() {
   if (worker) return worker;
@@ -67,7 +79,7 @@ export function parseCsvFile(file, { onProgress } = {}) {
   ensureWorker();
   return new Promise((resolve, reject) => {
     if (!begin('parse', { onProgress, resolve, reject })) return;
-    worker.postMessage({ type: 'parseCsv', file });
+    post({ type: 'parseCsv', file });
   });
 }
 
@@ -82,7 +94,7 @@ export function importParsedCsv(options, { onProgress } = {}) {
   };
   return new Promise((resolve, reject) => {
     if (!begin('import', { onProgress, resolve, reject })) return;
-    worker.postMessage({ type: 'importCsv', ...payload });
+    post({ type: 'importCsv', ...payload });
   });
 }
 
@@ -95,20 +107,20 @@ export function exportStageCsvInWorker(stage, { month = null, onProgress } = {})
   };
   return new Promise((resolve, reject) => {
     if (!begin('export', { onProgress, resolve, reject })) return;
-    worker.postMessage({ type: 'export', stage: payload, month });
+    post({ type: 'export', stage: payload, month });
   });
 }
 
 export function clearParsedCsv() {
   if (!worker) return;
-  worker.postMessage({ type: 'clearCsv' });
+  post({ type: 'clearCsv' });
 }
 
 export function exportBackupInWorker({ onProgress } = {}) {
   ensureWorker();
   return new Promise((resolve, reject) => {
     if (!begin('backupExport', { onProgress, resolve, reject })) return;
-    worker.postMessage({ type: 'exportBackup' });
+    post({ type: 'exportBackup' });
   });
 }
 
@@ -116,7 +128,7 @@ export function parseBackupFile(file, { onProgress } = {}) {
   ensureWorker();
   return new Promise((resolve, reject) => {
     if (!begin('backupParse', { onProgress, resolve, reject })) return;
-    worker.postMessage({ type: 'parseBackup', file });
+    post({ type: 'parseBackup', file });
   });
 }
 
@@ -125,20 +137,20 @@ export function importBackupFile(options = {}, { onProgress } = {}) {
   const mode = options.mode === 'merge' ? 'merge' : 'replace';
   return new Promise((resolve, reject) => {
     if (!begin('backupImport', { onProgress, resolve, reject })) return;
-    worker.postMessage({ type: 'importBackup', mode });
+    post({ type: 'importBackup', mode });
   });
 }
 
 export function clearPendingBackup() {
   if (!worker) return;
-  worker.postMessage({ type: 'clearBackup' });
+  post({ type: 'clearBackup' });
 }
 
 export function mergeStagesInWorker({ stageIds = [], targetId = '', onProgress } = {}) {
   ensureWorker();
   return new Promise((resolve, reject) => {
     if (!begin('merge', { onProgress, resolve, reject })) return;
-    worker.postMessage({ type: 'mergeStages', stageIds, targetId });
+    post({ type: 'mergeStages', stageIds, targetId });
   });
 }
 
@@ -151,7 +163,7 @@ export function undoMergeInWorker({
   ensureWorker();
   return new Promise((resolve, reject) => {
     if (!begin('undoMerge', { onProgress, resolve, reject })) return;
-    worker.postMessage({
+    post({
       type: 'undoMerge',
       sourceStages,
       movedExpenses,
