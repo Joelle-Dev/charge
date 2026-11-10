@@ -73,6 +73,11 @@ const isSettings = computed(() => route.path === '/settings');
 
 function openRecordTab() {
   panes.goToPane('record');
+  if (!currentStage.value) {
+    if (route.path !== '/') router.push('/');
+    sheets.openStageForm();
+    return;
+  }
   if (route.path !== '/') router.push('/');
 }
 

@@ -6,10 +6,16 @@ import {
   appendDecimal,
   appendDigit,
   appendDoubleZero,
+  appendExpressionDecimal,
+  appendExpressionDigit,
+  appendExpressionOperator,
   backspaceAmount,
   clearAmount,
+  evaluateExpression,
   formatAmountInput,
+  formatExpression,
   isValidAmount,
+  isValidExpression,
   toAmountNumber
 } from '../src/utils/amountInput.js';
 
@@ -59,4 +65,24 @@ test('amount conversion and validation', () => {
   assert.equal(isValidAmount('0.01'), true);
   assert.equal(isValidAmount(String(MAX_AMOUNT)), true);
   assert.equal(isValidAmount(String(MAX_AMOUNT + 1)), false);
+});
+
+test('expression input supports addition and subtraction', () => {
+  let value = '';
+  value = appendExpressionDigit(value, '1');
+  value = appendExpressionDigit(value, '2');
+  value = appendExpressionOperator(value, '+');
+  value = appendExpressionDigit(value, '8');
+  value = appendExpressionOperator(value, '-');
+  value = appendExpressionDigit(value, '3');
+
+  assert.equal(value, '12+8-3');
+  assert.equal(evaluateExpression(value).value, 17);
+  assert.equal(formatExpression(value), '12+8-3');
+  assert.equal(isValidExpression(value), true);
+  assert.equal(isValidExpression('5-8'), false);
+  assert.equal(isValidExpression('12+'), false);
+  assert.equal(appendExpressionOperator('12.', '+'), '12+');
+  assert.equal(appendExpressionOperator('12+', '-'), '12-');
+  assert.equal(appendExpressionDecimal('12+'), '12+0.');
 });

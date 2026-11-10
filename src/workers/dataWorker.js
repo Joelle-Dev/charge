@@ -17,6 +17,7 @@ import { buildStageCsv, parseStageCsv } from '../utils/csv.js';
 import { DEFAULT_CATEGORY } from '../lib/parser.js';
 import { toDateInput, uid } from '../utils/format.js';
 import { monthBounds } from '../utils/months.js';
+import { normalizeProfile } from '../utils/profile.js';
 import { rebuildDerivedData, STATS_VERSION } from '../lib/stats.js';
 import {
   BACKUP_APP,
@@ -483,6 +484,7 @@ async function exportBackup() {
   );
   const categories = await getSetting('categories', []);
   const categoryIcons = await getSetting('categoryIcons', {});
+  const profile = await getSetting('profile', null);
   const currentStageId = await getSetting('currentStageId', null);
   const achievementUnlocked = await getSetting('achievementUnlocked', []);
   const global = await getRecord('stats', 'global');
@@ -497,6 +499,7 @@ async function exportBackup() {
     categoryIcons: categoryIcons && typeof categoryIcons === 'object' && !Array.isArray(categoryIcons)
       ? categoryIcons
       : {},
+    ...(profile ? { profile: normalizeProfile(profile) } : {}),
     currentStageId: currentStageId || null,
     achievementUnlocked: Array.isArray(achievementUnlocked) ? achievementUnlocked : [],
     counts: {
@@ -735,6 +738,8 @@ async function importBackup({ mode = 'replace' }) {
       : {})
   };
   await setSetting('categoryIcons', nextIcons);
+  const storedProfile = replace ? null : await getSetting('profile', null);
+  await setSetting('profile', normalizeProfile(manifest.profile || storedProfile || undefined));
   await setSetting('achievementUnlocked', nextAchievements);
   await setSetting('currentStageId', currentStageId);
 

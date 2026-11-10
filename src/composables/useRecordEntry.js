@@ -28,8 +28,16 @@ function openRecord(expense = null, draft = null, options = {}) {
   }
 }
 
+function startFreshSession() {
+  editingExpense.value = null;
+  expenseDraft.value = null;
+  returnTo.value = '';
+  recordSession.value += 1;
+}
+
 function openCurtain() {
   goToPane('record');
+  if (!curtainOpen.value) startFreshSession();
   curtainDragging.value = false;
   curtainPull.value = 1;
   curtainOpen.value = true;
@@ -50,9 +58,11 @@ function updateCurtainPull(progress) {
 }
 
 function endCurtainPull(open) {
+  const wasOpen = curtainOpen.value;
   curtainDragging.value = false;
   curtainOpen.value = Boolean(open);
   curtainPull.value = open ? 1 : 0;
+  if (open && !wasOpen) startFreshSession();
 }
 
 function toggleCurtain() {

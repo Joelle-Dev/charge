@@ -37,12 +37,12 @@
       {{ digit }}
     </button>
     <button
-      class="keypad-key keypad-date"
+      class="keypad-key keypad-operator"
       type="button"
-      :aria-label="`日期：${dateLabel}`"
-      @click="$emit('date')"
+      aria-label="加"
+      @click="pressOperator('+')"
     >
-      {{ dateLabel }}
+      +
     </button>
 
     <button
@@ -56,13 +56,12 @@
       {{ digit }}
     </button>
     <button
-      class="keypad-key keypad-done"
-      :class="{ 'is-close': doneClose }"
+      class="keypad-key keypad-operator"
       type="button"
-      :disabled="disabled"
-      @click="$emit('done')"
+      aria-label="减"
+      @click="pressOperator('-')"
     >
-      {{ doneLabel }}
+      −
     </button>
 
     <button class="keypad-key keypad-digit keypad-soft" type="button" aria-label="两个零" @click="press('00')">
@@ -74,6 +73,15 @@
     <button class="keypad-key keypad-digit" type="button" aria-label="小数点" @click="press('.')">
       .
     </button>
+    <button
+      class="keypad-key keypad-done"
+      :class="{ 'is-close': doneClose }"
+      type="button"
+      :disabled="disabled"
+      @click="$emit('done')"
+    >
+      {{ doneLabel }}
+    </button>
   </div>
 </template>
 
@@ -81,13 +89,12 @@
 import { haptic } from '../utils/haptics';
 
 defineProps({
-  dateLabel: { type: String, default: '今天' },
   doneLabel: { type: String, default: '完成' },
   doneClose: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['digit', 'decimal', 'double-zero', 'backspace', 'clear', 'date', 'done']);
+const emit = defineEmits(['digit', 'decimal', 'double-zero', 'operator', 'backspace', 'clear', 'done']);
 
 let backspaceTimer = null;
 let longPressed = false;
@@ -103,6 +110,11 @@ function press(key) {
     return;
   }
   emit('digit', key);
+}
+
+function pressOperator(operator) {
+  haptic('light');
+  emit('operator', operator);
 }
 
 function onBackspaceDown() {

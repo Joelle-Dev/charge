@@ -39,13 +39,11 @@
       title="花过的钱"
       @click="openHistory"
     >
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 19V5"></path>
-        <path d="M4 19h16"></path>
-        <path d="M8 16v-5"></path>
-        <path d="M13 16V8"></path>
-        <path d="M18 16v-3"></path>
-      </svg>
+      <span class="record-history-fab-face" aria-hidden="true">
+        <ProfileAvatar :avatar="profile.avatar" :name="profile.name" :size="44" />
+      </span>
+      <span class="record-history-fab-coin" aria-hidden="true">¥</span>
+      <span class="record-history-fab-spark" aria-hidden="true"></span>
     </button>
   </div>
 </template>
@@ -57,6 +55,8 @@ import HomeView from './HomeView.vue';
 import HistoryView from './HistoryView.vue';
 import RecordPane from '../components/RecordPane.vue';
 import RecordCurtain from '../components/RecordCurtain.vue';
+import ProfileAvatar from '../components/ProfileAvatar.vue';
+import { useProfile } from '../composables/useProfile';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
@@ -78,6 +78,7 @@ const EDGE_RESISTANCE = 0.3;
 const route = useRoute();
 const { ready, currentStage } = useLedger();
 const { activePane, paneRequest, goToPane } = useLedgerPanes();
+const { profile } = useProfile();
 const { curtainOpen, curtainPull, curtainDragging, beginCurtainPull, updateCurtainPull, endCurtainPull, resetRecord } = useRecordEntry();
 const { dailyOpen, dailyDate } = useRecordsView();
 
@@ -393,7 +394,7 @@ function onTouchStart(event) {
   if (!onRecordPane()) return;
   if (curtainOpen.value || dailyOpen.value || touchTracking) return;
   if (!centerPaneAtTop()) return;
-  if (event.target?.closest?.('.record-pull-handle, .van-popup, .van-overlay, .van-dialog')) return;
+  if (event.target?.closest?.('.record-pull-handle, .van-popup, .van-overlay, .van-dialog, input, textarea, select')) return;
 
   const touch = event.touches[0];
   touchId = touch.identifier;

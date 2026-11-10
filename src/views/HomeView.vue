@@ -32,6 +32,14 @@
         </div>
       </header>
 
+      <button class="ledger-home-greeting" type="button" aria-label="编辑我的资料" @click="openProfile">
+        <ProfileAvatar :avatar="profile.avatar" :name="profile.name" :size="48" />
+        <span class="ledger-home-greeting-copy">
+          <strong>{{ greeting }}，{{ profileName }}</strong>
+          <small>今天也和果冻一起守住钱钱吧</small>
+        </span>
+      </button>
+
       <HeroSummary />
       <StageLedgerList />
     </div>
@@ -39,12 +47,16 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useLedger } from '../composables/useLedger';
+import { useProfile } from '../composables/useProfile';
 import EmptyState from '../components/EmptyState.vue';
 import HeroSummary from '../components/HeroSummary.vue';
+import ProfileAvatar from '../components/ProfileAvatar.vue';
 import StageLedgerList from '../components/StageLedgerList.vue';
 import PawIcon from '../components/PawIcon.vue';
+import { greetingForHour } from '../utils/profile';
 
 const {
   ready,
@@ -55,6 +67,14 @@ const {
   enterMergeMode,
   exitMergeMode
 } = useLedger();
+const { profile, profileName } = useProfile();
+const router = useRouter();
+
+const greeting = computed(() => greetingForHour(new Date().getHours()));
+
+function openProfile() {
+  router.push('/settings');
+}
 
 const entering = ref(false);
 let enteredOnce = false;

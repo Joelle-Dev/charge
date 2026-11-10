@@ -163,6 +163,7 @@ import {
 import { BACKUP_MAX_SIZE, isBackupFile, isBackupManifest } from '../lib/backupFormat';
 import { displayMoney } from '../utils/format';
 import { usePrivacy } from '../composables/usePrivacy';
+import { useProfile } from '../composables/useProfile';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
 
@@ -177,6 +178,7 @@ const {
 } = useLedger();
 const { hideAmount } = usePrivacy();
 const { initAchievements, reloadAchievements } = useAchievements();
+const { reloadProfile } = useProfile();
 
 const fileInput = ref(null);
 const preview = ref(null);
@@ -470,6 +472,7 @@ async function importBackup() {
 
   await reloadAfterImport();
   await reloadAchievements();
+  await reloadProfile();
   haptic('success');
   showToast(
     mode.value === 'replace'

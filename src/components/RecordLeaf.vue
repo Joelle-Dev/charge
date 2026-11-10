@@ -17,6 +17,7 @@
     >
       <span class="timeline-entry-top">
         <span class="timeline-category-name">{{ expense.category }}</span>
+        <span class="timeline-leader" aria-hidden="true"></span>
         <span class="timeline-amount">¥{{ amountLabel }}</span>
       </span>
       <span v-if="expense.noteText" class="timeline-note">{{ expense.noteText }}</span>

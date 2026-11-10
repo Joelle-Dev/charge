@@ -8,7 +8,7 @@ import zlib
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, 'design', 'cat-avatar.png')
 PUBLIC = os.path.join(ROOT, 'public', 'icons')
-AVATAR = os.path.join(ROOT, 'src', 'assets', 'brand-icon.png')
+AVATAR = os.path.join(ROOT, 'src', 'assets', 'cat-avatar.png')
 CREAM = (250, 245, 236)
 
 
@@ -135,6 +135,13 @@ def main():
 
     avatar = resize_rgba(src_w, src_h, rows, 256, 256)
     write_png(AVATAR, 256, 256, [avatar[y * 1024:(y + 1) * 1024] for y in range(256)], 6)
+    write_png(
+        os.path.join(PUBLIC, 'cat-transparent.png'),
+        256,
+        256,
+        [avatar[y * 1024:(y + 1) * 1024] for y in range(256)],
+        6
+    )
 
     for size, name in ((512, 'icon-512.png'), (192, 'icon-192.png'), (180, 'apple-touch-icon.png')):
         resized = resize_rgba(src_w, src_h, rows, size, size)

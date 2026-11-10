@@ -1,6 +1,6 @@
 <template>
-  <section ref="rootRef" class="record-pane">
-    <div class="record-header">
+  <section ref="rootRef" class="record-pane" :class="{ 'is-compact': headerCompact }">
+    <div ref="headerRef" class="record-header">
     <header class="record-pane-head">
       <img class="record-pane-cat" :src="catAvatar" alt="" aria-hidden="true">
       <div class="record-topbar">
@@ -34,7 +34,7 @@
     <div class="record-month-bar">
       <MonthNav variant="record" :label="monthTitle" @shift="shiftMonth" @pick="showMonthPicker = true" />
       <div class="record-head-total">
-        <span class="record-total-label">当月支出</span>
+        <span class="record-total-label">{{ monthTotalLabel }}</span>
         <strong class="record-month-total">
           <span class="record-total-currency">¥</span>{{ displayMoney(activeMonthTotal, hideAmount) }}
         </strong>
@@ -221,6 +221,13 @@ const monthTitle = computed(() => (
     ? shortMonthLabel(activeMonth.value)
     : monthLabel(activeMonth.value)
 ));
+const monthTotalLabel = computed(() => {
+  if (!activeMonth.value) return '本月支出';
+  if (activeMonth.value === currentMonthKey()) return '本月支出';
+  const [year, month] = activeMonth.value.split('-').map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return '本月支出';
+  return year === new Date().getFullYear() ? `${month}月支出` : `${year}年${month}月支出`;
+});
 const showMonthPicker = ref(false);
 const showPullHint = ref(false);
 const rowActionsRef = ref(null);
@@ -234,6 +241,8 @@ let loadToken = 0;
 let dailyToken = 0;
 
 const rootRef = ref(null);
+const headerRef = ref(null);
+const headerCompact = ref(false);
 const loadedMonths = ref([]);
 const feedDone = ref(false);
 const loadingMore = ref(false);
@@ -241,6 +250,8 @@ let feedKey = '';
 let filling = false;
 let scrollEl = null;
 let scrollRaf = 0;
+let lastScrollTop = 0;
+let compactAdjusting = false;
 
 const activeMonthExpenses = computed(() => (
   expenses.value.filter((e) => dayKey(new Date(e.spentAt)).slice(0, 7) === activeMonth.value)
@@ -466,10 +477,40 @@ function updateVisibleMonth() {
   if (current && current !== visibleMonth.value) visibleMonth.value = current;
 }
 
+async function setHeaderCompact(next) {
+  if (headerCompact.value === next) return;
+  const before = headerRef.value?.offsetHeight || 0;
+  headerCompact.value = next;
+  await nextTick();
+  const after = headerRef.value?.offsetHeight || 0;
+  const delta = after - before;
+  if (scrollEl && delta) {
+    compactAdjusting = true;
+    scrollEl.scrollTop += delta;
+    lastScrollTop = scrollEl.scrollTop;
+    requestAnimationFrame(() => {
+      compactAdjusting = false;
+    });
+  }
+}
+
+function updateHeaderCompact() {
+  if (!scrollEl || compactAdjusting) return;
+  const top = scrollEl.scrollTop;
+  const delta = top - lastScrollTop;
+  if (!headerCompact.value && top > 84 && delta > 6) {
+    setHeaderCompact(true);
+  } else if (headerCompact.value && (delta < -6 || top <= 16)) {
+    setHeaderCompact(false);
+  }
+  lastScrollTop = top;
+}
+
 function onScroll() {
   if (scrollRaf) return;
   scrollRaf = requestAnimationFrame(() => {
     scrollRaf = 0;
+    updateHeaderCompact();
     updateVisibleMonth();
     if (needsMore()) ensureFilled();
   });
@@ -483,6 +524,7 @@ watch(
 
 watch(month, (value) => {
   recordMonth.value = value;
+  visibleMonth.value = '';
 });
 
 watch(

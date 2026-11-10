@@ -2,7 +2,7 @@
   <div
     ref="panelRef"
     class="record-curtain"
-    :class="{ 'is-dragging': curtainDragging, 'is-open': curtainOpen }"
+    :class="{ 'is-dragging': curtainDragging, 'is-open': curtainOpen, 'is-keyboard-open': keyboardInset > 0 }"
     :style="panelStyle"
     @pointerdown="onCurtainPointerDown"
   >
@@ -26,8 +26,36 @@
         删掉
       </button>
 
-      <div class="record-quick-top">
-        <div class="record-quick-main">
+      <div class="record-category-layer">
+        <div ref="categoryStripRef" class="record-category-grid" role="listbox" aria-label="选择分类">
+          <button
+            v-for="category in categoryOptions"
+            :key="category"
+            class="record-category-cell"
+            :class="{ selected: category === selectedCategory }"
+            :style="{ '--swatch': categoryColor(category) }"
+            type="button"
+            role="option"
+            :aria-selected="category === selectedCategory"
+            @click="chooseCategory(category)"
+          >
+            <span class="record-category-icon"><CategoryIcon :name="iconFor(category)" /></span>
+            <span class="record-category-label">{{ category }}</span>
+          </button>
+
+          <button
+            class="record-category-cell record-category-create"
+            type="button"
+            aria-label="添加或管理分类"
+            @click="openCategories"
+          >
+            <span class="record-category-create-plus" aria-hidden="true">＋</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="record-keypad-layer" :style="keypadLayerStyle">
+        <div class="record-keypad-head">
           <span
             class="record-current-category"
             :style="{ '--swatch': categoryColor(selectedCategory) }"
@@ -35,29 +63,27 @@
             <span class="record-current-dot" aria-hidden="true"></span>
             <span class="record-current-name">{{ selectedCategory }}</span>
           </span>
-          <button
-            class="record-stage-hint"
-            type="button"
-            aria-label="切换账本"
-            @click="sheets.openStages()"
-          >
-            <span class="record-stage-text">{{ editingExpense ? '改改' : '记进' }}「{{ currentStage?.name || '当前账本' }}」</span>
-            <svg class="record-stage-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m6 9 6 6 6-6"></path>
-            </svg>
-          </button>
-          <div
-            class="record-quick-amount"
-            :class="{ empty: !amount, long: amount.length > 7, xlong: amount.length > 9 }"
-            aria-live="polite"
-          >
-            <span class="record-quick-currency">¥</span>
-            <span class="record-quick-value">{{ amountDisplay || '0.00' }}</span>
-            <span class="record-quick-caret" aria-hidden="true"></span>
+          <div class="record-keypad-amount">
+            <div
+              class="record-quick-amount"
+              :class="{ empty: !amount, long: amountDisplay.length > 7, xlong: amountDisplay.length > 9 }"
+              aria-live="polite"
+            >
+              <span class="record-quick-currency">¥</span>
+              <span ref="amountValueRef" class="record-quick-value">{{ amountDisplay || '0.00' }}</span>
+              <span class="record-quick-caret" aria-hidden="true"></span>
+            </div>
+            <span
+              v-if="expressionPreview"
+              class="record-quick-preview"
+              :class="{ 'is-invalid': expressionInvalid }"
+            >
+              {{ expressionPreview }}
+            </span>
           </div>
         </div>
 
-        <div class="record-quick-sub">
+        <div class="record-keypad-note">
           <div class="record-note-ghost">
             <svg class="record-note-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M4 20h4l10-10a2.8 2.8 0 0 0-4-4L4 16v4Z"></path>
@@ -72,6 +98,8 @@
               placeholder="写点备注…"
               aria-label="备注"
               enterkeyhint="done"
+              @focus="onNoteFocus"
+              @blur="onNoteBlur"
               @keydown.enter.prevent="blurNote"
               @keydown.esc.prevent="blurNote"
             >
@@ -85,71 +113,33 @@
               ×
             </button>
           </div>
-          <span class="record-quick-meta">今天 {{ todayStats.count }} 笔</span>
+          <button
+            class="record-date-chip"
+            type="button"
+            :aria-label="`选择日期，当前 ${dateStatsLabel}`"
+            @click="openDatePicker"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+              <path d="M8 3v4M16 3v4M3 11h18"></path>
+            </svg>
+            {{ dateStatsLabel }}
+          </button>
         </div>
-      </div>
 
-      <div class="record-category-head">
-        <span>分类</span>
-        <button
-          v-if="categories.length < 40"
-          class="record-category-add"
-          type="button"
-          aria-label="添加分类"
-          @click="toggleAddCategory"
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <path d="M12 5v14M5 12h14"></path>
-          </svg>
-        </button>
+        <NumberKeypad
+          :done-label="doneLabel"
+          :done-close="closeMode"
+          :disabled="doneDisabled"
+          @digit="onDigit"
+          @decimal="onDecimal"
+          @double-zero="onDoubleZero"
+          @operator="onOperator"
+          @backspace="onBackspace"
+          @clear="onClear"
+          @done="handleDone"
+        />
       </div>
-
-      <div v-if="showAddCategory" class="record-category-add-row">
-        <input
-          ref="categoryAddInput"
-          v-model="newCategoryName"
-          class="record-category-add-input"
-          type="text"
-          maxlength="10"
-          placeholder="新分类名字"
-          enterkeyhint="done"
-          @keydown.enter.prevent="submitCategory"
-          @keydown.esc.prevent="cancelAddCategory"
-        >
-        <button class="record-category-add-cancel" type="button" @click="cancelAddCategory">取消</button>
-        <button class="record-category-add-submit" type="button" @click="submitCategory">添加</button>
-      </div>
-
-      <div ref="categoryStripRef" class="record-category-grid" role="listbox" aria-label="选择分类">
-        <button
-          v-for="category in categoryOptions"
-          :key="category"
-          class="record-category-cell"
-          :class="{ selected: category === selectedCategory }"
-          :style="{ '--swatch': categoryColor(category) }"
-          type="button"
-          role="option"
-          :aria-selected="category === selectedCategory"
-          @click="chooseCategory(category)"
-        >
-          <span class="record-category-icon"><CategoryIcon :name="iconFor(category)" /></span>
-          <span class="record-category-label">{{ category }}</span>
-        </button>
-      </div>
-
-      <NumberKeypad
-        :date-label="dateLabel"
-        :done-label="doneLabel"
-        :done-close="closeMode"
-        :disabled="doneDisabled"
-        @digit="onDigit"
-        @decimal="onDecimal"
-        @double-zero="onDoubleZero"
-        @backspace="onBackspace"
-        @clear="onClear"
-        @date="openDatePicker"
-        @done="handleDone"
-      />
     </div>
 
     <van-popup
@@ -168,6 +158,12 @@
         @cancel="showDatePicker = false"
       />
     </van-popup>
+
+    <CategorySheet
+      v-model:show="showCategories"
+      auto-focus
+      @created="onCategoryCreated"
+    />
   </div>
 </template>
 
@@ -177,26 +173,27 @@ import { showToast } from 'vant';
 import { useRouter } from 'vue-router';
 import NumberKeypad from './NumberKeypad.vue';
 import CategoryIcon from './CategoryIcon.vue';
+import CategorySheet from './CategorySheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
-import { usePreferences } from '../composables/usePreferences';
 import { useRecordEntry } from '../composables/useRecordEntry';
-import { useSheets } from '../composables/useSheets';
 import {
   amountToInput,
-  appendDecimal,
-  appendDigit,
-  appendDoubleZero,
+  appendExpressionDecimal,
+  appendExpressionDigit,
+  appendExpressionDoubleZero,
+  appendExpressionOperator,
   backspaceAmount,
   clearAmount,
-  formatAmountInput,
-  isValidAmount,
-  toAmountNumber
+  evaluateExpression,
+  formatExpression,
+  isValidExpression
 } from '../utils/amountInput';
 import {
   applyDateToIso,
   categoryColor,
   combineLocal,
+  formatMoney,
   pad2,
   toDateInput,
   toTimeInput
@@ -221,29 +218,30 @@ const {
   endCurtainPull,
   resetRecord
 } = useRecordEntry();
-const { categories, currentStage, todayStats, addExpense, updateExpense, setCategories, iconFor } = useLedger();
-const { removeExpense: removeExpenseAction } = useExpenseActions();
-const { recordDoneBehavior, initPreferences } = usePreferences();
-const sheets = useSheets();
+const { categories, currentStage, dataVersion, addExpense, updateExpense, iconFor, loadMonthExpenses } = useLedger();
+const { removeExpenseWithUndo } = useExpenseActions();
 
 const panelRef = ref(null);
 const noteInput = ref(null);
+const amountValueRef = ref(null);
+const noteFocused = ref(false);
+const keyboardInset = ref(0);
 const amount = ref('');
 const selectedCategory = ref('');
 const date = ref(toDateInput(new Date()));
 const note = ref('');
 const showDatePicker = ref(false);
-const showAddCategory = ref(false);
-const newCategoryName = ref('');
-const categoryAddInput = ref(null);
+const showCategories = ref(false);
 const dateDraft = ref([]);
 const saving = ref(false);
 const panelHeight = ref(0);
 const categoryStripRef = ref(null);
+const dateStatsCount = ref(0);
 const minDate = new Date(2000, 0, 1);
 const maxDate = new Date(2100, 11, 31);
 
 let previousOverflow = '';
+let dateStatsToken = 0;
 let closePointerId = null;
 let closeStartY = 0;
 let closeStartTime = 0;
@@ -257,8 +255,21 @@ const categoryOptions = computed(() => {
   return [selectedCategory.value, ...categories.value];
 });
 
-const amountDisplay = computed(() => formatAmountInput(amount.value));
-const canSave = computed(() => isValidAmount(amount.value) && Boolean(selectedCategory.value));
+const amountDisplay = computed(() => formatExpression(amount.value));
+const expressionResult = computed(() => evaluateExpression(amount.value));
+const expressionPreview = computed(() => {
+  if (/[+-]$/.test(amount.value)) return '继续输入金额';
+  if (!/[+-]/.test(amount.value) || !expressionResult.value.valid) return '';
+  const value = expressionResult.value.value;
+  return `= ${value < 0 ? '-' : ''}¥${formatMoney(Math.abs(value))}`;
+});
+const keypadLayerStyle = computed(() => (
+  keyboardInset.value > 0 ? { bottom: `${keyboardInset.value}px` } : null
+));
+const expressionInvalid = computed(() => (
+  expressionResult.value.valid && !isValidExpression(amount.value)
+));
+const canSave = computed(() => isValidExpression(amount.value) && Boolean(selectedCategory.value));
 const closeMode = computed(() => !amount.value.trim() && !editingExpense.value);
 const doneLabel = computed(() => (closeMode.value ? '收起来' : '记好啦'));
 const doneDisabled = computed(() => saving.value || (!closeMode.value && !canSave.value));
@@ -274,6 +285,18 @@ const dateLabel = computed(() => {
   const [, month, day] = date.value.split('-').map(Number);
   if (!Number.isFinite(month) || !Number.isFinite(day)) return '哪一天';
   return `${month}/${day}`;
+});
+
+const dateStatsLabel = computed(() => {
+  const today = toDateInput(new Date());
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const prefix = date.value === today
+    ? '今天'
+    : date.value === toDateInput(yesterday)
+      ? '昨天'
+      : dateLabel.value;
+  return `${prefix} · ${dateStatsCount.value} 笔`;
 });
 
 const panelStyle = computed(() => {
@@ -316,18 +339,72 @@ function initialize() {
   amount.value = expense
     ? amountToInput(expense.amount)
     : amountToInput(draft?.amount || '');
-  selectedCategory.value = expense?.category || draft?.category || defaultCategory();
+  const keepCategory = !expense && !draft &&
+    selectedCategory.value && categories.value.includes(selectedCategory.value)
+    ? selectedCategory.value
+    : '';
+  selectedCategory.value = expense?.category || draft?.category || keepCategory || defaultCategory();
   note.value = expense?.note || draft?.note || '';
   date.value = draft?.date ||
     (expense?.spentAt ? toDateInput(expense.spentAt) : toDateInput(now));
   if (!expense && draft?.spentAt) date.value = toDateInput(draft.spentAt);
   showDatePicker.value = false;
-  showAddCategory.value = false;
-  newCategoryName.value = '';
   nextTick(revealSelectedCategory);
 }
 
 watch(recordSession, initialize);
+
+watch(amountDisplay, () => {
+  nextTick(() => {
+    const element = amountValueRef.value;
+    if (element) element.scrollLeft = element.scrollWidth;
+  });
+});
+
+function updateKeyboardInset() {
+  const viewport = window.visualViewport;
+  if (!noteFocused.value || !viewport) {
+    keyboardInset.value = 0;
+    return;
+  }
+  const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+  keyboardInset.value = inset > 80 ? inset : 0;
+}
+
+function onNoteFocus() {
+  noteFocused.value = true;
+  nextTick(updateKeyboardInset);
+}
+
+function onNoteBlur() {
+  noteFocused.value = false;
+  keyboardInset.value = 0;
+}
+
+async function loadDateStats(dateKey) {
+  const stage = currentStage.value;
+  const token = ++dateStatsToken;
+  if (!stage || !dateKey) {
+    dateStatsCount.value = 0;
+    return;
+  }
+  try {
+    const items = await loadMonthExpenses(stage.id, dateKey.slice(0, 7));
+    if (token !== dateStatsToken) return;
+    dateStatsCount.value = items.filter((expense) => toDateInput(expense.spentAt) === dateKey).length;
+  } catch (err) {
+    if (token === dateStatsToken) dateStatsCount.value = 0;
+  }
+}
+
+watch(
+  [date, () => currentStage.value?.id, dataVersion, curtainOpen],
+  ([dateKey]) => {
+    if (!curtainOpen.value) return;
+    loadDateStats(dateKey);
+  },
+  { immediate: true }
+);
 
 function revealSelectedCategory() {
   const strip = categoryStripRef.value;
@@ -345,11 +422,12 @@ function measurePanel() {
 onMounted(() => {
   initialize();
   measurePanel();
-  initPreferences().catch((err) => console.error(err));
   previousOverflow = document.body.style.overflow;
   if (curtainOpen.value) document.body.style.overflow = 'hidden';
   window.addEventListener('keydown', onKeydown);
   window.addEventListener('resize', measurePanel);
+  window.visualViewport?.addEventListener('resize', updateKeyboardInset);
+  window.visualViewport?.addEventListener('scroll', updateKeyboardInset);
 });
 
 watch(curtainOpen, (open) => {
@@ -358,16 +436,22 @@ watch(curtainOpen, (open) => {
     document.body.style.overflow = 'hidden';
     nextTick(revealSelectedCategory);
   } else {
-    cancelAddCategory();
+    showCategories.value = false;
+    noteFocused.value = false;
+    keyboardInset.value = 0;
+    noteInput.value?.blur();
     document.body.style.overflow = previousOverflow;
   }
 });
 
 onUnmounted(() => {
+  showCategories.value = false;
   document.body.style.overflow = previousOverflow;
   stopCurtainDrag();
   window.removeEventListener('keydown', onKeydown);
   window.removeEventListener('resize', measurePanel);
+  window.visualViewport?.removeEventListener('resize', updateKeyboardInset);
+  window.visualViewport?.removeEventListener('scroll', updateKeyboardInset);
 });
 
 function blurNote() {
@@ -380,15 +464,19 @@ function clearNote() {
 }
 
 function onDigit(digit) {
-  amount.value = appendDigit(amount.value, digit);
+  amount.value = appendExpressionDigit(amount.value, digit);
 }
 
 function onDecimal() {
-  amount.value = appendDecimal(amount.value);
+  amount.value = appendExpressionDecimal(amount.value);
 }
 
 function onDoubleZero() {
-  amount.value = appendDoubleZero(amount.value);
+  amount.value = appendExpressionDoubleZero(amount.value);
+}
+
+function onOperator(operator) {
+  amount.value = appendExpressionOperator(amount.value, operator);
 }
 
 function onBackspace() {
@@ -401,49 +489,20 @@ function onClear() {
 
 function chooseCategory(category) {
   selectedCategory.value = category;
+  rememberCategory(category);
   haptic('light');
 }
 
-function toggleAddCategory() {
-  if (showAddCategory.value) {
-    cancelAddCategory();
-    return;
-  }
-  if (categories.value.length >= 40) {
-    showToast('分类最多只能有 40 个哦');
-    return;
-  }
+function openCategories() {
   haptic('light');
-  showAddCategory.value = true;
-  nextTick(() => categoryAddInput.value?.focus());
+  showCategories.value = true;
 }
 
-function cancelAddCategory() {
-  showAddCategory.value = false;
-  newCategoryName.value = '';
-}
-
-async function submitCategory() {
-  const name = newCategoryName.value.trim();
-  if (!name) {
-    showToast('给分类起个名字吧');
-    return;
-  }
-  if (categories.value.includes(name)) {
-    showToast('这个分类已经有啦');
-    return;
-  }
-  if (categories.value.length >= 40) {
-    showToast('分类最多只能有 40 个哦');
-    return;
-  }
-
-  await setCategories([...categories.value, name]);
+function onCategoryCreated(name) {
+  if (!name) return;
   selectedCategory.value = name;
   rememberCategory(name);
-  haptic('success');
-  showToast(`「${name}」加进来啦`);
-  cancelAddCategory();
+  showCategories.value = false;
   nextTick(revealSelectedCategory);
 }
 
@@ -475,11 +534,11 @@ function handleDone() {
 async function save() {
   if (!canSave.value || saving.value) return;
 
-  const value = toAmountNumber(amount.value);
-  if (!isValidAmount(amount.value)) {
+  if (!isValidExpression(amount.value)) {
     showToast('金额要大于 0 哦');
     return;
   }
+  const value = evaluateExpression(amount.value).value;
 
   saving.value = true;
   try {
@@ -516,13 +575,7 @@ async function save() {
     rememberCategory(selectedCategory.value);
     haptic('success');
     showToast('喵，记好啦');
-    if (recordDoneBehavior.value === 'close') {
-      resetRecord();
-    } else {
-      amount.value = '';
-      note.value = '';
-      expenseDraft.value = null;
-    }
+    resetRecord();
   } catch (err) {
     console.error(err);
     showToast('没记上，再试一次吧');
@@ -535,7 +588,7 @@ async function removeCurrent() {
   const expense = editingExpense.value;
   if (!expense) return;
   const backPath = returnTo.value;
-  const removed = await removeExpenseAction(expense);
+  const removed = await removeExpenseWithUndo(expense);
   if (!removed) return;
   closeCurtain();
   resetRecord();
@@ -543,11 +596,11 @@ async function removeCurrent() {
 }
 
 function isInteractiveTarget(target) {
-  return Boolean(target?.closest?.('button, input, textarea, select, a, .record-category-grid, .record-category-add-row, .record-note-ghost, .number-keypad, .van-popup'));
+  return Boolean(target?.closest?.('button, input, textarea, select, a, .record-category-grid, .record-note-ghost, .number-keypad, .van-popup'));
 }
 
 function onCurtainPointerDown(event) {
-  if (!curtainOpen.value || showDatePicker.value) return;
+  if (!curtainOpen.value || showDatePicker.value || showCategories.value) return;
   if (event.pointerType === 'mouse' && event.button !== 0) return;
   if (!event.isPrimary) return;
   if (isInteractiveTarget(event.target)) return;
@@ -617,17 +670,27 @@ function onKeydown(event) {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
 
   if (event.key === 'Escape') {
+    if (showCategories.value) {
+      showCategories.value = false;
+      return;
+    }
     closeCurtain();
     return;
   }
+  if (showCategories.value) return;
   if (/^\d$/.test(event.key)) {
     event.preventDefault();
     onDigit(event.key);
     return;
   }
-  if (event.key === '.') {
+  if (event.key === '.' || event.key === '。') {
     event.preventDefault();
     onDecimal();
+    return;
+  }
+  if (event.key === '+' || event.key === '-') {
+    event.preventDefault();
+    onOperator(event.key);
     return;
   }
   if (event.key === 'Backspace') {

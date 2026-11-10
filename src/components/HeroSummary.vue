@@ -1,56 +1,65 @@
 <template>
   <section class="hero">
+    <span class="hero-cat-mark" aria-hidden="true"><CatMood :mood="mood" /></span>
+
     <div class="hero-top">
       <span class="eyebrow">{{ mergeMode ? '合并账本' : '所有账本' }}</span>
-      <div class="hero-side">
-        <PrivacyToggle class="hero-eye" />
-        <span class="hero-mood"><CatMood :mood="mood" /></span>
-      </div>
+      <PrivacyToggle class="hero-eye" />
     </div>
 
     <div class="hero-stage-row">
-      <div class="hero-stage">{{ overviewStageLabel }}</div>
+      <span class="hero-stage">{{ overviewStageLabel }}</span>
       <span v-if="mergeMode" class="hero-merge-badge">{{ mergedStages.length }} 个账本</span>
     </div>
 
-    <div class="hero-amount" :class="{ 'is-counting': counting }">
-      <span class="currency">¥</span><span>{{ hideAmount ? '•••' : formatMoney(animatedTotal) }}</span>
-    </div>
-
-    <div class="hero-stats" role="list" aria-label="账本统计">
-      <span class="hero-stat" role="listitem">
-        <b>{{ overviewStats.count }}</b>
-        <small>笔</small>
-      </span>
-      <span class="hero-stat" role="listitem">
-        <b>{{ stageCount }}</b>
-        <small>账本</small>
-      </span>
-      <span class="hero-stat" role="listitem">
-        <b>{{ recordDays }}</b>
-        <small>记账天</small>
-      </span>
+    <div
+      class="hero-amount"
+      :class="{
+        'is-counting': counting,
+        'is-compact': amountText.length > 9,
+        'is-tiny': amountText.length > 12,
+        'is-micro': amountText.length > 15
+      }"
+    >
+      <span class="currency">¥</span><span>{{ hideAmount ? '•••' : amountText }}</span>
     </div>
 
     <p class="hero-caption">{{ moodLine }}</p>
 
-    <div v-if="!mergeMode && overviewBudget > 0" class="budget-block">
-      <div class="budget-line">
-        <span class="budget-label">
-          猫粮罐 ¥<b>{{ displayMoney(overviewBudget, hideAmount) }}</b>
+    <div class="hero-meta">
+      <div class="hero-stats" role="list" aria-label="账本统计">
+        <span class="hero-stat" role="listitem">
+          <b>{{ overviewStats.count }}</b>
+          <small>笔</small>
         </span>
-        <span :class="{ over: remaining < 0 }">
-          {{ remaining >= 0 ? `还剩 ¥${displayMoney(remaining, hideAmount)}` : `花超啦 ¥${displayMoney(Math.abs(remaining), hideAmount)}` }}
+        <span class="hero-stat" role="listitem">
+          <b>{{ stageCount }}</b>
+          <small>账本</small>
+        </span>
+        <span class="hero-stat" role="listitem">
+          <b>{{ recordDays }}</b>
+          <small>记账天</small>
         </span>
       </div>
-      <div class="progress">
-        <div class="progress-fill" :class="{ over: spent > overviewBudget }" :style="{ width: `${progress}%` }"></div>
+
+      <div v-if="!mergeMode && overviewBudget > 0" class="budget-block">
+        <div class="budget-line">
+          <span class="budget-label">
+            猫粮罐 ¥<b>{{ displayMoney(overviewBudget, hideAmount) }}</b>
+          </span>
+          <span :class="{ over: remaining < 0 }">
+            {{ remaining >= 0 ? `还剩 ¥${displayMoney(remaining, hideAmount)}` : `花超啦 ¥${displayMoney(Math.abs(remaining), hideAmount)}` }}
+          </span>
+        </div>
+        <div class="progress">
+          <div class="progress-fill" :class="{ over: spent > overviewBudget }" :style="{ width: `${progress}%` }"></div>
+        </div>
+      </div>
+
+      <div v-else-if="mergeMode && mergedStages.length" class="hero-merge-note">
+        合并后预算沿用目标账本
       </div>
     </div>
-
-    <p v-else-if="mergeMode && mergedStages.length" class="hero-merge-note">
-      合并后预算沿用目标账本
-    </p>
   </section>
 </template>
 
@@ -116,6 +125,7 @@ onUnmounted(() => {
 });
 
 const spent = computed(() => overviewStats.value.total);
+const amountText = computed(() => formatMoney(animatedTotal.value));
 const stageCount = computed(() => (
   mergeMode.value ? mergedStages.value.length : activeStages.value.length
 ));

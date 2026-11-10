@@ -16,14 +16,22 @@
             <input v-model.number="entry.amount" type="number" inputmode="decimal" min="0" step="0.01">
           </div>
         </div>
-        <label class="field">
+        <div class="field category-field">
           <span class="field-label">分类</span>
-          <select v-model="entry.category" class="select">
-            <option v-for="category in categoryOptions(entry)" :key="category" :value="category">
-              {{ iconFor(category) }} {{ category }}
-            </option>
-          </select>
-        </label>
+          <button
+            class="category-chip"
+            type="button"
+            :style="{ '--swatch': categoryColor(entry.category) }"
+            :aria-label="`分类：${entry.category}，点击重新选择`"
+            @click="openPicker(entry)"
+          >
+            <span class="category-chip-icon" aria-hidden="true"><CategoryIcon :name="iconFor(entry.category)" /></span>
+            <span class="category-chip-name">{{ entry.category }}</span>
+            <svg class="category-chip-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m6 9 6 6 6-6"></path>
+            </svg>
+          </button>
+        </div>
         <div class="field">
           <span class="field-label">日期</span>
           <DateTimeField
@@ -38,14 +46,25 @@
         </label>
       </div>
     </div>
+
+    <CategoryPickerSheet
+      v-model:show="pickerOpen"
+      :categories="categories"
+      :selected="activeEntry?.category || ''"
+      @select="applyCategory"
+    />
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import DateTimeField from './DateTimeField.vue';
+import CategoryIcon from './CategoryIcon.vue';
+import CategoryPickerSheet from './CategoryPickerSheet.vue';
 import PawIcon from './PawIcon.vue';
 import { useLedger } from '../composables/useLedger';
-import { applyDateToIso, toDateInput } from '../utils/format';
+import { applyDateToIso, categoryColor, toDateInput } from '../utils/format';
+import { haptic } from '../utils/haptics';
 
 const props = defineProps({
   entries: { type: Array, required: true },
@@ -55,10 +74,18 @@ const props = defineProps({
 const emit = defineEmits(['remove']);
 const { iconFor } = useLedger();
 
-function categoryOptions(entry) {
-  return props.categories.includes(entry.category)
-    ? props.categories
-    : [entry.category, ...props.categories];
+const pickerOpen = ref(false);
+const activeEntry = ref(null);
+
+function openPicker(entry) {
+  activeEntry.value = entry;
+  pickerOpen.value = true;
+}
+
+function applyCategory(category) {
+  if (activeEntry.value) activeEntry.value.category = category;
+  activeEntry.value = null;
+  haptic('light');
 }
 
 function updateEntryDate(entry, value) {

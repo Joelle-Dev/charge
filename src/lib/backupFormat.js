@@ -1,6 +1,8 @@
+import { validateProfile } from '../utils/profile.js';
+
 export const BACKUP_APP = 'shoucai-xiaoguo';
 export const BACKUP_KIND = 'full';
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
 export const BACKUP_EXTENSION = '.scbackup';
 export const BACKUP_MAX_SIZE = 300 * 1024 * 1024;
 
@@ -60,6 +62,8 @@ export function validateBackupManifest(manifest) {
   ) {
     return '备份里的分类图标格式不正确';
   }
+  const profileError = validateProfile(manifest.profile);
+  if (profileError) return profileError;
   if (manifest.achievementUnlocked !== undefined && !Array.isArray(manifest.achievementUnlocked)) {
     return '备份里的成就数据格式不正确';
   }

@@ -5,7 +5,7 @@ const voiceAutostart = ref(false);
 
 function openVoice(autoStart = false) {
   voiceAutostart.value = autoStart;
-  if (router.currentRoute.value.path !== '/voice') router.push('/voice');
+  if (router.currentRoute.value.path !== '/batch') router.push('/batch');
 }
 
 export function useVoiceEntry() {

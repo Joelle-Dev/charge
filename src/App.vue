@@ -38,10 +38,10 @@ import { useRecordEntry } from './composables/useRecordEntry';
 import { useSheets } from './composables/useSheets';
 import { useVoiceEntry } from './composables/useVoiceEntry';
 import { useAchievements } from './composables/useAchievements';
-import { usePreferences } from './composables/usePreferences';
+import { useProfile } from './composables/useProfile';
 
 const { init, currentStage } = useLedger();
-const { initPreferences } = usePreferences();
+const { initProfile } = useProfile();
 const { initAchievements } = useAchievements();
 const sheets = useSheets();
 const record = useRecordEntry();
@@ -62,7 +62,7 @@ function scheduleAchievements() {
 }
 
 onMounted(async () => {
-  await initPreferences().catch((err) => console.error(err));
+  await initProfile().catch((err) => console.error(err));
   await init();
   if (typeof window.requestIdleCallback === 'function') {
     window.requestIdleCallback(scheduleAchievements, { timeout: 5000 });
@@ -78,7 +78,7 @@ onMounted(async () => {
     sheets.openStageForm();
     return;
   }
-  if (action === 'voice') voice.openVoice();
+  if (action === 'voice') voice.openVoice(true);
   if (action === 'manual') record.openRecord();
 });
 </script>

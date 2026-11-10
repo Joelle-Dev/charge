@@ -27,15 +27,11 @@ const routes = [
   },
   {
     path: '/voice',
-    name: 'voice',
-    meta: { immersive: true },
-    component: () => import('../views/VoiceView.vue')
+    redirect: '/batch'
   },
   {
     path: '/voice-test',
-    name: 'voice-test',
-    meta: { immersive: true, voiceTest: true },
-    component: () => import('../views/VoiceView.vue')
+    redirect: '/batch'
   },
   {
     path: '/search',

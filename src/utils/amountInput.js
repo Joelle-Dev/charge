@@ -74,3 +74,78 @@ export function formatAmountInput(value) {
   const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return raw.includes('.') ? `${grouped}.${decimalPart}` : grouped;
 }
+
+function splitLastOperand(value) {
+  const index = Math.max(value.lastIndexOf('+'), value.lastIndexOf('-'));
+  if (index === -1) return { head: '', operand: value };
+  return {
+    head: value.slice(0, index + 1),
+    operand: value.slice(index + 1)
+  };
+}
+
+export function appendExpressionDigit(current, digit) {
+  if (!/^\d$/.test(digit)) return current;
+  const value = current || '';
+  const { head, operand } = splitLastOperand(value);
+  return `${head}${appendDigit(operand, digit)}`;
+}
+
+export function appendExpressionDecimal(current) {
+  const value = current || '';
+  const { head, operand } = splitLastOperand(value);
+  if (operand.includes('.')) return value;
+  return `${head}${appendDecimal(operand)}`;
+}
+
+export function appendExpressionDoubleZero(current) {
+  return appendExpressionDigit(appendExpressionDigit(current, '0'), '0');
+}
+
+export function appendExpressionOperator(current, operator) {
+  if (operator !== '+' && operator !== '-') return current;
+  let value = current || '';
+  if (!value) return '';
+  if (value.endsWith('.')) value = value.slice(0, -1);
+  if (!value) return '';
+  if (/[+-]$/.test(value)) return `${value.slice(0, -1)}${operator}`;
+  return `${value}${operator}`;
+}
+
+export function evaluateExpression(current) {
+  const value = String(current || '').trim();
+  if (!value || /[+-]$/.test(value)) return { valid: false, value: 0 };
+
+  const parts = value.split(/([+-])/);
+  let total = 0;
+  let operator = '+';
+  let hasOperand = false;
+
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index];
+    if (index % 2 === 0) {
+      if (!/^\d+(?:\.\d{0,2})?$/.test(part)) return { valid: false, value: 0 };
+      const number = Number(part);
+      if (!Number.isFinite(number)) return { valid: false, value: 0 };
+      total = operator === '+' ? total + number : total - number;
+      hasOperand = true;
+    } else {
+      if (part !== '+' && part !== '-') return { valid: false, value: 0 };
+      operator = part;
+    }
+  }
+
+  if (!hasOperand) return { valid: false, value: 0 };
+  return { valid: true, value: Math.round(total * 100) / 100 };
+}
+
+export function isValidExpression(current) {
+  const result = evaluateExpression(current);
+  return result.valid && result.value > 0 && result.value <= MAX_AMOUNT;
+}
+
+export function formatExpression(current) {
+  const value = String(current || '');
+  if (!value) return '';
+  return value.replace(/\d+(?:\.\d*)?/g, (part) => formatAmountInput(part));
+}

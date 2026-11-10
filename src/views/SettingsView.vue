@@ -1,5 +1,18 @@
 <template>
   <section class="settings-page">
+    <section class="settings-card settings-profile-card">
+      <button class="settings-profile" type="button" @click="showProfile = true">
+        <ProfileAvatar :avatar="profile.avatar" :name="profile.name" :size="44" />
+        <span class="settings-profile-copy">
+          <strong>{{ profileName }}</strong>
+          <small>{{ profile.name ? '主人 · 昵称和头像只存在这台设备' : '点这里设置昵称和头像' }}</small>
+        </span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m9 6 6 6-6 6"></path>
+        </svg>
+      </button>
+    </section>
+
     <section class="settings-card">
       <div class="settings-card-head">
         <h2>小账本</h2>
@@ -53,28 +66,6 @@
     <section class="settings-card">
       <div class="settings-card-head">
         <h2>果冻的偏好</h2>
-      </div>
-      <div class="settings-preference">
-        <span class="settings-preference-label">
-          记完一笔之后
-          <small>{{ recordDoneBehavior === 'close' ? '保存后自动收起来' : '保存后接着记' }}</small>
-        </span>
-        <div class="settings-segment" role="group" aria-label="记完一笔之后的行为">
-          <button
-            type="button"
-            :class="{ active: recordDoneBehavior === 'continue' }"
-            @click="setRecordDoneBehavior('continue')"
-          >
-            接着记
-          </button>
-          <button
-            type="button"
-            :class="{ active: recordDoneBehavior === 'close' }"
-            @click="setRecordDoneBehavior('close')"
-          >
-            收起来
-          </button>
-        </div>
       </div>
       <button class="settings-action" type="button" @click="showCategories = true">
         <span>
@@ -137,23 +128,6 @@
       </button>
     </section>
 
-    <section class="settings-card">
-      <div class="settings-card-head">
-        <h2>内测专区</h2>
-      </div>
-      <button class="settings-action" type="button" @click="openVoiceTest">
-        <span>
-          先试试语音（内测）
-          <small>语音识别 · 带调试信息，手机自测通过后再上线</small>
-        </span>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <rect x="9" y="2.5" width="6" height="11" rx="3"></rect>
-          <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"></path>
-          <path d="M12 18v3"></path>
-        </svg>
-      </button>
-    </section>
-
     <p class="settings-privacy settings-privacy-plain">
       账目和账本都乖乖待在这台设备里，不会上传。语音识别由浏览器和系统提供，要不要上传音频要看浏览器的实现。
     </p>
@@ -167,6 +141,8 @@
     <HelpSheet v-model:show="showHelp" />
 
     <CategorySheet v-model:show="showCategories" />
+
+    <ProfileSheet v-model:show="showProfile" />
 
     <BackupSheet v-model:show="showBackup" @import="openImport" />
 
@@ -186,11 +162,13 @@ import CategorySheet from '../components/CategorySheet.vue';
 import HelpSheet from '../components/HelpSheet.vue';
 import ImportSheet from '../components/ImportSheet.vue';
 import PawIcon from '../components/PawIcon.vue';
+import ProfileAvatar from '../components/ProfileAvatar.vue';
+import ProfileSheet from '../components/ProfileSheet.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
 import { useAchievements } from '../composables/useAchievements';
 import { usePwaInstall } from '../composables/usePwaInstall';
-import { usePreferences } from '../composables/usePreferences';
+import { useProfile } from '../composables/useProfile';
 import { exportStageCsvInWorker, saveBlob } from '../lib/dataClient';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
@@ -207,16 +185,17 @@ const {
 const sheets = useSheets();
 const { unlockedCount, initAchievements } = useAchievements();
 const { standalone, isIos, promptInstall } = usePwaInstall();
-const { recordDoneBehavior, initPreferences, setRecordDoneBehavior } = usePreferences();
+const { profile, profileName, initProfile } = useProfile();
 
 const showInstallTip = ref(false);
 const showImport = ref(false);
 const showBackup = ref(false);
 const showCategories = ref(false);
 const showHelp = ref(false);
+const showProfile = ref(false);
 
 onMounted(() => {
-  initPreferences().catch((err) => console.error(err));
+  initProfile().catch((err) => console.error(err));
   initAchievements().catch((err) => console.error(err));
 });
 
@@ -259,15 +238,6 @@ async function shareApp() {
   } catch (err) {
     showToast(url);
   }
-}
-
-function openVoiceTest() {
-  if (!currentStage.value) {
-    showToast('先给果冻建个账本吧');
-    sheets.openStageForm();
-    return;
-  }
-  router.push('/voice-test');
 }
 
 function openSummary() {

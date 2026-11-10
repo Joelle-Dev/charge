@@ -1,5 +1,6 @@
-// Category artwork from Twemoji (https://github.com/jdecked/twemoji),
-// licensed under CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+// Category artwork from Lucide (https://lucide.dev),
+// licensed under ISC (https://github.com/lucide-icons/lucide/blob/main/LICENSE).
+// The lipstick icon is hand-drawn in the same line style.
 export const CATEGORY_ICON_ASSET_KEYS = {
   '🍜': 'noodle',
   '☕': 'coffee',

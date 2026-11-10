@@ -31,8 +31,8 @@
         </div>
 
         <div class="summary-footer">
-          <span class="summary-paw"><PawIcon /></span>
-          <span>守财小果 · 果冻陪你记账</span>
+          <ProfileAvatar class="summary-profile-avatar" :avatar="profile.avatar" :name="profile.name" :size="20" />
+          <span>{{ profileName }} · 守财小果</span>
         </div>
       </div>
 
@@ -57,9 +57,10 @@ import { showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
 import CatMood from './CatMood.vue';
 import CategoryIcon from './CategoryIcon.vue';
-import PawIcon from './PawIcon.vue';
+import ProfileAvatar from './ProfileAvatar.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
+import { useProfile } from '../composables/useProfile';
 import { categoryColor, displayMoney } from '../utils/format';
 import { usePrivacy } from '../composables/usePrivacy';
 import { haptic } from '../utils/haptics';
@@ -67,6 +68,7 @@ import { haptic } from '../utils/haptics';
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
 const { stageSummary , iconFor } = useLedger();
+const { profile, profileName } = useProfile();
 const { hideAmount } = usePrivacy();
 const cardRef = ref(null);
 const busy = ref(false);

@@ -1,6 +1,11 @@
 <template>
   <span class="category-icon-visual">
-    <img v-if="src" :src="src" alt="" draggable="false" />
+    <span
+      v-if="src"
+      class="category-icon-mask"
+      :style="maskStyle"
+      aria-hidden="true"
+    />
     <span v-else aria-hidden="true">{{ name || '·' }}</span>
   </span>
 </template>
@@ -14,4 +19,7 @@ const props = defineProps({
 });
 
 const src = computed(() => iconSourceFor(props.name));
+const maskStyle = computed(() => (
+  src.value ? { '--category-icon-src': `url("${src.value}")` } : undefined
+));
 </script>

@@ -1,11 +1,11 @@
 <template>
   <span class="cat-avatar" :class="`mood-${mood}`">
-    <img :src="brandIcon" alt="">
+    <img :src="catAvatar" alt="">
   </span>
 </template>
 
 <script setup>
-import brandIcon from '../assets/brand-icon.png';
+import catAvatar from '../assets/cat-avatar.png';
 
 defineProps({
   mood: {

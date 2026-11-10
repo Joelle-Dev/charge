@@ -19,6 +19,7 @@ const manifest = {
   categories: ['餐饮'],
   currentStageId: 's1',
   achievementUnlocked: [],
+  profile: { name: '小果', avatar: { type: 'preset', value: 'cat' } },
   counts: { stages: 1, expenses: 1 }
 };
 
@@ -38,6 +39,9 @@ test('backup manifest validation rejects wrong files and versions', () => {
     stages: [{ id: 's1', name: '一' }, { id: 's1', name: '二' }]
   }));
   assert.ok(validateBackupManifest({ ...manifest, counts: {} }));
+  assert.ok(validateBackupManifest({ ...manifest, profile: { avatar: { type: 'preset', value: 'unknown' } } }));
+  assert.ok(validateBackupManifest({ ...manifest, profile: { name: 'x'.repeat(13) } }));
+  assert.ok(validateBackupManifest({ ...manifest, profile: { avatar: { type: 'image', value: 'https://x.test/a.png' } } }));
 });
 
 test('backup expense validation checks stage, amount and date', () => {

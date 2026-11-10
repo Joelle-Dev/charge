@@ -1,5 +1,5 @@
 <template>
-  <SheetFrame v-model:show="show" title="钱钱分类">
+  <SheetFrame v-model:show="show" title="钱钱分类" @opened="onOpened">
     <p class="sheet-intro">分类用来汇总和听懂你的话。可以换图标、拖动排序，点名字改，自定义的名字也会被果冻记住。</p>
 
     <div
@@ -121,6 +121,10 @@ import { DANGER_COLOR } from '../utils/theme';
 import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
+const props = defineProps({
+  autoFocus: { type: Boolean, default: false }
+});
+const emit = defineEmits(['created']);
 const {
   categories,
   setCategories,
@@ -315,6 +319,17 @@ function stopDrag() {
 
 onUnmounted(stopDrag);
 
+function onOpened() {
+  if (!props.autoFocus) return;
+  editing.value = '';
+  draft.value = '';
+  iconTarget.value = '';
+  nextTick(() => {
+    inputRef.value?.focus();
+    inputRef.value?.select?.();
+  });
+}
+
 async function startEdit(category) {
   if (category === DEFAULT_CATEGORY) return;
   editing.value = category;
@@ -388,6 +403,7 @@ async function submit() {
   }
   await setCategories([...categories.value, name]);
   draft.value = '';
+  emit('created', name);
   haptic('light');
   showToast(`「${name}」加进来啦`);
 }

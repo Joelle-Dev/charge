@@ -5,7 +5,7 @@
         <span class="empty-ring"></span>
         <span class="empty-paw empty-paw-a"><PawIcon /></span>
         <span class="empty-paw empty-paw-b"><PawIcon /></span>
-        <span class="empty-cat"><img class="empty-cat-image" :src="brandIcon" alt=""></span>
+        <span class="empty-cat"><img class="empty-cat-image" :src="catAvatar" alt=""></span>
       </div>
 
       <span class="empty-eyebrow">果冻在这里</span>
@@ -32,7 +32,7 @@
 
 <script setup>
 import PawIcon from './PawIcon.vue';
-import brandIcon from '../assets/brand-icon.png';
+import catAvatar from '../assets/cat-avatar.png';
 import { useSheets } from '../composables/useSheets';
 import { haptic } from '../utils/haptics';
 

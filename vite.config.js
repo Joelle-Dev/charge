@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
     base: './',
     build: {
       assetsInlineLimit(file) {
-        if (file.replace(/\\/g, '/').includes('/category-icons/')) return false;
+        const path = file.replace(/\\/g, '/');
+        if (path.includes('/category-icons/') || path.includes('/profile-avatars/')) return false;
       }
     },
     plugins: [
@@ -40,7 +41,7 @@ export default defineConfig(({ mode }) => {
             {
               name: '说给果冻听',
               short_name: '说一笔',
-              description: '打开语音记账，说给果冻听',
+              description: '打开批量记，直接说给果冻听',
               url: `${startUrl}?action=voice`,
               icons: [{ src: './icons/icon-192.png', sizes: '192x192', type: 'image/png' }]
             },

@@ -1,11 +1,9 @@
 <template>
   <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">
-        <img class="brand-image" :src="brandIcon" alt="">
-      </span>
-      <span class="brand-name">守财小果</span>
-    </div>
+    <button class="brand" type="button" aria-label="编辑我的资料" @click="openProfile">
+      <ProfileAvatar :avatar="profile.avatar" :name="profile.name" :size="28" />
+      <span class="brand-profile-name">{{ profileName }}</span>
+    </button>
 
     <button class="stage-pill" type="button" aria-label="切换果冻的账本" @click="sheets.openStages()">
       <span class="stage-dot" :class="{ inactive: !currentStage }"></span>
@@ -18,10 +16,18 @@
 </template>
 
 <script setup>
-import brandIcon from '../assets/brand-icon.png';
+import { useRouter } from 'vue-router';
+import ProfileAvatar from './ProfileAvatar.vue';
 import { useLedger } from '../composables/useLedger';
+import { useProfile } from '../composables/useProfile';
 import { useSheets } from '../composables/useSheets';
 
 const { currentStage } = useLedger();
+const { profile, profileName } = useProfile();
 const sheets = useSheets();
+const router = useRouter();
+
+function openProfile() {
+  router.push('/settings');
+}
 </script>
