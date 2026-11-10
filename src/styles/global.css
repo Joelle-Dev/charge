@@ -348,6 +348,7 @@ svg {
   height: 150px;
   opacity: 0.12;
   filter: grayscale(0.2) saturate(0.85);
+  mix-blend-mode: multiply;
   -webkit-mask-image: radial-gradient(ellipse at center, #000 32%, transparent 72%);
   mask-image: radial-gradient(ellipse at center, #000 32%, transparent 72%);
   pointer-events: none;
@@ -4448,6 +4449,7 @@ input[type='search']::-webkit-search-decoration {
   object-fit: contain;
   opacity: 0.08;
   filter: grayscale(0.25) saturate(0.8);
+  mix-blend-mode: multiply;
   -webkit-mask-image: radial-gradient(ellipse at center, #000 35%, transparent 72%);
   mask-image: radial-gradient(ellipse at center, #000 35%, transparent 72%);
   pointer-events: none;
@@ -4573,30 +4575,8 @@ input[type='search']::-webkit-search-decoration {
   justify-content: space-between;
   gap: 10px;
   min-height: 48px;
-  max-height: 80px;
-  overflow: hidden;
   padding: 10px var(--shell-pad) 12px;
   border-top: 1px solid var(--line);
-  opacity: 1;
-  transition: opacity 0.16s ease;
-}
-
-.record-pane.is-compact .record-month-bar {
-  max-height: 0;
-  min-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-top-width: 0;
-  opacity: 0;
-}
-
-.record-pane.is-compact .record-pane-pull.record-pull-handle {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.record-pane.is-compact .record-pull-hint {
-  display: none;
 }
 
 .record-month-nav {
