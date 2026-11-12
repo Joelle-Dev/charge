@@ -12,6 +12,13 @@ const EXPENSE_INDEXES = [
 let dbPromise = null;
 
 function toPlain(value) {
+  if (typeof structuredClone === 'function') {
+    try {
+      return structuredClone(value);
+    } catch (err) {
+      // Vue reactive proxies cannot be structured-cloned; fall back to JSON.
+    }
+  }
   return JSON.parse(JSON.stringify(value));
 }
 

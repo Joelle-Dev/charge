@@ -14,6 +14,7 @@
         class="import-file-input"
         type="file"
         :disabled="parsing || busy || exportingCurrent"
+        @click="onPickClick"
         @change="onFileChange"
       >
     </label>
@@ -160,7 +161,7 @@ import {
   parseCsvFile,
   saveBlob
 } from '../lib/dataClient';
-import { BACKUP_MAX_SIZE, isBackupFile, isBackupManifest } from '../lib/backupFormat';
+import { BACKUP_MAX_SIZE, detectImportFileKind } from '../lib/backupFormat';
 import { displayMoney } from '../utils/money';
 import { useProfile } from '../composables/useProfile';
 import { haptic } from '../utils/haptics';
@@ -345,35 +346,15 @@ async function parseBackupPreview(file, token) {
   }
 }
 
-async function detectFileKind(file, extension) {
-  if (isBackupFile(file.name)) return 'backup';
-
-  let head = '';
-  try {
-    head = await file.slice(0, 8192).text();
-  } catch (err) {
-    return 'unknown';
-  }
-
-  const firstLine = head.split(/\r?\n/)[0]?.trim().replace(/^\uFEFF/, '');
-  if (firstLine) {
-    try {
-      const parsed = JSON.parse(firstLine);
-      if (isBackupManifest(parsed)) return 'backup';
-    } catch (err) {
-      // Not a backup manifest.
-    }
-  }
-
-  if (extension === 'csv') return 'csv';
-  if (head.includes('日期') && head.includes('金额')) return 'csv';
-  if (extension === 'json') return 'json';
-  return 'unknown';
+function onPickClick() {
+  // Don't clear the input before reading: iOS home-screen web apps hand out
+  // security-scoped files that can become unreadable once the value is reset.
+  if (parsing.value || busy.value || exportingCurrent.value || preview.value) return;
+  if (fileInput.value) fileInput.value.value = '';
 }
 
 async function onFileChange(event) {
   const file = event.target.files?.[0];
-  event.target.value = '';
   if (!file || parsing.value || busy.value) return;
 
   const token = ++parseToken;
@@ -383,8 +364,7 @@ async function onFileChange(event) {
   clearParsedCsv();
   clearPendingBackup();
 
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  const kind = await detectFileKind(file, extension);
+  const kind = await detectImportFileKind(file);
   if (token !== parseToken) return;
 
   if (kind === 'backup') {

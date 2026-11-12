@@ -66,8 +66,8 @@
     </div>
 
     <template v-else>
-      <div ref="receiptRef" class="receipt-export">
-      <div :key="month" class="receipt-paper">
+      <div class="receipt-export">
+      <div ref="receiptRef" :key="month" class="receipt-paper">
         <span class="receipt-slip-tag" aria-hidden="true">顾客联</span>
         <header class="receipt-head">
           <span class="receipt-brand">守财小果</span>
@@ -619,13 +619,17 @@ async function saveReceipt() {
   if (!node) return;
   haptic('light');
   try {
-    const background = getComputedStyle(document.documentElement)
-      .getPropertyValue('--bg')
-      .trim() || '#faf5ec';
     const dataUrl = await toPng(node, {
-      pixelRatio: 2,
-      backgroundColor: background,
-      cacheBust: true
+      pixelRatio: 3,
+      cacheBust: true,
+      style: {
+        margin: '0',
+        opacity: '1',
+        transform: 'none',
+        animation: 'none',
+        filter: 'none',
+        boxShadow: 'none'
+      }
     });
     const result = await saveImage(dataUrl, `守财小果-${month.value}-小票.png`, {
       title: '守财小果 · 月度小票',

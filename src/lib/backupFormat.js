@@ -6,8 +6,83 @@ export const BACKUP_SCHEMA_VERSION = 2;
 export const BACKUP_EXTENSION = '.scbackup';
 export const BACKUP_MAX_SIZE = 300 * 1024 * 1024;
 
+// The manifest is the first line of a backup and can embed a photo avatar
+// (base64 up to ~320k chars), so a fixed small prefix is not enough to parse it.
+const IMPORT_HEAD_BYTES = 1024 * 1024;
+
 export function isBackupFile(fileName = '') {
   return String(fileName).toLowerCase().endsWith(BACKUP_EXTENSION);
+}
+
+function fileExtension(fileName = '') {
+  const name = String(fileName);
+  const index = name.lastIndexOf('.');
+  if (index <= 0 || index === name.length - 1) return '';
+  return name.slice(index + 1).toLowerCase();
+}
+
+function readBlobText(blob) {
+  if (typeof blob.text === 'function') return blob.text();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('读取文件失败'));
+    reader.readAsText(blob);
+  });
+}
+
+async function readHead(file, limit) {
+  if (!file || typeof file.slice !== 'function') return '';
+  const size = Number(file.size) || 0;
+  const end = size > 0 ? Math.min(size, limit) : limit;
+  return readBlobText(file.slice(0, end));
+}
+
+function firstLineOf(text) {
+  const index = text.indexOf('\n');
+  const line = index >= 0 ? text.slice(0, index) : text;
+  return line.replace(/^\uFEFF/, '').replace(/\r$/, '');
+}
+
+function looksLikeBackupManifest(text) {
+  // Marker sniffing works even when the manifest line is longer than what we read.
+  const compact = text.replace(/\s+/g, '');
+  return compact.includes(`"app":"${BACKUP_APP}"`) &&
+    compact.includes(`"kind":"${BACKUP_KIND}"`);
+}
+
+/**
+ * Detect the kind of an imported file: 'backup' | 'csv' | 'json' | 'unknown'.
+ * Never trusts the file extension alone, because iOS home-screen web apps can
+ * drop or rename the picked file.
+ */
+export async function detectImportFileKind(file) {
+  const name = String(file?.name || '');
+  if (isBackupFile(name)) return 'backup';
+
+  let head = '';
+  try {
+    head = await readHead(file, IMPORT_HEAD_BYTES);
+  } catch (err) {
+    return 'unknown';
+  }
+
+  const firstLine = firstLineOf(head).trim();
+  if (firstLine) {
+    try {
+      const parsed = JSON.parse(firstLine);
+      if (isBackupManifest(parsed)) return 'backup';
+    } catch (err) {
+      // Manifest can be truncated; fall through to marker sniffing.
+    }
+    if (looksLikeBackupManifest(firstLine)) return 'backup';
+  }
+
+  const extension = fileExtension(name);
+  if (extension === 'csv') return 'csv';
+  if (head.includes('日期') && head.includes('金额')) return 'csv';
+  if (extension === 'json') return 'json';
+  return 'unknown';
 }
 
 export function isBackupManifest(value) {

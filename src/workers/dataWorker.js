@@ -377,7 +377,7 @@ async function importCsv({ stageId, stageName, budget, categories, skipDuplicate
   await setSetting('statsDirty', true);
   if (createdStage) await putRecord('stages', stage);
 
-  const batchSize = 1000;
+  const batchSize = 5000;
   for (let index = 0; index < records.length; index += batchSize) {
     await putMany('expenses', records.slice(index, index + batchSize));
     self.postMessage({
@@ -418,62 +418,88 @@ async function importCsv({ stageId, stageName, budget, categories, skipDuplicate
   });
 }
 
-async function readFirstLine(file) {
-  const reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
-  let buffer = '';
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += value;
-      const index = buffer.indexOf('\n');
-      if (index >= 0) {
-        return buffer.slice(0, index).replace(/^\uFEFF/, '').replace(/\r$/, '');
-      }
-      if (buffer.length > 4 * 1024 * 1024) break;
-    }
-  } finally {
+function readBlobArrayBuffer(blob) {
+  if (typeof blob.arrayBuffer === 'function') return blob.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('读取文件失败'));
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+async function* readTextChunks(file) {
+  if (typeof file.stream === 'function' && typeof TextDecoderStream !== 'undefined') {
+    const reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
     try {
-      await reader.cancel();
-    } catch (err) {
-      // ignore
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        yield value;
+      }
+    } finally {
+      try {
+        await reader.cancel();
+      } catch (err) {
+        // ignore
+      }
     }
+    return;
+  }
+
+  // Older iOS lacks TextDecoderStream. Decode bytes in chunks with a streaming
+  // TextDecoder so multi-byte characters split across chunks stay intact.
+  const size = Number(file.size) || 0;
+  const chunkSize = 1024 * 1024;
+  const decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder() : null;
+  for (let start = 0; start < size; start += chunkSize) {
+    const end = Math.min(start + chunkSize, size);
+    const buffer = await readBlobArrayBuffer(file.slice(start, end));
+    if (!buffer) continue;
+    if (!decoder) continue;
+    const text = decoder.decode(new Uint8Array(buffer), { stream: true });
+    if (text) yield text;
+  }
+  if (decoder) {
+    const tail = decoder.decode();
+    if (tail) yield tail;
+  }
+}
+
+async function readFirstLine(file) {
+  let buffer = '';
+  for await (const chunk of readTextChunks(file)) {
+    buffer += chunk;
+    const index = buffer.indexOf('\n');
+    if (index >= 0) {
+      return buffer.slice(0, index).replace(/^\uFEFF/, '').replace(/\r$/, '');
+    }
+    if (buffer.length > 4 * 1024 * 1024) break;
   }
   return buffer.replace(/^\uFEFF/, '').replace(/\r$/, '');
 }
 
 async function readLines(file, onLine) {
-  const reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
   let buffer = '';
   let lineIndex = 0;
 
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += value;
-      let index = buffer.indexOf('\n');
-      while (index >= 0) {
-        let line = buffer.slice(0, index).replace(/\r$/, '');
-        buffer = buffer.slice(index + 1);
-        if (lineIndex === 0) line = line.replace(/^\uFEFF/, '');
-        await onLine(line, lineIndex);
-        lineIndex += 1;
-        index = buffer.indexOf('\n');
-      }
-    }
-
-    if (buffer.length) {
-      let line = buffer.replace(/\r$/, '');
+  for await (const chunk of readTextChunks(file)) {
+    buffer += chunk;
+    let index = buffer.indexOf('\n');
+    while (index >= 0) {
+      let line = buffer.slice(0, index).replace(/\r$/, '');
+      buffer = buffer.slice(index + 1);
       if (lineIndex === 0) line = line.replace(/^\uFEFF/, '');
       await onLine(line, lineIndex);
+      lineIndex += 1;
+      index = buffer.indexOf('\n');
     }
-  } finally {
-    try {
-      await reader.cancel();
-    } catch (err) {
-      // ignore
-    }
+  }
+
+  if (buffer.length) {
+    let line = buffer.replace(/\r$/, '');
+    if (lineIndex === 0) line = line.replace(/^\uFEFF/, '');
+    await onLine(line, lineIndex);
   }
 }
 
@@ -710,7 +736,7 @@ async function importBackup({ mode = 'replace' }) {
     batch.push(expense);
     written += 1;
 
-    if (batch.length >= 1000) {
+    if (batch.length >= 5000) {
       await flush();
       self.postMessage({
         type: 'backupProgress',

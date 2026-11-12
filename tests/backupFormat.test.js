@@ -5,6 +5,7 @@ import {
   BACKUP_KIND,
   BACKUP_SCHEMA_VERSION,
   backupFilename,
+  detectImportFileKind,
   isBackupFile,
   isBackupManifest,
   validateBackupExpense,
@@ -65,4 +66,35 @@ test('backup expense validation checks stage, amount and date', () => {
 test('backup filename is dated', () => {
   const name = backupFilename(new Date(2026, 9, 28));
   assert.equal(name, '守财小果-完整备份-20261028.scbackup');
+});
+
+function backupFile({ name, avatarSize = 0 }) {
+  const avatar = avatarSize
+    ? { type: 'image', value: `data:image/png;base64,${'A'.repeat(avatarSize)}` }
+    : { type: 'preset', value: 'cat' };
+  const line = JSON.stringify({ ...manifest, profile: { name: '小果', avatar } });
+  return new File([`${line}\n{"id":"e1"}\n`], name);
+}
+
+test('detectImportFileKind trusts a .scbackup extension', async () => {
+  assert.equal(await detectImportFileKind(backupFile({ name: '备份.scbackup' })), 'backup');
+});
+
+test('detectImportFileKind reads a long manifest even without an extension', async () => {
+  const file = backupFile({ name: '备份文件', avatarSize: 20000 });
+  assert.ok(file.size > 8192);
+  assert.equal(await detectImportFileKind(file), 'backup');
+});
+
+test('detectImportFileKind recognizes a manifest longer than the read window', async () => {
+  const file = backupFile({ name: '备份文件', avatarSize: 2 * 1024 * 1024 });
+  assert.equal(await detectImportFileKind(file), 'backup');
+});
+
+test('detectImportFileKind separates csv, json and unknown files', async () => {
+  const csv = ['日期,时间,分类,备注,金额', '2026-10-23,12:00,餐饮,午饭,35.00'].join('\n');
+  assert.equal(await detectImportFileKind(new File([csv], 'data.csv')), 'csv');
+  assert.equal(await detectImportFileKind(new File([csv], 'data')), 'csv');
+  assert.equal(await detectImportFileKind(new File(['{"foo":1}'], 'data.json')), 'json');
+  assert.equal(await detectImportFileKind(new File(['hello world'], 'notes')), 'unknown');
 });

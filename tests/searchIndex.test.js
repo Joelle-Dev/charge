@@ -7,6 +7,7 @@ import {
   matchesSearchDate,
   matchesSearchEntry,
   searchChunkMonthBounds,
+  searchMetaEntry,
   searchEntryAmount,
   searchTextForExpense,
   sortSearchChunksByRecency
@@ -40,6 +41,17 @@ test('buildSearchChunks groups by stage and month with rows newest first', () =>
   assert.deepEqual(february.rows.map((row) => row.id), ['c', 'b']);
   assert.equal(february.rows[0].c, '餐饮');
   assert.ok(february.rows[0].t.includes('晚饭'));
+  assert.equal(february.count, 2);
+  assert.equal(february.sum, 38);
+  assert.equal(february.latest, expenses[2].spentAt);
+  assert.deepEqual(searchMetaEntry(february), {
+    key: 'searchmeta:s1:2026-02',
+    stageId: 's1',
+    month: '2026-02',
+    count: 2,
+    sum: 38,
+    latest: expenses[2].spentAt
+  });
 });
 
 test('search text contains note, category and amount', () => {

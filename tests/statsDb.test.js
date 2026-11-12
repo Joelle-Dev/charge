@@ -2,12 +2,13 @@ import 'fake-indexeddb/auto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const { clearStores, putMany } = await import('../src/lib/db.js');
+const { clearStores, getAllByRange, putMany } = await import('../src/lib/db.js');
 const {
   applyRuntimeExpenseDeltas,
   buildStatsFromExpenses,
   loadDayStats,
   loadHomeStats,
+  rebuildDerivedData,
   statsEntriesFromState
 } = await import('../src/lib/stats.js');
 
@@ -52,4 +53,24 @@ test('per-stage day stats are written on rebuild and kept in sync by deltas', as
 
   const otherStage = await loadDayStats({ stageId: 's2' });
   assert.equal(otherStage.days.get('2026-01-02').total, 30);
+});
+
+test('derived rebuild writes search chunk metadata next to the index', async () => {
+  await clearStores(['stats', 'expenses', 'searchChunks']);
+
+  const day = new Date(2026, 2, 3, 12);
+  await putMany('expenses', [
+    expense('m1', 's1', 20, '餐饮', day),
+    expense('m2', 's1', 30, '交通', day)
+  ]);
+
+  await rebuildDerivedData();
+  const metas = await getAllByRange(
+    'stats',
+    IDBKeyRange.bound('searchmeta:', 'searchmeta:\uffff')
+  );
+  const meta = metas.find((entry) => entry.key === 'searchmeta:s1:2026-03');
+  assert.ok(meta);
+  assert.equal(meta.count, 2);
+  assert.equal(meta.sum, 50);
 });

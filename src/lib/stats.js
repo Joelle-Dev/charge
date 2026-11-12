@@ -14,7 +14,12 @@ import { DEFAULT_CATEGORY } from './parser.js';
 import { dayKey } from '../utils/format.js';
 import { monthKey } from '../utils/months.js';
 import { catTitleForCategory } from '../utils/titles.js';
-import { buildSearchChunks, SEARCH_VERSION, SEARCH_BUILDING_VERSION } from './searchIndex.js';
+import {
+  buildSearchChunks,
+  searchMetaEntry,
+  SEARCH_VERSION,
+  SEARCH_BUILDING_VERSION
+} from './searchIndex.js';
 
 export const STATS_VERSION = 4;
 
@@ -480,6 +485,10 @@ export async function rebuildDerivedData(onProgress) {
 
   for (let index = 0; index < searchChunks.length; index += chunkSize) {
     await putMany('searchChunks', searchChunks.slice(index, index + chunkSize));
+  }
+  const metaEntries = searchChunks.map(searchMetaEntry);
+  for (let index = 0; index < metaEntries.length; index += chunkSize) {
+    await putMany('stats', metaEntries.slice(index, index + chunkSize));
   }
   mark('writeSearch');
 

@@ -29,11 +29,12 @@ const {
   applySearchChunkChanges,
   compactSearchEntry
 } = await import('../src/lib/searchIndex.js');
+const { monthBounds } = await import('../src/utils/months.js');
 
 const TOTAL = Number(process.env.STRESS_TOTAL || 20000);
 const STAGE_COUNT = Number(process.env.STRESS_STAGES || 4);
 const MONTH_COUNT = Number(process.env.STRESS_MONTHS || 36);
-const BATCH = 2000;
+const BATCH = Number(process.env.STRESS_BATCH || 5000);
 const LIMIT = 500;
 const CATEGORIES = ['餐饮', '交通', '购物', '娱乐', '房租', '水电', '医疗', '其他'];
 const NOTES = [
@@ -139,6 +140,43 @@ function scanChunks(chunks, filters) {
   return { count, sum, ids };
 }
 
+function chunkFullyCovered(chunk, fromIso, toIso) {
+  const [start, end] = monthBounds(chunk.month);
+  if (fromIso && fromIso > start) return false;
+  if (toIso && toIso < end) return false;
+  return true;
+}
+
+async function scanChunksFast(metas, filters, getChunk) {
+  const { fromIso = '', toIso = '', idsLimit = LIMIT } = filters;
+  let count = 0;
+  let sum = 0;
+  const ids = [];
+  for (const meta of metas) {
+    const full = chunkFullyCovered(meta, fromIso, toIso);
+    if (full) {
+      count += Number(meta.count) || 0;
+      sum += Number(meta.sum) || 0;
+      if (ids.length < idsLimit) {
+        const chunk = await getChunk(meta);
+        for (const row of chunk?.rows || []) {
+          ids.push(row.id);
+          if (ids.length >= idsLimit) break;
+        }
+      }
+    } else {
+      const chunk = await getChunk(meta);
+      for (const row of chunk?.rows || []) {
+        if (!matchesSearchDate(row, fromIso, toIso)) continue;
+        count += 1;
+        sum += Number(row.a ?? row.amount) || 0;
+        if (ids.length < idsLimit) ids.push(row.id);
+      }
+    }
+  }
+  return { count, sum, ids };
+}
+
 async function searchAllChunks(stageIds, filters) {
   const lists = await Promise.all(
     stageIds.map((id) => getAllByIndex('searchChunks', 'stageId', id))
@@ -157,6 +195,26 @@ async function searchMonthChunks(stageIds, filters) {
   );
   const chunks = sortSearchChunksByRecency(lists.flat());
   return { chunks, ...scanChunks(chunks, filters) };
+}
+
+async function searchFastChunks(stageIds, filters) {
+  const { fromMonth, toMonth } = searchChunkMonthBounds(filters.fromIso, filters.toIso);
+  const lists = await Promise.all(
+    stageIds.map((id) => getAllByRange(
+      'stats',
+      IDBKeyRange.bound(`searchmeta:${id}:${fromMonth}`, `searchmeta:${id}:${toMonth}`)
+    ))
+  );
+  const metas = lists.flat().sort((a, b) => (
+    String(b.latest || '').localeCompare(String(a.latest || ''))
+  ));
+  const cache = new Map();
+  const getChunk = async (meta) => {
+    const key = `${meta.stageId}|${meta.month}`;
+    if (!cache.has(key)) cache.set(key, await getRecord('searchChunks', key));
+    return cache.get(key);
+  };
+  return { metas, ...(await scanChunksFast(metas, filters, getChunk)) };
 }
 
 function describe(title) {
@@ -219,7 +277,8 @@ async function main() {
   };
   const c = await time('current (load every chunk)', () => searchAllChunks(stageIds, yearFilters));
   const d = await time('month-range (load relevant chunks)', () => searchMonthChunks(stageIds, yearFilters));
-  console.log(`result: ${c.count} / ${d.count}, chunks scanned: ${c.chunks.length} -> ${d.chunks.length}`);
+  const dFast = await time('month-range + meta store', () => searchFastChunks(stageIds, yearFilters));
+  console.log(`result: ${c.count} / ${d.count} / ${dFast.count}, chunks scanned: ${c.chunks.length} -> ${d.chunks.length}, metas: ${dFast.metas.length}`);
 
   describe('search: all time / all stages / filters');
   const heavyFilters = {

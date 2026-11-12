@@ -1,7 +1,7 @@
 import { monthKey } from '../utils/months.js';
 import { formatMoney } from '../utils/format.js';
 
-export const SEARCH_VERSION = 3;
+export const SEARCH_VERSION = 4;
 export const SEARCH_BUILDING_VERSION = -1;
 
 export function searchTextForExpense(expense) {
@@ -45,6 +45,32 @@ export function searchChunkMonth(expense) {
   return monthKey(new Date(expense.spentAt));
 }
 
+export function searchChunkStats(rows = []) {
+  let sum = 0;
+  let latest = '';
+  for (const row of rows) {
+    sum += Number(row.a ?? row.amount) || 0;
+    const time = searchEntryTime(row);
+    if (time > latest) latest = time;
+  }
+  return { count: rows.length, sum, latest };
+}
+
+export function searchMetaKey(stageId, month) {
+  return `searchmeta:${stageId}:${month}`;
+}
+
+export function searchMetaEntry(chunk) {
+  return {
+    key: searchMetaKey(chunk.stageId, chunk.month),
+    stageId: chunk.stageId,
+    month: chunk.month,
+    count: Number(chunk.count) || 0,
+    sum: Number(chunk.sum) || 0,
+    latest: chunk.latest || ''
+  };
+}
+
 export function buildSearchChunks(expenses = []) {
   const chunks = new Map();
 
@@ -66,6 +92,7 @@ export function buildSearchChunks(expenses = []) {
 
   for (const chunk of chunks.values()) {
     chunk.rows.sort((a, b) => (b.s || '').localeCompare(a.s || ''));
+    Object.assign(chunk, searchChunkStats(chunk.rows));
   }
 
   return [...chunks.values()];
@@ -76,12 +103,8 @@ export function searchEntryTime(row) {
 }
 
 export function searchChunkLatestTime(chunk) {
-  let latest = '';
-  for (const row of chunk?.rows || []) {
-    const time = searchEntryTime(row);
-    if (time > latest) latest = time;
-  }
-  return latest;
+  if (chunk?.latest) return chunk.latest;
+  return searchChunkStats(chunk?.rows).latest;
 }
 
 export function sortSearchChunksByRecency(chunks = []) {

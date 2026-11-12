@@ -32,7 +32,10 @@ import {
   applySearchChunkChanges,
   compactSearchEntry,
   searchChunkKey,
-  searchChunkMonth
+  searchChunkMonth,
+  searchChunkStats,
+  searchMetaEntry,
+  searchMetaKey
 } from '../lib/searchIndex';
 import {
   rebuildSearchIndex,
@@ -329,14 +332,22 @@ async function updateSearchChunks(removed = [], added = []) {
     });
 
     if (rows.length) {
+      const stats = searchChunkStats(rows);
       await putRecord('searchChunks', {
         key: group.key,
         stageId: group.stageId,
         month: group.month,
-        rows
+        rows,
+        ...stats
       });
+      await putRecord('stats', searchMetaEntry({
+        stageId: group.stageId,
+        month: group.month,
+        ...stats
+      }));
     } else {
       await deleteRecord('searchChunks', group.key);
+      await deleteRecord('stats', searchMetaKey(group.stageId, group.month));
     }
   }
 }
