@@ -109,6 +109,7 @@
               class="record-note-clear"
               type="button"
               aria-label="清掉备注"
+              @mousedown.prevent
               @click="clearNote"
             >
               ×
@@ -535,8 +536,10 @@ function blurNote() {
 }
 
 function clearNote() {
+  // Do not force focus back into the input: on mobile that reopens the
+  // system keyboard from a button tap, which can leave the note row
+  // covered before the visual viewport settles.
   note.value = '';
-  noteInput.value?.focus();
 }
 
 function onDigit(digit) {
