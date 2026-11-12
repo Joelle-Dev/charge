@@ -251,7 +251,7 @@
           看看这个月的明细
         </button>
         <button class="secondary-btn report-save-btn" type="button" @click="saveReceipt">
-          保存小票
+          保存 / 分享小票
         </button>
       </div>
     </template>
@@ -272,6 +272,7 @@ import { useViewScope } from '../composables/useViewScope';
 import { addMonths, currentMonthKey, monthBounds, monthLabel } from '../utils/months';
 import { dayKey, formatAmount, pad2 } from '../utils/format';
 import { haptic } from '../utils/haptics';
+import { saveImage } from '../utils/saveImage';
 
 const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -535,7 +536,7 @@ async function loadReport() {
       stageIds,
       fromIso,
       toIso,
-      limit: 1000
+      limit: 5000
     });
     if (token !== loadToken) return;
 
@@ -626,11 +627,18 @@ async function saveReceipt() {
       backgroundColor: background,
       cacheBust: true
     });
-    const link = document.createElement('a');
-    link.download = `守财小果-${month.value}-小票.png`;
-    link.href = dataUrl;
-    link.click();
-    showToast('小票已保存');
+    const result = await saveImage(dataUrl, `守财小果-${month.value}-小票.png`, {
+      title: '守财小果 · 月度小票',
+      text: `${monthText.value}的小票`
+    });
+    if (result === 'share') {
+      showToast('已打开分享，选「存储图像」保存');
+    } else if (result === 'preview') {
+      showToast('长按图片保存到相册');
+    } else if (result === 'download') {
+      showToast('小票已保存到下载文件夹');
+    }
+    if (result !== 'cancelled') haptic('success');
   } catch (err) {
     console.error('保存小票失败', err);
     showToast('保存失败，再试一次');

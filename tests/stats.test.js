@@ -48,6 +48,8 @@ test('stats state aggregates global, stage, month and day buckets', () => {
   assert.equal(state.days.get('2026-01-02').total, 100);
   assert.equal(state.months.get('s1|2026-01').count, 2);
   assert.equal(state.months.get('s1|2026-02').total, 100);
+  assert.equal(state.stageDays.get('s1|2026-01-02').count, 2);
+  assert.equal(state.stageDays.get('s1|2026-01-02').total, 100);
 });
 
 test('stats deltas remove records and clean empty buckets', () => {
@@ -63,6 +65,7 @@ test('stats deltas remove records and clean empty buckets', () => {
   assert.equal(state.global.total, 0);
   assert.equal(state.stages.size, 0);
   assert.equal(state.days.size, 0);
+  assert.equal(state.stageDays.size, 0);
   assert.equal(state.months.size, 0);
 });
 
@@ -95,9 +98,11 @@ test('stats entries use storage key prefixes', () => {
   const state = buildStatsFromExpenses(expenses);
   const entries = statsEntriesFromState(state);
   const day = entries.find((entry) => entry.key === 'day:2026-01-02');
+  const stageDay = entries.find((entry) => entry.key === 'stageday:s1:2026-01-02');
   const month = entries.find((entry) => entry.key === 'month:s1:2026-01');
 
   assert.equal(day.total, 100);
+  assert.equal(stageDay.total, 100);
   assert.equal(month.total, 100);
   assert.equal(state.days.get('2026-01-02').count, 2);
   assert.equal(state.months.get('s1|2026-01').total, 100);

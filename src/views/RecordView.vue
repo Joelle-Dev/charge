@@ -120,7 +120,7 @@ function measurePager() {
 function applyTransform(offset, animate) {
   const track = trackRef.value;
   if (!track) return;
-  track.style.transition = animate ? 'transform 0.28s var(--ease-out)' : 'none';
+  track.style.transition = animate ? 'transform 0.34s var(--ease-page)' : 'none';
   track.style.transform = `translate3d(${offset}px, 0, 0)`;
 }
 

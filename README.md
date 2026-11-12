@@ -49,6 +49,13 @@ npm run dev
 npm test
 ```
 
+数据压测（使用 fake-indexeddb，可调整数据量）：
+
+```bash
+npm run stress
+STRESS_TOTAL=50000 STRESS_STAGES=4 STRESS_MONTHS=36 npm run stress
+```
+
 ## 构建与部署
 
 ```bash

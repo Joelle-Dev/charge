@@ -64,6 +64,9 @@
   --shadow: 0 12px 34px rgba(90, 63, 43, 0.1);
   --shadow-soft: 0 4px 16px rgba(90, 63, 43, 0.06);
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.22, 1.28, 0.36, 1);
+  --ease-soft-spring: cubic-bezier(0.25, 1.06, 0.4, 1);
+  --ease-page: cubic-bezier(0.28, 1.03, 0.42, 1);
 
   /* 布局 */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -1265,7 +1268,7 @@ body.is-app-fixed .main {
     0 5px 12px rgba(var(--accent-rgb), 0.18),
     0 1px 3px rgba(var(--shadow-rgb), 0.1);
   color: var(--accent-strong);
-  transition: transform 0.16s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition: transform 0.22s var(--ease-spring), box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .action-primary-icon::before {
@@ -4863,15 +4866,17 @@ input[type='search']::-webkit-search-decoration {
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
-  animation: record-hint-in 0.25s var(--ease-out);
+  animation: record-hint-in 0.34s var(--ease-spring);
 }
 
 @keyframes record-hint-in {
   from {
     opacity: 0;
+    transform: translateY(-4px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -5001,7 +5006,7 @@ input[type='search']::-webkit-search-decoration {
 .daily-sheet-enter-active .daily-page-body,
 .daily-sheet-leave-active .daily-header,
 .daily-sheet-leave-active .daily-page-body {
-  transition: transform 0.26s var(--ease-out);
+  transition: transform 0.32s var(--ease-spring);
 }
 
 .daily-sheet-enter-from,
@@ -5418,7 +5423,7 @@ input[type='search']::-webkit-search-decoration {
   line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.2s var(--ease-spring), background 0.15s ease;
 }
 
 .timeline-avatar .category-icon-visual {
@@ -5436,7 +5441,7 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .timeline-avatar:active {
-  transform: translateX(-50%) scale(0.94);
+  transform: translateX(-50%) scale(0.92);
   background: color-mix(in srgb, var(--swatch) 22%, var(--surface));
 }
 
@@ -5552,7 +5557,7 @@ input[type='search']::-webkit-search-decoration {
   overflow: hidden;
   pointer-events: none;
   will-change: clip-path;
-  transition: clip-path 0.3s var(--ease-out);
+  transition: clip-path 0.36s var(--ease-spring);
 }
 
 .record-curtain.is-open,
@@ -5562,6 +5567,24 @@ input[type='search']::-webkit-search-decoration {
 
 .record-curtain.is-dragging {
   transition: none;
+}
+
+.record-curtain.is-open .record-curtain-body {
+  animation: curtain-body-pop 0.46s var(--ease-spring) both;
+}
+
+@keyframes curtain-body-pop {
+  0% { transform: translateY(14px) scale(0.99); }
+  62% { transform: translateY(-2px) scale(1.002); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-curtain.is-open .record-curtain-body,
+  .record-pull-handle.is-open,
+  .record-category-cell.selected .record-category-icon {
+    animation: none;
+  }
 }
 
 .record-curtain-grabber {
@@ -5613,7 +5636,7 @@ input[type='search']::-webkit-search-decoration {
   cursor: grab;
   touch-action: none;
   transition:
-    transform 0.18s ease,
+    transform 0.26s var(--ease-spring),
     background 0.18s ease,
     box-shadow 0.18s ease,
     color 0.18s ease;
@@ -5630,6 +5653,13 @@ input[type='search']::-webkit-search-decoration {
   box-shadow:
     0 10px 26px rgba(var(--shadow-rgb), 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  animation: pull-handle-pop 0.44s var(--ease-spring);
+}
+
+@keyframes pull-handle-pop {
+  0% { transform: translateX(-50%) scale(1); }
+  45% { transform: translateX(-50%) scale(1.1); }
+  100% { transform: translateX(-50%) scale(1); }
 }
 
 .record-pull-ring {
@@ -5654,7 +5684,7 @@ input[type='search']::-webkit-search-decoration {
 .record-pull-ring-fill {
   stroke: var(--accent);
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.12s linear;
+  transition: stroke-dashoffset 0.16s var(--ease-out);
 }
 
 .record-pull-handle.is-dragging .record-pull-ring-fill {
@@ -5666,7 +5696,7 @@ input[type='search']::-webkit-search-decoration {
   z-index: 1;
   width: 16px;
   height: 16px;
-  transition: transform 0.2s var(--ease-out);
+  transition: transform 0.34s var(--ease-spring);
 }
 
 .record-pull-handle.is-arrow-up .record-pull-arrow {
@@ -5969,7 +5999,15 @@ input[type='search']::-webkit-search-decoration {
   font: inherit;
   appearance: none;
   -webkit-appearance: none;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.18s var(--ease-spring);
+}
+
+.record-category-cell:active {
+  transform: scale(0.94);
 }
 
 .record-category-cell.selected {
@@ -5992,6 +6030,13 @@ input[type='search']::-webkit-search-decoration {
 
 .record-category-cell.selected .record-category-icon {
   background: transparent;
+  animation: category-icon-pop 0.36s var(--ease-spring);
+}
+
+@keyframes category-icon-pop {
+  0% { transform: scale(0.88); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
 }
 
 .record-category-cell.selected .record-category-icon .category-icon-visual {
@@ -6086,11 +6131,15 @@ input[type='search']::-webkit-search-decoration {
   font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    transform 0.16s var(--ease-spring);
 }
 
 .keypad-key:active {
   background: var(--accent-soft);
+  transform: scale(0.96);
 }
 
 .keypad-soft {

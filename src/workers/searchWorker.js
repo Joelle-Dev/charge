@@ -1,6 +1,6 @@
 import {
   getAll,
-  getAllByIndex,
+  getAllByRange,
   putMany,
   clearStores,
   setSetting
@@ -10,6 +10,7 @@ import {
   matchesSearchAmount,
   matchesSearchDate,
   matchesSearchEntry,
+  searchChunkMonthBounds,
   SEARCH_VERSION,
   SEARCH_BUILDING_VERSION,
   sortSearchChunksByRecency
@@ -47,7 +48,7 @@ function amountBound(value) {
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
-async function search({ requestId, stageId, stageIds, query, category, limit, minAmount, maxAmount, fromIso, toIso }) {
+async function search({ requestId, stageId, stageIds, query, category, limit, minAmount, maxAmount, fromIso, toIso, progress }) {
   activeSearchId = requestId;
   const keyword = String(query || '').trim().toLowerCase();
   const categoryFilter = category || '';
@@ -64,8 +65,12 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
     return;
   }
 
+  const { fromMonth, toMonth } = searchChunkMonthBounds(fromIso, toIso);
   const chunkLists = await Promise.all(
-    targetStageIds.map((id) => getAllByIndex('searchChunks', 'stageId', id))
+    targetStageIds.map((id) => getAllByRange(
+      'searchChunks',
+      IDBKeyRange.bound(`${id}|${fromMonth}`, `${id}|${toMonth}`)
+    ))
   );
   const chunks = sortSearchChunksByRecency(chunkLists.flat());
 
@@ -88,7 +93,7 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
       }
     }
 
-    if (index % 20 === 19) {
+    if (progress && index % 20 === 19) {
       self.postMessage({ type: 'searchProgress', requestId, count, sum, ids: ids.slice() });
       await new Promise((resolve) => setTimeout(resolve, 0));
       if (activeSearchId !== requestId) return;

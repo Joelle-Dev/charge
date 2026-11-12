@@ -6,6 +6,7 @@ import {
   matchesSearchAmount,
   matchesSearchDate,
   matchesSearchEntry,
+  searchChunkMonthBounds,
   searchEntryAmount,
   searchTextForExpense,
   sortSearchChunksByRecency
@@ -113,4 +114,17 @@ test('applySearchChunkChanges removes and adds rows while staying sorted', () =>
     addRows: [{ id: 'e', s: new Date(2026, 1, 25, 12).toISOString(), c: '餐饮', t: '宵夜' }]
   });
   assert.deepEqual(added.map((row) => row.id), ['e', 'c', 'b']);
+});
+
+test('search chunk month bounds follow the inclusive date range', () => {
+  const fromIso = new Date(2026, 0, 15, 0, 0).toISOString();
+  const toIso = new Date(2026, 1, 1, 0, 0).toISOString();
+  assert.deepEqual(searchChunkMonthBounds(fromIso, toIso), {
+    fromMonth: '2026-01',
+    toMonth: '2026-01'
+  });
+  assert.deepEqual(searchChunkMonthBounds('', ''), {
+    fromMonth: '',
+    toMonth: '\uffff'
+  });
 });

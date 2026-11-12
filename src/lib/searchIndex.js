@@ -27,6 +27,20 @@ export function searchChunkKey(stageId, month) {
   return `${stageId}|${month}`;
 }
 
+export function searchChunkMonthBounds(fromIso = '', toIso = '') {
+  const fromDate = fromIso ? new Date(fromIso) : null;
+  const toDate = toIso ? new Date(toIso) : null;
+  return {
+    fromMonth: fromDate && !Number.isNaN(fromDate.getTime())
+      ? monthKey(fromDate)
+      : '',
+    toMonth: toDate && !Number.isNaN(toDate.getTime())
+      // `toIso` is exclusive, so step back to the last included day.
+      ? monthKey(new Date(toDate.getTime() - 1))
+      : '\uffff'
+  };
+}
+
 export function searchChunkMonth(expense) {
   return monthKey(new Date(expense.spentAt));
 }

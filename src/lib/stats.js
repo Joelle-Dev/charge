@@ -1,7 +1,6 @@
 import {
   getAll,
   getAllByRange,
-  scanIndex,
   countRange,
   getRecord,
   getMany,
@@ -17,7 +16,7 @@ import { monthKey } from '../utils/months.js';
 import { catTitleForCategory } from '../utils/titles.js';
 import { buildSearchChunks, SEARCH_VERSION, SEARCH_BUILDING_VERSION } from './searchIndex.js';
 
-export const STATS_VERSION = 3;
+export const STATS_VERSION = 4;
 
 function emptyGlobal() {
   return { key: 'global', count: 0, total: 0, minDate: '', maxDate: '', recordDays: 0 };
@@ -43,6 +42,7 @@ export function createStatsState() {
     global: emptyGlobal(),
     stages: new Map(),
     days: new Map(),
+    stageDays: new Map(),
     months: new Map(),
     monthsStageId: null,
     daysLoaded: false
@@ -57,6 +57,13 @@ export function statsEntriesFromState(state) {
       ...bucket,
       key: `day:${bucket.key}`
     })),
+    ...[...state.stageDays.values()].map((bucket) => {
+      const [stageId, day] = bucket.key.split('|');
+      return {
+        ...bucket,
+        key: `stageday:${stageId}:${day}`
+      };
+    }),
     ...[...state.months.values()].map((bucket) => {
       const [stageId, month] = bucket.key.split('|');
       return {
@@ -140,8 +147,13 @@ export function applyExpenseDelta(state, expense, sign = 1) {
   monthBucket.count += sign;
   monthBucket.total += sign * amount;
 
+  const stageDayBucket = ensureBucket(state.stageDays, `${stageId}|${day}`);
+  stageDayBucket.count += sign;
+  stageDayBucket.total += sign * amount;
+
   if (sign < 0) {
     dropBucketIfEmpty(state.days, day);
+    dropBucketIfEmpty(state.stageDays, `${stageId}|${day}`);
     dropBucketIfEmpty(state.months, `${stageId}|${month}`);
 
     if (state.global.minDate === day || state.global.maxDate === day) recomputeGlobalBounds(state);
@@ -247,13 +259,15 @@ export async function applyRuntimeExpenseDeltas(state, ops = []) {
   if (!items.length) return;
 
   const dayKeys = new Set();
+  const stageDayKeys = new Set();
   const monthKeys = new Set();
   for (const item of items) {
     dayKeys.add(`day:${item.day}`);
+    stageDayKeys.add(`stageday:${item.stageId}:${item.day}`);
     monthKeys.add(`month:${item.stageId}:${item.month}`);
   }
 
-  const allKeys = [...dayKeys, ...monthKeys];
+  const allKeys = [...dayKeys, ...stageDayKeys, ...monthKeys];
   const records = await getMany('stats', allKeys);
   const buckets = new Map();
   allKeys.forEach((key, index) => {
@@ -266,11 +280,14 @@ export async function applyRuntimeExpenseDeltas(state, ops = []) {
   for (const item of items) {
     const { sign, amount, day, month, stageId, category } = item;
     const dayBucket = buckets.get(`day:${day}`);
+    const stageDayBucket = buckets.get(`stageday:${stageId}:${day}`);
     const monthBucket = buckets.get(`month:${stageId}:${month}`);
     const dayWasEmpty = dayBucket.count <= 0;
 
     dayBucket.count += sign;
     dayBucket.total += sign * amount;
+    stageDayBucket.count += sign;
+    stageDayBucket.total += sign * amount;
     monthBucket.count += sign;
     monthBucket.total += sign * amount;
 
@@ -338,6 +355,20 @@ export async function applyRuntimeExpenseDeltas(state, ops = []) {
     }
   }
 
+  for (const key of stageDayKeys) {
+    const bucket = buckets.get(key);
+    const rest = key.slice(9);
+    const split = rest.lastIndexOf(':');
+    const mapKey = `${rest.slice(0, split)}|${rest.slice(split + 1)}`;
+    if (bucket.count > 0) {
+      puts.push(bucket);
+      state.stageDays.set(mapKey, bucket);
+    } else {
+      deletes.push(key);
+      state.stageDays.delete(mapKey);
+    }
+  }
+
   for (const key of monthKeys) {
     const bucket = buckets.get(key);
     const rest = key.slice(6);
@@ -379,21 +410,17 @@ export async function recomputeBoundsFromExpenses(state, stageId) {
 
 export async function loadDayStats({ stageId = null } = {}) {
   if (stageId) {
-    const days = new Map();
-    await scanIndex(
-      'expenses',
-      'stageId_spentAt',
-      IDBKeyRange.bound([stageId, ''], [stageId, '\uffff']),
-      (expense) => {
-        const date = new Date(expense.spentAt);
-        if (Number.isNaN(date.getTime())) return;
-        const key = dayKey(date);
-        const bucket = days.get(key) || { key, count: 0, total: 0 };
-        bucket.count += 1;
-        bucket.total += Number(expense.amount) || 0;
-        days.set(key, bucket);
-      }
+    const prefix = `stageday:${stageId}:`;
+    const entries = await getAllByRange(
+      'stats',
+      IDBKeyRange.bound(prefix, `${prefix}\uffff`)
     );
+    const days = new Map();
+    for (const entry of entries) {
+      if (!entry?.key) continue;
+      const day = entry.key.slice(prefix.length);
+      days.set(day, { ...entry, key: day });
+    }
     const keys = [...days.keys()].sort();
     return {
       days,

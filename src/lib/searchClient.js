@@ -203,7 +203,8 @@ export async function searchExpenses({
       minAmount,
       maxAmount,
       fromIso,
-      toIso
+      toIso,
+      progress: Boolean(onProgress)
     });
   });
 }

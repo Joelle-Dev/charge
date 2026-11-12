@@ -153,6 +153,7 @@ function setStatsState(state) {
   statsState.global = state.global;
   statsState.stages = state.stages;
   statsState.days = state.days;
+  statsState.stageDays = state.stageDays;
   statsState.months = state.months;
   statsState.monthsStageId = state.monthsStageId ?? null;
   statsState.daysLoaded = Boolean(state.daysLoaded);

@@ -64,6 +64,7 @@ import { useProfile } from '../composables/useProfile';
 import { displayMoney } from '../utils/money';
 import { categoryColor } from '../utils/format';
 import { haptic } from '../utils/haptics';
+import { saveImage } from '../utils/saveImage';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
@@ -99,58 +100,33 @@ const budgetText = computed(() => {
   return `猫粮罐 ¥${budget} · 花超啦 ¥${displayMoney(Math.abs(summary.value.remaining))}`;
 });
 
-function download(dataUrl, filename) {
-  const link = document.createElement('a');
-  link.href = dataUrl;
-  link.download = filename;
-  document.body.append(link);
-  link.click();
-  link.remove();
-}
-
 async function shareSummary() {
   if (!summary.value || !cardRef.value || busy.value) return;
   busy.value = true;
-  let dataUrl = '';
-  let filename = '';
   try {
     const { toPng } = await import('html-to-image');
-    dataUrl = await toPng(cardRef.value, {
+    const dataUrl = await toPng(cardRef.value, {
       pixelRatio: 2,
       cacheBust: true,
       backgroundColor: '#faf5ec'
     });
-    filename = `${summary.value.stage.name.replace(/[\\/:*?"<>|]/g, '_')}-小结.png`;
-    const blob = await (await fetch(dataUrl)).blob();
-    const file = new File([blob], filename, { type: 'image/png' });
-
-    if (navigator.canShare?.({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: `${summary.value.stage.name} · 果冻的账本小结`,
-          text: `${summary.value.stage.name} 一共花了 ¥${displayMoney(summary.value.total)}`
-        });
-        showToast('分享打开啦');
-      } catch (err) {
-        if (err?.name === 'AbortError') return;
-        download(dataUrl, filename);
-        showToast('分享不了，果冻已经帮你存好啦');
-      }
-    } else {
-      download(dataUrl, filename);
-      showToast('小结图存好啦');
+    const filename = `${summary.value.stage.name.replace(/[\\/:*?"<>|]/g, '_')}-小结.png`;
+    const result = await saveImage(dataUrl, filename, {
+      title: `${summary.value.stage.name} · 果冻的账本小结`,
+      text: `${summary.value.stage.name} 一共花了 ¥${displayMoney(summary.value.total)}`
+    });
+    if (result === 'share') {
+      showToast('已打开分享，选「存储图像」保存');
+    } else if (result === 'preview') {
+      showToast('长按图片保存到相册');
+    } else if (result === 'download') {
+      showToast('小结图已保存到下载文件夹');
     }
-    haptic('success');
+    if (result !== 'cancelled') haptic('success');
   } catch (err) {
     if (err?.name !== 'AbortError') {
       console.error(err);
-      if (dataUrl && filename) {
-        download(dataUrl, filename);
-        showToast('小结图存好啦');
-      } else {
-        showToast('画像失败啦，再试一次吧');
-      }
+      showToast('画像失败啦，再试一次吧');
     }
   } finally {
     busy.value = false;
