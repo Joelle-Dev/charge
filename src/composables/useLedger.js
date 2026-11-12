@@ -9,8 +9,8 @@ import {
   getSetting,
   setSetting,
   getAllByIndex,
-  getPageByIndex,
   getMany,
+  getPageByIndex,
   scanIndex,
   writeExpenses
 } from '../lib/db';
@@ -25,7 +25,7 @@ import {
 } from '../utils/categories';
 import { combineLocal, toDateInput, uid } from '../utils/format';
 import { addCategoryTotal, finalizeCategoryTotals } from '../utils/expenses';
-import { currentMonthKey, monthBounds } from '../utils/months';
+import { currentMonthKey, monthBounds, monthKey } from '../utils/months';
 import { catTitleForCategory } from '../utils/titles';
 import {
   SEARCH_VERSION,
@@ -100,8 +100,6 @@ const currentStageStats = computed(() => (
   currentStage.value ? stageStatsFromState(statsState, currentStage.value.id) : emptyStageStats()
 ));
 
-const total = computed(() => currentStageStats.value.total || 0);
-
 const mergedStages = computed(() => {
   const selected = new Set(mergedStageIds.value);
   return activeStages.value.filter((stage) => selected.has(stage.id));
@@ -140,8 +138,6 @@ const categoryGroups = computed(() => (
 
 const currentCatTitle = computed(() => catTitleForCategory(categoryGroups.value[0]?.category || ''));
 
-const todayStats = ref({ count: 0, total: 0 });
-
 const achievementStats = computed(() => (
   buildAchievementStatsFromState(statsState, stages.value)
 ));
@@ -162,27 +158,6 @@ function setStatsState(state) {
   statsState.daysLoaded = Boolean(state.daysLoaded);
 }
 
-async function refreshTodayStats() {
-  const stage = currentStage.value;
-  if (!stage) {
-    todayStats.value = { count: 0, total: 0 };
-    return;
-  }
-  const today = toDateInput(new Date());
-  const startDate = new Date(`${today}T00:00:00`);
-  const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + 1);
-  const items = await getAllByIndex(
-    'expenses',
-    'stageId_spentAt',
-    IDBKeyRange.bound([stage.id, startDate.toISOString()], [stage.id, endDate.toISOString()], false, true)
-  );
-  todayStats.value = {
-    count: items.length,
-    total: items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-  };
-}
-
 async function ensureDaysLoaded() {
   if (statsState.daysLoaded) return;
   await loadDays(statsState);
@@ -199,7 +174,19 @@ async function loadMonthExpenses(stageId, month) {
   return items.sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt));
 }
 
-async function loadCategoryTotals({ stageId = null, from, to } = {}) {
+async function latestMonthBefore(stageId, beforeMonth) {
+  if (!stageId || !beforeMonth) return '';
+  const [start] = monthBounds(beforeMonth);
+  const [record] = await getPageByIndex(
+    'expenses',
+    'stageId_spentAt',
+    IDBKeyRange.bound([stageId, ''], [stageId, start], false, true),
+    { direction: 'prev', limit: 1 }
+  );
+  return record ? monthKey(new Date(record.spentAt)) : '';
+}
+
+async function loadCategoryTotals({ stageId = null, stageIds = null, from, to } = {}) {
   const start = combineLocal(from, '00:00');
   const end = combineLocal(to, '00:00');
   if (!start || !end) return { total: 0, items: [] };
@@ -208,8 +195,16 @@ async function loadCategoryTotals({ stageId = null, from, to } = {}) {
   const endIso = new Date(end.getTime() + 86400000).toISOString();
   const totals = new Map();
   const add = (expense) => addCategoryTotal(totals, expense);
+  const ids = Array.isArray(stageIds) ? stageIds.filter(Boolean) : [];
 
-  if (stageId) {
+  if (ids.length) {
+    await Promise.all(ids.map((id) => scanIndex(
+      'expenses',
+      'stageId_spentAt',
+      IDBKeyRange.bound([id, startIso], [id, endIso], false, true),
+      add
+    )));
+  } else if (stageId) {
     await scanIndex(
       'expenses',
       'stageId_spentAt',
@@ -226,26 +221,6 @@ async function loadCategoryTotals({ stageId = null, from, to } = {}) {
   }
 
   return finalizeCategoryTotals(totals);
-}
-
-async function loadRecentExpenses(stageId, limit = 3) {
-  if (!stageId) return [];
-  return getPageByIndex(
-    'expenses',
-    'stageId_spentAt',
-    IDBKeyRange.bound([stageId, ''], [stageId, '\uffff']),
-    { direction: 'prev', limit }
-  );
-}
-
-async function loadRecentExpensesForStages(stageIds, limit = 3) {
-  const ids = (Array.isArray(stageIds) ? stageIds : [stageIds]).filter(Boolean);
-  if (!ids.length) return [];
-  const lists = await Promise.all(ids.map((id) => loadRecentExpenses(id, limit)));
-  return lists
-    .flat()
-    .sort((a, b) => new Date(b.spentAt) - new Date(a.spentAt))
-    .slice(0, limit);
 }
 
 let searchIndexPromise = null;
@@ -280,16 +255,10 @@ async function searchExpenses(options) {
 
 async function refreshStageViews() {
   const stage = currentStage.value;
-  if (!stage) {
-    todayStats.value = { count: 0, total: 0 };
-    return;
-  }
-
+  if (!stage) return;
   if (statsState.monthsStageId !== '*' && statsState.monthsStageId !== stage.id) {
     await loadStageMonths(statsState, stage.id);
   }
-
-  await refreshTodayStats();
 }
 
 async function maybeRecomputeBounds(removed) {
@@ -467,28 +436,51 @@ async function init() {
   if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
-      await loadCategories();
-      await loadCategoryIcons();
-      await loadStagesAndCurrent();
+      await Promise.all([
+        loadCategories(),
+        loadCategoryIcons(),
+        loadStagesAndCurrent()
+      ]);
 
-      const storedStatsVersion = await getSetting('statsVersion', null);
-      const statsDirty = await getSetting('statsDirty', false);
+      const [storedStatsVersion, statsDirty] = await Promise.all([
+        getSetting('statsVersion', null),
+        getSetting('statsDirty', false)
+      ]);
       if (storedStatsVersion !== STATS_VERSION || statsDirty) {
         loadingHint.value = '果冻在整理账本，第一次打开可能要等一小会儿…';
         await rebuildAndApplyStats();
       } else {
+        // Let the panes start loading their own data while the home stats
+        // finish reading, instead of keeping the splash up the whole time.
+        ready.value = true;
+        loadingHint.value = '果冻在翻小账本…';
         setStatsState(await loadHomeStats());
-        await backfillRecordDays(statsState);
       }
 
-      await refreshStageViews();
-      ensureSearchIndex().catch((err) => {
-        console.error('搜索索引初始化失败', err);
+      ready.value = true;
+      loadingHint.value = '果冻在翻小账本…';
+
+      // Cheap when already backfilled; never block the first screen on it.
+      backfillRecordDays(statsState).catch((err) => {
+        console.error('补记账天数失败', err);
       });
+
+      const runBackground = () => {
+        refreshStageViews().catch((err) => {
+          console.error('刷新账本视图失败', err);
+        });
+        ensureSearchIndex().catch((err) => {
+          console.error('搜索索引初始化失败', err);
+        });
+      };
+      if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(runBackground, { timeout: 1500 });
+      } else {
+        window.setTimeout(runBackground, 120);
+      }
     } catch (err) {
       console.error(err);
       showToast('账本没打开，刷新再试试吧');
-    } finally {
       ready.value = true;
       loadingHint.value = '果冻在翻小账本…';
     }
@@ -830,20 +822,16 @@ export function useLedger() {
     currentStage,
     currentStageStats,
     globalStats,
-    total,
     mergeMode,
     mergedStageIds,
     mergedStages,
     mergedTotals,
-    allLedgerStats,
     mergeBusy,
     overviewStats,
     overviewStageLabel,
     overviewBudget,
     canMerge,
-    todayStats,
     currentCatTitle,
-    categoryGroups,
     achievementStats,
     currentStageMonthStats,
     stageStats,
@@ -851,9 +839,8 @@ export function useLedger() {
     isCategoryUsed,
     latestMonthForStage,
     loadMonthExpenses,
+    latestMonthBefore,
     loadCategoryTotals,
-    loadRecentExpenses,
-    loadRecentExpensesForStages,
     ensureSearchIndex,
     searchExpenses,
     loadExpensesByIds,

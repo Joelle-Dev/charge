@@ -49,7 +49,7 @@ export function useAchievements() {
       persist(merged);
       const names = list.filter((item) => newIds.includes(item.id)).map((item) => item.name);
       haptic('success');
-          showToast(`新爪印解锁：${names.join('、')}`);
+      showToast(`新爪印解锁：${names.join('、')}`);
     });
   }
 
@@ -86,12 +86,15 @@ export function useAchievements() {
             .filter((item) => newIds.includes(item.id))
             .map((item) => item.name);
           haptic('success');
-      showToast(`新爪印解锁：${names.join('、')}`);
+          showToast(`新爪印解锁：${names.join('、')}`);
         }
       }
       initialized.value = true;
       startWatcher();
-    })();
+    })().catch((err) => {
+      initPromise = null;
+      throw err;
+    });
     return initPromise;
   }
 

@@ -4,7 +4,7 @@
 
     <div class="hero-top">
       <span class="eyebrow">{{ mergeMode ? '合并账本' : '所有账本' }}</span>
-      <PrivacyToggle class="hero-eye" />
+      <PrivacyToggle class="hero-eye" scope="home" />
     </div>
 
     <div class="hero-stage-row">
@@ -21,7 +21,7 @@
         'is-micro': amountText.length > 15
       }"
     >
-      <span class="currency">¥</span><span>{{ hideAmount ? '•••' : amountText }}</span>
+      <span class="currency">¥</span><span>{{ amountText }}</span>
     </div>
 
     <p class="hero-caption">{{ moodLine }}</p>
@@ -45,10 +45,10 @@
       <div v-if="!mergeMode && overviewBudget > 0" class="budget-block">
         <div class="budget-line">
           <span class="budget-label">
-            猫粮罐 ¥<b>{{ displayMoney(overviewBudget, hideAmount) }}</b>
+            猫粮罐 ¥<b>{{ displayMoney(overviewBudget) }}</b>
           </span>
           <span :class="{ over: remaining < 0 }">
-            {{ remaining >= 0 ? `还剩 ¥${displayMoney(remaining, hideAmount)}` : `花超啦 ¥${displayMoney(Math.abs(remaining), hideAmount)}` }}
+            {{ remaining >= 0 ? `还剩 ¥${displayMoney(remaining)}` : `花超啦 ¥${displayMoney(Math.abs(remaining))}` }}
           </span>
         </div>
         <div class="progress">
@@ -68,8 +68,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import CatMood from './CatMood.vue';
 import PrivacyToggle from './PrivacyToggle.vue';
 import { useLedger } from '../composables/useLedger';
-import { usePrivacy } from '../composables/usePrivacy';
-import { displayMoney, formatMoney } from '../utils/format';
+import { displayMoney } from '../utils/money';
 
 const {
   activeStages,
@@ -81,7 +80,6 @@ const {
   overviewBudget
 } = useLedger();
 
-const { hideAmount } = usePrivacy();
 
 const animatedTotal = ref(0);
 const counting = ref(false);
@@ -97,6 +95,7 @@ function animateTotal(to) {
   const from = animatedTotal.value;
   if (reducedMotion || from === to) {
     animatedTotal.value = to;
+    counting.value = false;
     return;
   }
   counting.value = true;
@@ -125,7 +124,7 @@ onUnmounted(() => {
 });
 
 const spent = computed(() => overviewStats.value.total);
-const amountText = computed(() => formatMoney(animatedTotal.value));
+const amountText = computed(() => displayMoney(animatedTotal.value));
 const stageCount = computed(() => (
   mergeMode.value ? mergedStages.value.length : activeStages.value.length
 ));

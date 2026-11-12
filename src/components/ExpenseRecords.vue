@@ -6,8 +6,8 @@
           <button
             class="section-icon"
             type="button"
-            aria-label="历史支出"
-            @click="goHistory"
+            aria-label="小票"
+            @click="goDiary"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="8.5"></circle>
@@ -18,7 +18,7 @@
             v-if="currentStageStats.count"
             class="section-icon"
             type="button"
-            aria-label="搜索明细"
+            aria-label="查明细"
             @click="sheets.openSearch()"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -31,7 +31,7 @@
 
       <div class="month-summary">
         <div class="month-summary-left">
-          <span class="month-total">¥{{ displayMoney(monthTotal, hideAmount) }}</span>
+          <span class="month-total">¥{{ displayMoney(monthTotal) }}</span>
           <span class="month-count">{{ monthExpenses.length }} 笔</span>
         </div>
       </div>
@@ -58,7 +58,7 @@
                 <span class="day-count">{{ group.items.length }} 笔</span>
               </span>
               <span class="day-side">
-                <span class="day-total">¥{{ displayMoney(group.total, hideAmount) }}</span>
+                <span class="day-total">¥{{ displayMoney(group.total) }}</span>
                 <svg class="day-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="m6 9 6 6 6-6"></path>
                 </svg>
@@ -83,7 +83,7 @@
 
     <div v-else class="list-empty">
       <p>果冻还没记过账</p>
-      <span>点下面的麦克风，说一句就记上啦</span>
+      <span>点「批量记」说一句，或下拉「记一笔」</span>
     </div>
 
     <MonthPickerSheet
@@ -107,12 +107,11 @@ import MonthPickerSheet from './MonthPickerSheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
-import { usePrivacy } from '../composables/usePrivacy';
 import { useSheets } from '../composables/useSheets';
 import { useRecordsView } from '../composables/useRecordsView';
+import { displayMoney } from '../utils/money';
 import {
   dayKey,
-  displayMoney,
   sumAmounts,
   toDateInput
 } from '../utils/format';
@@ -129,7 +128,6 @@ const {
 } = useLedger();
 const { removeExpenseWithUndo } = useExpenseActions();
 const record = useRecordEntry();
-const { hideAmount } = usePrivacy();
 const sheets = useSheets();
 const router = useRouter();
 const {
@@ -215,9 +213,9 @@ function toggleDay(key) {
   expandedKeys.value = next;
 }
 
-function goHistory() {
+function goDiary() {
   haptic('light');
-  router.push('/history');
+  router.push('/diary');
 }
 
 function addForSelectedDay() {

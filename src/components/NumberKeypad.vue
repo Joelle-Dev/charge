@@ -86,6 +86,7 @@
 </template>
 
 <script setup>
+import { onUnmounted } from 'vue';
 import { haptic } from '../utils/haptics';
 
 defineProps({
@@ -141,4 +142,6 @@ function onBackspaceClick() {
   haptic('light');
   emit('backspace');
 }
+
+onUnmounted(clearBackspaceTimer);
 </script>

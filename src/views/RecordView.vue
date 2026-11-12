@@ -23,28 +23,14 @@
           <RecordPane />
         </section>
 
-        <section class="record-pager-pane" data-pane="records" aria-label="历史">
-          <HistoryView embedded :active="activePane === 'records'" />
+        <section class="record-pager-pane" data-pane="batch" aria-label="批量记">
+          <BatchRecordView embedded :active="activePane === 'batch'" />
         </section>
       </div>
     </div>
 
     <RecordCurtain />
 
-    <button
-      v-if="activePane === 'record' && !curtainOpen && !dailyOpen"
-      class="record-history-fab"
-      type="button"
-      aria-label="花过的钱"
-      title="花过的钱"
-      @click="openHistory"
-    >
-      <span class="record-history-fab-face" aria-hidden="true">
-        <ProfileAvatar :avatar="profile.avatar" :name="profile.name" :size="44" />
-      </span>
-      <span class="record-history-fab-coin" aria-hidden="true">¥</span>
-      <span class="record-history-fab-spark" aria-hidden="true"></span>
-    </button>
   </div>
 </template>
 
@@ -52,16 +38,15 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import HomeView from './HomeView.vue';
-import HistoryView from './HistoryView.vue';
 import RecordPane from '../components/RecordPane.vue';
+import BatchRecordView from './BatchRecordView.vue';
 import RecordCurtain from '../components/RecordCurtain.vue';
-import ProfileAvatar from '../components/ProfileAvatar.vue';
-import { useProfile } from '../composables/useProfile';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
 import { useBackClose } from '../composables/useBackClose';
 import { LEDGER_PANES, useLedgerPanes } from '../composables/useLedgerPanes';
+import { setActiveScope } from '../lib/privacy.js';
 import {
   isDownwardPull,
   isHorizontalGesture,
@@ -78,7 +63,6 @@ const EDGE_RESISTANCE = 0.3;
 const route = useRoute();
 const { ready, currentStage } = useLedger();
 const { activePane, paneRequest, goToPane } = useLedgerPanes();
-const { profile } = useProfile();
 const { curtainOpen, curtainPull, curtainDragging, beginCurtainPull, updateCurtainPull, endCurtainPull, resetRecord } = useRecordEntry();
 const { dailyOpen, dailyDate } = useRecordsView();
 
@@ -302,7 +286,8 @@ function scheduleWheelUnlock() {
 }
 
 function centerPaneAtTop() {
-  return (centerPaneRef.value?.scrollTop || 0) <= 1;
+  const scroller = centerPaneRef.value?.querySelector('.record-pane-scroll');
+  return (scroller?.scrollTop || 0) <= 1;
 }
 
 function onRecordPane() {
@@ -474,6 +459,14 @@ function onClickCapture(event) {
   event.stopPropagation();
 }
 
+watch(
+  activePane,
+  (pane) => {
+    setActiveScope(pane);
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
   window.scrollTo({ top: 0 });
   measurePager();
@@ -520,9 +513,4 @@ onUnmounted(() => {
 watch(paneRequest, () => {
   setPane(activePane.value, true);
 });
-
-function openHistory() {
-  haptic('light');
-  goToPane('records');
-}
 </script>

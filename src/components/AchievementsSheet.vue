@@ -30,7 +30,7 @@
       </div>
     </div>
 
-      <p class="sheet-note">成就和爪印都住在你手机里；删掉支出后，已经拿到的爪印也不会消失。</p>
+    <p class="sheet-note">成就和爪印都住在你手机里；删掉支出后，已经拿到的爪印也不会消失。</p>
   </SheetFrame>
 </template>
 

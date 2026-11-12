@@ -28,7 +28,7 @@
       >
         <span class="book-title">{{ stage.name }}</span>
         <span class="book-foot">
-          <span class="book-amount">¥{{ displayMoney(stageStats(stage.id).total, hideAmount) }}</span>
+          <span class="book-amount">¥{{ displayMoney(stageStats(stage.id).total) }}</span>
           <span class="book-count">{{ stageStats(stage.id).count }} 笔</span>
         </span>
         <span v-if="stage.id === currentStage?.id" class="book-mark" aria-hidden="true">现在</span>
@@ -48,7 +48,7 @@
 
     <div v-if="mergeMode" class="ledger-merge-bar">
       <span class="ledger-merge-summary">
-        已选 <b>{{ mergedStages.length }}</b> 个 · 共 ¥{{ displayMoney(mergedTotals.total, hideAmount) }}
+        已选 <b>{{ mergedStages.length }}</b> 个 · 共 ¥{{ displayMoney(mergedTotals.total) }}
       </span>
       <button
         class="primary-btn ledger-merge-btn"
@@ -67,12 +67,11 @@ import { computed } from 'vue';
 import { showToast } from 'vant';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
-import { usePrivacy } from '../composables/usePrivacy';
-import { displayMoney, stageColor } from '../utils/format';
+import { displayMoney } from '../utils/money';
+import { stageColor } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
 const sheets = useSheets();
-const { hideAmount } = usePrivacy();
 const {
   activeStages,
   currentStage,

@@ -4,6 +4,7 @@ import {
   applySearchChunkChanges,
   buildSearchChunks,
   matchesSearchAmount,
+  matchesSearchDate,
   matchesSearchEntry,
   searchEntryAmount,
   searchTextForExpense,
@@ -81,6 +82,18 @@ test('search amount helpers filter by range', () => {
   assert.equal(matchesSearchAmount(taxi, null, 8), true);
   assert.equal(matchesSearchAmount(taxi, 9, null), false);
   assert.equal(matchesSearchAmount(taxi, null, null), true);
+});
+
+test('matchesSearchDate filters rows by ISO range', () => {
+  const [chunk] = buildSearchChunks(expenses).filter((item) => item.month === '2026-02' && item.stageId === 's1');
+  const [dinner, taxi] = chunk.rows;
+  const febStart = new Date(2026, 1, 1).toISOString();
+  const marStart = new Date(2026, 2, 1).toISOString();
+
+  assert.equal(matchesSearchDate(dinner, febStart, marStart), true);
+  assert.equal(matchesSearchDate(taxi, febStart, marStart), true);
+  assert.equal(matchesSearchDate(dinner, '', marStart), true);
+  assert.equal(matchesSearchDate(dinner, new Date(2026, 1, 21).toISOString(), marStart), false);
 });
 
 test('sortSearchChunksByRecency merges chunks from multiple stages newest first', () => {

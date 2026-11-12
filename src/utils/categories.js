@@ -15,24 +15,62 @@ export const DEFAULT_CATEGORY_ICONS = {
   宠物: '🐾',
   通讯: '📱',
   水电: '💡',
-  房租: '🏠',
+  房租: '🔑',
   旅行: '✈️',
   礼物: '🎁',
-  其他: '🧾'
+  其他: '🧾',
+  运动: '🏋️',
+  健身: '🏋️',
+  数码: '💻',
+  电子: '💻',
+  快递: '📦',
+  物流: '📦',
+  订阅: '🔁',
+  会员: '🔁',
+  保险: '🛡️',
+  停车: '🅿️',
+  理发: '✂️',
+  美容: '💄',
+  维修: '🔧',
+  眼镜: '👓',
+  服饰: '👕',
+  衣服: '👕',
+  母婴: '👶',
+  宝宝: '👶',
+  烟酒: '🍷',
+  酒水: '🍷',
+  打车: '🚗',
+  地铁: '🚇',
+  公交: '🚌',
+  加油: '⛽',
+  水果: '🍎',
+  外卖: '🍜',
+  奶茶: '🥤',
+  药品: '💊',
+  医院: '🏥',
+  电影: '🎬',
+  游戏: '🎮',
+  话费: '📱',
+  电费: '💡',
+  水费: '💡',
+  燃气: '💡',
+  清洁: '🧹',
+  家居: '🛋️',
+  鞋子: '👟'
 };
 
 export const ICON_GROUPS = [
   {
     label: '吃吃喝喝',
-    icons: ['🍜', '☕', '🍪', '🍰', '🥤', '🍚', '🍔', '🍕', '🍣', '🍎']
+    icons: ['🍜', '☕', '🍪', '🍰', '🥤', '🍚', '🍔', '🍕', '🍣', '🍎', '🍷']
   },
   {
     label: '出门走走',
-    icons: ['🚗', '🚇', '✈️', '🚌', '🚲', '🛵', '⛽', '🧳']
+    icons: ['🚗', '🚇', '✈️', '🚌', '🚲', '🛵', '⛽', '🧳', '🅿️']
   },
   {
     label: '居家生活',
-    icons: ['🏠', '🛍️', '🧺', '🧹', '🛋️', '👗', '👟', '💄', '🐾']
+    icons: ['🏠', '🔑', '🛍️', '🧺', '🧹', '🛋️', '👗', '👕', '👟', '👓', '💄', '✂️', '🔧', '👶', '🐾']
   },
   {
     label: '玩玩乐乐',
@@ -40,17 +78,22 @@ export const ICON_GROUPS = [
   },
   {
     label: '日用和其他',
-    icons: ['📚', '💊', '🏥', '📱', '💡', '🎁', '💰', '🧾', '🎫', '💳']
+    icons: ['📚', '💊', '🏥', '📱', '💡', '💻', '🎁', '💰', '🧾', '🎫', '💳', '📦', '🔁', '🛡️']
   }
 ];
 
 export const ICON_CHOICES = ICON_GROUPS.flatMap((group) => group.icons);
 
+const FALLBACK_ICONS = ['🧾', '💰', '🎁', '📚', '💊', '🏠', '📱', '🎫'];
+
 export function iconForCategory(name, overrides = {}) {
   if (overrides && overrides[name]) return overrides[name];
   if (DEFAULT_CATEGORY_ICONS[name]) return DEFAULT_CATEGORY_ICONS[name];
   const text = String(name || '').trim();
-  return text ? text.slice(0, 1) : '·';
+  if (!text) return '·';
+  let hash = 0;
+  for (const ch of text) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return FALLBACK_ICONS[hash % FALLBACK_ICONS.length];
 }
 
 export function normalizeCategories(list) {

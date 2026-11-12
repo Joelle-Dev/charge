@@ -10,6 +10,8 @@ const curtainPull = ref(0);
 const curtainDragging = ref(false);
 const recordSession = ref(0);
 const returnTo = ref('');
+let closeGuard = null;
+let closePending = false;
 
 function openRecord(expense = null, draft = null, options = {}) {
   const current = router.currentRoute.value;
@@ -43,7 +45,21 @@ function openCurtain() {
   curtainOpen.value = true;
 }
 
-function closeCurtain() {
+async function confirmClose() {
+  if (!closeGuard || closePending) return !closePending;
+  closePending = true;
+  try {
+    return await closeGuard();
+  } finally {
+    closePending = false;
+  }
+}
+
+async function closeCurtain(force = false) {
+  if (!force && curtainOpen.value && closeGuard) {
+    const allowed = await confirmClose();
+    if (!allowed) return;
+  }
   curtainDragging.value = false;
   curtainPull.value = 0;
   curtainOpen.value = false;
@@ -57,8 +73,17 @@ function updateCurtainPull(progress) {
   curtainPull.value = clampPull(progress);
 }
 
-function endCurtainPull(open) {
+async function endCurtainPull(open) {
   const wasOpen = curtainOpen.value;
+  if (!open && wasOpen && closeGuard) {
+    const allowed = await confirmClose();
+    if (!allowed) {
+      curtainDragging.value = false;
+      curtainOpen.value = true;
+      curtainPull.value = 1;
+      return;
+    }
+  }
   curtainDragging.value = false;
   curtainOpen.value = Boolean(open);
   curtainPull.value = open ? 1 : 0;
@@ -74,7 +99,11 @@ function resetRecord() {
   editingExpense.value = null;
   expenseDraft.value = null;
   returnTo.value = '';
-  closeCurtain();
+  closeCurtain(true);
+}
+
+export function setCloseGuard(guard) {
+  closeGuard = typeof guard === 'function' ? guard : null;
 }
 
 export function useRecordEntry() {
@@ -93,6 +122,7 @@ export function useRecordEntry() {
     updateCurtainPull,
     endCurtainPull,
     toggleCurtain,
-    resetRecord
+    resetRecord,
+    setCloseGuard
   };
 }

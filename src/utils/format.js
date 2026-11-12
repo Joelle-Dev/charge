@@ -5,6 +5,17 @@ const CATEGORY_COLORS = {
   购物: '#db7c9b',
   娱乐: '#d9a84e',
   门票: '#c68a5f',
+  咖啡: '#a9744f',
+  零食: '#cf9a86',
+  日用: '#8a9a7b',
+  医疗: '#5f9e93',
+  教育: '#7b83c0',
+  宠物: '#7f9a6b',
+  通讯: '#5f95b5',
+  水电: '#6f8f88',
+  房租: '#9a7b8f',
+  旅行: '#5b8fae',
+  礼物: '#c4839c',
   其他: '#9a8c80'
 };
 
@@ -36,10 +47,6 @@ export function uid(prefix = 'id') {
 
 export function formatMoney(value, maximumFractionDigits = 2) {
   return moneyFormatter(maximumFractionDigits).format(Number(value) || 0);
-}
-
-export function displayMoney(value, hide = false) {
-  return hide ? '•••' : formatMoney(value);
 }
 
 export function formatAmount(value) {

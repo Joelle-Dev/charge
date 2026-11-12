@@ -1,13 +1,11 @@
 import { showConfirmDialog, showToast } from 'vant';
 import { useLedger } from './useLedger';
 import { useUndo } from './useUndo';
-import { usePrivacy } from './usePrivacy';
-import { displayMoney } from '../utils/format';
+import { displayMoney } from '../utils/money';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
 
 export function useExpenseActions() {
-  const { hideAmount } = usePrivacy();
   const { deleteExpense, restoreExpense, updateExpense, stages } = useLedger();
   const { showUndo } = useUndo();
 
@@ -15,7 +13,7 @@ export function useExpenseActions() {
     try {
       await showConfirmDialog({
         title: '删掉这笔花销',
-        message: `要把这笔 ¥${displayMoney(expense.amount, hideAmount.value)} 的花销删掉吗？`,
+        message: `要把这笔 ¥${displayMoney(expense.amount)} 的花销删掉吗？`,
         confirmButtonText: '删掉吧',
         confirmButtonColor: DANGER_COLOR
       });

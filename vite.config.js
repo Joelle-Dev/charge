@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',
+    define: {
+      __APP_BUILD_TIME__: JSON.stringify(new Date().toISOString())
+    },
     build: {
       assetsInlineLimit(file) {
         const path = file.replace(/\\/g, '/');

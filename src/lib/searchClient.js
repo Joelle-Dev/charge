@@ -168,6 +168,8 @@ export async function searchExpenses({
   limit = 500,
   minAmount = null,
   maxAmount = null,
+  fromIso = '',
+  toIso = '',
   onProgress
 } = {}) {
   if (!stageIds?.length && !stageId) return { count: 0, sum: 0, ids: [] };
@@ -199,7 +201,9 @@ export async function searchExpenses({
       category,
       limit,
       minAmount,
-      maxAmount
+      maxAmount,
+      fromIso,
+      toIso
     });
   });
 }

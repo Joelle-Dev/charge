@@ -27,8 +27,8 @@
 import { computed } from 'vue';
 import CategoryIcon from './CategoryIcon.vue';
 import { useLedger } from '../composables/useLedger';
-import { usePrivacy } from '../composables/usePrivacy';
-import { categoryColor, displayMoney, formatTime } from '../utils/format';
+import { displayMoney } from '../utils/money';
+import { categoryColor, formatTime } from '../utils/format';
 
 const props = defineProps({
   expense: { type: Object, required: true },
@@ -38,12 +38,10 @@ const props = defineProps({
 
 const emit = defineEmits(['select']);
 
-const { hideAmount } = usePrivacy();
-
 const { iconFor } = useLedger();
 const title = computed(() => props.expense.note || props.expense.category);
 const icon = computed(() => iconFor(props.expense.category || '其他'));
-const amountLabel = computed(() => displayMoney(props.expense.amount, hideAmount.value));
+const amountLabel = computed(() => displayMoney(props.expense.amount));
 const itemLabel = computed(() => {
   const amount = `¥${amountLabel.value}`;
   return props.readonly ? `${title.value} ${amount}` : `编辑 ${title.value} ${amount}`;

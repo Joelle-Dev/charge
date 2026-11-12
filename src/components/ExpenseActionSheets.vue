@@ -27,13 +27,11 @@ import { computed, nextTick, ref } from 'vue';
 import { showToast } from 'vant';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useRecordEntry } from '../composables/useRecordEntry';
-import { displayMoney } from '../utils/format';
-import { usePrivacy } from '../composables/usePrivacy';
+import { displayMoney } from '../utils/money';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
 
 const { removeExpenseWithUndo, moveTargets, moveExpense } = useExpenseActions();
-const { hideAmount } = usePrivacy();
 const { openRecord } = useRecordEntry();
 
 const showRowActions = ref(false);
@@ -55,7 +53,7 @@ const rowActionDescription = computed(() => {
   const expense = rowActionTarget.value;
   if (!expense) return '';
   const label = expense.note || expense.category || '这笔支出';
-  return `${label} · ¥${displayMoney(expense.amount, hideAmount.value)}`;
+  return `${label} · ¥${displayMoney(expense.amount)}`;
 });
 
 const moveDescription = computed(() => rowActionDescription.value);

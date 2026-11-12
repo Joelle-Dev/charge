@@ -1,6 +1,17 @@
 <template>
-  <section class="batch-page">
-    <header class="batch-page-head">
+  <section class="batch-page" :class="{ 'is-embedded': embedded }" :style="{ '--batch-head-h': `${headHeight}px` }">
+    <header ref="headRef" class="batch-page-head">
+      <button
+        v-if="embedded"
+        class="batch-back"
+        type="button"
+        aria-label="返回记账"
+        @click="goBackToRecord"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 18-6-6 6-6"></path>
+        </svg>
+      </button>
       <div class="batch-page-title">
         <h1>一次记多笔</h1>
         <p>说一段，或写一段</p>
@@ -44,8 +55,6 @@
         </div>
       </div>
 
-      <div class="batch-divider" aria-hidden="true"><span>或者直接写下来</span></div>
-
       <textarea
         v-model="text"
         class="batch-textarea"
@@ -57,10 +66,12 @@
       <p v-if="errorMessage" class="batch-error">{{ errorMessage }}</p>
 
       <div class="batch-actions">
-        <span class="batch-hint">用逗号或换行隔开都可以</span>
-        <button v-if="text.trim() && !recording" class="batch-clear" type="button" @click="text = ''">
-          全清掉
-        </button>
+        <div class="batch-actions-meta">
+          <span class="batch-hint">用逗号或换行隔开都可以</span>
+          <button v-if="text.trim() && !recording" class="batch-clear" type="button" @click="text = ''">
+            全清掉
+          </button>
+        </div>
         <button class="batch-parse" type="button" :disabled="!canParse" @click="parseText">
           让果冻看看
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -76,21 +87,21 @@
           <button class="batch-reparse" type="button" @click="parseText">再让果冻看看</button>
         </div>
 
-        <ParsedEntryList
-          :entries="entries"
-          :categories="categories"
-          @remove="(entry) => removeDraft(entry.id)"
-        />
-
         <div class="batch-summary">
           <div class="batch-summary-copy">
             <span>一共</span>
-            <strong>¥{{ displayMoney(total, hideAmount) }}</strong>
+            <strong>¥{{ displayMoney(total) }}</strong>
           </div>
           <button class="batch-submit" type="button" :disabled="saving" @click="saveAll">
             {{ saving ? '果冻在记…' : '都记上' }}
           </button>
         </div>
+
+        <ParsedEntryList
+          :entries="entries"
+          :categories="categories"
+          @remove="(entry) => removeDraft(entry.id)"
+        />
       </section>
 
       <div v-else class="batch-empty">
@@ -112,14 +123,18 @@ import { useBatchEntries } from '../composables/useBatchEntries';
 import { useLedger } from '../composables/useLedger';
 import { useSpeechRecognition } from '../composables/useSpeechRecognition';
 import { useVoiceEntry } from '../composables/useVoiceEntry';
+import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { isValidAmount, toAmountNumber } from '../utils/amountInput';
-import { displayMoney } from '../utils/format';
-import { usePrivacy } from '../composables/usePrivacy';
+import { displayMoney } from '../utils/money';
 import { haptic } from '../utils/haptics';
 
 const router = useRouter();
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+  active: { type: Boolean, default: true }
+});
+const { activePane, goToPane } = useLedgerPanes();
 const { ready, currentStage, categories, addExpenses } = useLedger();
-const { hideAmount } = usePrivacy();
 const { entries, count, total, replaceEntries, removeEntry, clearEntries } = useBatchEntries();
 const { voiceAutostart } = useVoiceEntry();
 
@@ -137,22 +152,55 @@ const {
 
 const error = ref('');
 const saving = ref(false);
+const headRef = ref(null);
+const headHeight = ref(60);
+let headObserver = null;
+let mounted = false;
 
 const errorMessage = computed(() => error.value || voiceError.value);
 const canParse = computed(() => Boolean(text.value.trim()));
 
+function maybeStartVoice() {
+  if (!mounted || !voiceAutostart.value) return;
+  if (props.embedded && !props.active) return;
+  voiceAutostart.value = false;
+  if (!supported) return;
+  nextTick(() => toggleRecording());
+}
+
+watch(voiceAutostart, maybeStartVoice);
+watch(() => props.active, maybeStartVoice);
+
 watch(
   [ready, currentStage],
   ([isReady, stage]) => {
-    if (isReady && !stage) router.replace('/');
+    if (!isReady || stage) return;
+    if (props.embedded) {
+      if (activePane.value === 'batch') goToPane('record');
+    } else {
+      router.replace('/');
+    }
   },
   { immediate: true }
 );
 
 onMounted(() => {
-  if (!voiceAutostart.value) return;
-  voiceAutostart.value = false;
-  if (supported) nextTick(() => toggleRecording());
+  mounted = true;
+  if (headRef.value) {
+    const updateHeadHeight = () => {
+      headHeight.value = headRef.value?.offsetHeight || 60;
+    };
+    updateHeadHeight();
+    headObserver = new ResizeObserver(updateHeadHeight);
+    headObserver.observe(headRef.value);
+  }
+
+  maybeStartVoice();
+});
+
+onUnmounted(() => {
+  headObserver?.disconnect();
+  headObserver = null;
 });
 
 onUnmounted(cleanupVoice);
@@ -214,7 +262,16 @@ async function saveAll() {
   }
 }
 
+function goBackToRecord() {
+  haptic('light');
+  goToPane('record');
+}
+
 function leave() {
+  if (props.embedded) {
+    goToPane('record');
+    return;
+  }
   if (window.history.length > 1) router.back();
   else router.replace('/');
 }

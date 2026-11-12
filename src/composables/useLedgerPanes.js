@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 
-export const LEDGER_PANES = ['home', 'record', 'records'];
+export const LEDGER_PANES = ['home', 'record', 'batch'];
 
 const activePane = ref('record');
 const paneRequest = ref(0);

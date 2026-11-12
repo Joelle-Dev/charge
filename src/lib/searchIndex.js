@@ -111,6 +111,13 @@ export function matchesSearchAmount(row, minAmount = null, maxAmount = null) {
   return true;
 }
 
+export function matchesSearchDate(row, fromIso = '', toIso = '') {
+  const time = searchEntryTime(row);
+  if (fromIso && time < fromIso) return false;
+  if (toIso && time >= toIso) return false;
+  return true;
+}
+
 export function matchesSearchEntry(row, keyword = '', category = '') {
   if (category && searchEntryCategory(row) !== category) return false;
   if (!keyword) return true;

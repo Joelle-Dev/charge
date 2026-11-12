@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
+import { goToPane } from '../composables/useLedgerPanes';
 
 const routes = [
   {
@@ -12,18 +13,25 @@ const routes = [
     component: () => import('../views/RecordsView.vue')
   },
   {
+    path: '/diary',
+    name: 'diary',
+    meta: { transition: 'page-rise' },
+    component: () => import('../views/MonthlyReportView.vue')
+  },
+  {
     path: '/history',
-    name: 'history',
-    component: () => import('../views/HistoryView.vue')
+    redirect: '/diary'
   },
   {
     path: '/year',
-    redirect: '/history'
+    redirect: '/diary'
   },
   {
     path: '/batch',
-    name: 'batch',
-    component: () => import('../views/BatchRecordView.vue')
+    redirect: () => {
+      goToPane('batch');
+      return '/';
+    }
   },
   {
     path: '/voice',
@@ -32,6 +40,12 @@ const routes = [
   {
     path: '/voice-test',
     redirect: '/batch'
+  },
+  {
+    path: '/chart',
+    name: 'chart',
+    meta: { transition: 'page-rise' },
+    component: () => import('../views/ChartView.vue')
   },
   {
     path: '/search',

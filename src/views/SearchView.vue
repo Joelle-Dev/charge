@@ -1,14 +1,36 @@
 <template>
   <section class="search-page">
     <header class="search-page-head">
-      <button class="search-close" type="button" aria-label="关闭搜索" @click="close">
+      <button class="search-close" type="button" aria-label="关闭查明细" @click="close">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
           <path d="M18 6 6 18M6 6l12 12"></path>
         </svg>
       </button>
-      <h1 class="search-page-title">搜索</h1>
-      <span class="search-page-spacer" aria-hidden="true"></span>
+      <h1 class="search-page-title">查明细</h1>
+      <PrivacyToggle class="search-eye" scope="search" />
     </header>
+
+    <div class="search-context">
+      <div class="history-scope-switch search-scope-switch" role="group" aria-label="账本范围">
+        <button
+          type="button"
+          :disabled="!currentStage"
+          :class="{ active: stageScope === 'current' }"
+          @click="setSearchScope('current')"
+        >
+          当前账本
+        </button>
+        <button
+          type="button"
+          :class="{ active: stageScope === 'all' }"
+          @click="setSearchScope('all')"
+        >
+          全部账本
+        </button>
+      </div>
+      <span class="search-context-range">{{ rangeLabel }}</span>
+      <span v-if="selectedCategory !== 'all'" class="search-context-category">{{ selectedCategory }}</span>
+    </div>
 
     <div class="search-page-controls">
       <div class="search-mode-switch" role="group" aria-label="搜索方式">
@@ -44,7 +66,7 @@
           spellcheck="false"
           enterkeyhint="search"
           placeholder="搜搜备注或分类"
-          aria-label="搜索明细"
+          aria-label="查明细"
           @keydown.enter.prevent="runSearchNow"
         >
         <button
@@ -121,44 +143,15 @@
         </button>
       </div>
 
-      <div v-if="activeStages.length > 1" class="search-scope">
-        <span class="search-scope-label">账本范围（不含归档）</span>
-        <div class="filter-row search-scope-row">
-          <button
-            class="filter-chip"
-            :class="{ active: allStagesSelected }"
-            type="button"
-            :aria-pressed="allStagesSelected"
-            @click="toggleAllStages"
-          >
-            全部在用账本
-          </button>
-          <button
-            v-for="stage in activeStages"
-            :key="stage.id"
-            class="filter-chip"
-            :class="{ active: selectedStageIds.includes(stage.id) }"
-            type="button"
-            :aria-pressed="selectedStageIds.includes(stage.id)"
-            @click="toggleStage(stage.id)"
-          >
-            {{ stage.name }}
-          </button>
-        </div>
-      </div>
-
     </div>
 
     <div class="search-page-results">
-      <div v-if="!activeStages.length" class="list-empty">
-        <p>还没有可搜索的账本</p>
-        <span>先建一个账本，再来翻账本</span>
+      <div v-if="!scopeStageIds.length" class="list-empty">
+        <p>当前范围没有可搜索的账本</p>
+        <span>先去建个账本，或者回到小票改一下账本</span>
       </div>
 
-      <div v-else-if="loading" class="loading-state">
-        <span class="loading-dot"></span>
-        果冻在翻小账本…
-      </div>
+      <LoadingState v-else-if="loading" text="果冻在翻小账本…" />
 
       <div v-else-if="!hasSearched" class="search-initial">
         <span class="search-initial-icon" aria-hidden="true">
@@ -167,7 +160,7 @@
             <path d="m16 16 4 4"></path>
           </svg>
         </span>
-        <p>{{ searchMode === 'keyword' ? '输入关键词开始搜索' : '输入金额范围开始搜索' }}</p>
+        <p>{{ searchMode === 'keyword' ? '输入关键词查明细' : '输入金额范围查明细' }}</p>
         <span>{{ searchMode === 'keyword' ? '可以搜备注或分类' : '比如 20 到 100 之间的支出' }}</span>
         <button class="search-browse-btn" type="button" @click="browseRecent">
           看看最近的支出
@@ -185,7 +178,7 @@
           </div>
           <div class="search-result-summary-total">
             <span>{{ isTruncated ? '全部合计' : '合计' }}</span>
-            <strong>¥{{ displayMoney(resultTotal, hideAmount) }}</strong>
+            <strong>¥{{ displayMoney(resultTotal) }}</strong>
           </div>
         </div>
 
@@ -196,8 +189,8 @@
         </div>
 
         <div v-else-if="!totalMatches" class="list-empty">
-          <p>果冻没翻到这笔</p>
-          <span>换个词或金额范围再找找嘛</span>
+          <p>{{ browsingRecent ? '这个范围还没有明细' : '果冻没翻到这笔' }}</p>
+          <span>{{ browsingRecent ? '换个范围或关键词再找找嘛' : '换个词或金额范围再找找嘛' }}</span>
         </div>
 
         <div v-else class="expense-list search-results">
@@ -207,7 +200,7 @@
                 <span class="day-label">{{ group.label }}</span>
                 <span class="day-count">{{ group.items.length }} 笔</span>
               </span>
-              <span class="day-total">¥{{ displayMoney(group.total, hideAmount) }}</span>
+              <span class="day-total">¥{{ displayMoney(group.total) }}</span>
             </div>
             <div class="day-items">
               <ExpenseRow
@@ -239,15 +232,20 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { showToast } from 'vant';
 import ExpenseRow from '../components/ExpenseRow.vue';
+import LoadingState from '../components/LoadingState.vue';
 import CategoryIcon from '../components/CategoryIcon.vue';
+import PrivacyToggle from '../components/PrivacyToggle.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
-import { dayKey, displayMoney } from '../utils/format';
-import { usePrivacy } from '../composables/usePrivacy';
+import { displayMoney } from '../utils/money';
+import { combineLocal, dayKey, toDateInput } from '../utils/format';
+import { useViewScope } from '../composables/useViewScope';
+import { setActiveScope } from '../lib/privacy.js';
 import { groupExpensesByDay } from '../utils/expenses';
 import { haptic } from '../utils/haptics';
 
@@ -257,21 +255,32 @@ const { dailyOpen, dailyDate } = useRecordsView();
 const { goToPane } = useLedgerPanes();
 const {
   currentStage,
+  stages,
   activeStages,
   stageStats,
   switchStage,
-  loadRecentExpensesForStages,
   loadExpensesByIds,
   searchExpenses,
   iconFor
 } = useLedger();
-const { hideAmount } = usePrivacy();
 const { removeExpense } = useExpenseActions();
+const {
+  stageScope,
+  detailFrom,
+  detailTo,
+  detailCategory
+} = useViewScope();
+
+const todayKey = toDateInput(new Date());
+const searchFrom = ref(detailFrom.value || shiftYear(todayKey, -1));
+const searchTo = ref(detailTo.value || todayKey);
+detailFrom.value = '';
+detailTo.value = '';
 
 const searchMode = ref('keyword');
 const query = ref('');
-const selectedCategory = ref('all');
-const selectedStageIds = ref([]);
+const selectedCategory = ref(detailCategory.value || 'all');
+detailCategory.value = '';
 const minAmount = ref('');
 const maxAmount = ref('');
 const searchInput = ref(null);
@@ -286,21 +295,21 @@ const browsingRecent = ref(false);
 const resultLimit = ref(200);
 let searchToken = 0;
 let searchTimer = null;
+let autoStarted = false;
 
-const activeStageIds = computed(() => activeStages.value.map((stage) => stage.id));
-const allStagesSelected = computed(() => (
-  activeStageIds.value.length > 0 &&
-  activeStageIds.value.every((id) => selectedStageIds.value.includes(id))
-));
-const showStageName = computed(() => selectedStageIds.value.length > 1);
+const scopeStageIds = computed(() => {
+  if (stageScope.value === 'all') return activeStages.value.map((stage) => stage.id);
+  return currentStage.value ? [currentStage.value.id] : [];
+});
+const showStageName = computed(() => stageScope.value === 'all' && activeStages.value.length > 1);
 const stageNameById = computed(() => {
   const map = new Map();
-  for (const stage of activeStages.value) map.set(stage.id, stage.name);
+  for (const stage of stages.value) map.set(stage.id, stage.name);
   return map;
 });
 const filterCategories = computed(() => {
   const totals = new Map();
-  for (const stageId of selectedStageIds.value) {
+  for (const stageId of scopeStageIds.value) {
     const categories = stageStats(stageId).categories || {};
     for (const [category, value] of Object.entries(categories)) {
       totals.set(category, (totals.get(category) || 0) + (value.amount || 0));
@@ -316,13 +325,32 @@ const hasActiveFilters = computed(() => (
   (searchMode.value === 'keyword' ? Boolean(query.value.trim()) : hasAmountFilter.value)
 ));
 const filteredGroups = computed(() => groupExpensesByDay(results.value));
-const isTruncated = computed(() => (
-  !browsingRecent.value && results.value.length < totalMatches.value
-));
+const isTruncated = computed(() => results.value.length < totalMatches.value);
 const summaryText = computed(() => {
-  if (browsingRecent.value) return `最近 ${results.value.length} 笔`;
+  if (browsingRecent.value) return `范围内 ${totalMatches.value} 笔`;
   return `找到 ${totalMatches.value} 笔`;
 });
+const rangeLabel = computed(() => {
+  if (!searchFrom.value || !searchTo.value) return '全部时间';
+  const short = (key) => key.replace(/-/g, '.');
+  return searchFrom.value === searchTo.value
+    ? short(searchFrom.value)
+    : `${short(searchFrom.value)} - ${short(searchTo.value)}`;
+});
+const fromIso = computed(() => {
+  const date = combineLocal(searchFrom.value, '00:00');
+  return date ? date.toISOString() : '';
+});
+const toIso = computed(() => {
+  const date = combineLocal(searchTo.value, '00:00');
+  return date ? new Date(date.getTime() + 86400000).toISOString() : '';
+});
+
+function shiftYear(key, delta) {
+  const date = new Date(`${key}T12:00:00`);
+  date.setFullYear(date.getFullYear() + delta);
+  return toDateInput(date);
+}
 
 function amountBound(value) {
   if (value === null || value === undefined || value === '') return null;
@@ -361,51 +389,17 @@ function stageNameFor(expense) {
   return stageNameById.value.get(expense.stageId) || '';
 }
 
-function ensureStageSelection() {
-  const activeIds = activeStageIds.value;
-  if (!activeIds.length) {
-    selectedStageIds.value = [];
-    return;
-  }
-  const kept = selectedStageIds.value.filter((id) => activeIds.includes(id));
-  if (!kept.length) {
-    const fallback = currentStage.value?.id;
-    kept.push(fallback && activeIds.includes(fallback) ? fallback : activeIds[0]);
-  }
-  if (
-    kept.length !== selectedStageIds.value.length ||
-    kept.some((id, index) => id !== selectedStageIds.value[index])
-  ) {
-    selectedStageIds.value = kept;
-  }
-}
-
-function toggleStage(stageId) {
-  if (selectedStageIds.value.includes(stageId)) {
-    if (selectedStageIds.value.length === 1) return;
-    selectedStageIds.value = selectedStageIds.value.filter((id) => id !== stageId);
-  } else {
-    selectedStageIds.value = [...selectedStageIds.value, stageId];
-  }
-  haptic('light');
-}
-
-function toggleAllStages() {
-  if (allStagesSelected.value) {
-    const fallback = currentStage.value?.id;
-    selectedStageIds.value = [
-      fallback && activeStageIds.value.includes(fallback) ? fallback : activeStageIds.value[0]
-    ];
-  } else {
-    selectedStageIds.value = [...activeStageIds.value];
-  }
+function setSearchScope(scope) {
+  if (scope === 'current' && !currentStage.value) return;
+  if (stageScope.value === scope) return;
+  stageScope.value = scope;
   haptic('light');
 }
 
 async function runSearch() {
   cancelPendingSearch();
   const token = searchToken;
-  const stageIds = [...selectedStageIds.value];
+  const stageIds = [...scopeStageIds.value];
 
   if (!stageIds.length || !hasActiveFilters.value) {
     results.value = [];
@@ -433,6 +427,8 @@ async function runSearch() {
       limit: resultLimit.value,
       minAmount: min,
       maxAmount: max,
+      fromIso: fromIso.value,
+      toIso: toIso.value,
       onProgress: (message) => {
         if (token === searchToken) {
           totalMatches.value = message.count;
@@ -460,7 +456,7 @@ async function runSearch() {
 }
 
 async function browseRecent() {
-  const stageIds = [...selectedStageIds.value];
+  const stageIds = [...scopeStageIds.value];
   if (!stageIds.length) return;
 
   cancelPendingSearch();
@@ -471,12 +467,18 @@ async function browseRecent() {
   loading.value = true;
 
   try {
-    const rows = await loadRecentExpensesForStages(stageIds, resultLimit.value);
+    const found = await searchExpenses({
+      stageIds,
+      limit: resultLimit.value,
+      fromIso: fromIso.value,
+      toIso: toIso.value
+    });
+    if (token !== searchToken) return;
+    const rows = await loadExpensesByIds(found.ids);
     if (token !== searchToken) return;
     results.value = rows;
-    const knownTotal = stageIds.reduce((sum, id) => sum + (stageStats(id).count || 0), 0);
-    totalMatches.value = Math.max(rows.length, knownTotal);
-    resultTotal.value = rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+    totalMatches.value = found.count;
+    resultTotal.value = Number(found.sum) || 0;
   } catch (err) {
     if (err?.code !== 'SEARCH_CANCELLED' && token === searchToken) {
       console.error(err);
@@ -563,7 +565,15 @@ async function removeSearchExpense(expense) {
   }
 }
 
+function isArchivedExpense(expense) {
+  return Boolean(stages.value.find((stage) => stage.id === expense.stageId)?.archived);
+}
+
 async function openDaily(expense) {
+  if (isArchivedExpense(expense)) {
+    showToast('这个账本已经归档啦，先恢复账本再查看吧');
+    return;
+  }
   if (expense.stageId && expense.stageId !== currentStage.value?.id) {
     await switchStage(expense.stageId);
   }
@@ -575,6 +585,10 @@ async function openDaily(expense) {
 }
 
 async function editExpense(expense) {
+  if (isArchivedExpense(expense)) {
+    showToast('这个账本已经归档啦，先恢复账本再改吧');
+    return;
+  }
   if (expense.stageId && expense.stageId !== currentStage.value?.id) {
     await switchStage(expense.stageId);
   }
@@ -591,28 +605,27 @@ watch(
   scheduleSearch
 );
 
-watch(selectedStageIds, () => {
-  if (browsingRecent.value) {
-    browseRecent();
-    return;
-  }
-  scheduleSearch();
-});
-
 watch(
-  () => currentStage.value?.id,
-  (id, previous) => {
-    if (!id) return;
-    const selected = selectedStageIds.value;
-    if (!selected.length || (previous && selected.length === 1 && selected[0] === previous)) {
-      selectedStageIds.value = [id];
+  [scopeStageIds, searchFrom, searchTo],
+  ([ids]) => {
+    if (!ids.length) {
+      resetSearchState();
       return;
     }
-    ensureStageSelection();
-  }
-);
 
-watch(activeStageIds, ensureStageSelection);
+    if (!autoStarted) {
+      autoStarted = true;
+      if (selectedCategory.value !== 'all') runSearch();
+      else browseRecent();
+      return;
+    }
+
+    if (browsingRecent.value) browseRecent();
+    else if (hasActiveFilters.value) runSearch();
+    else resetSearchState();
+  },
+  { immediate: true }
+);
 
 watch(filterCategories, (list) => {
   if (selectedCategory.value !== 'all' && !list.includes(selectedCategory.value)) {
@@ -620,8 +633,9 @@ watch(filterCategories, (list) => {
   }
 });
 
+setActiveScope('search');
+
 onMounted(() => {
-  ensureStageSelection();
   nextTick(() => focusSearch());
 });
 

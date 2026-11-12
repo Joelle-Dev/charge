@@ -10,6 +10,14 @@ SOURCE = os.path.join(ROOT, 'design', 'cat-avatar.png')
 PUBLIC = os.path.join(ROOT, 'public', 'icons')
 AVATAR = os.path.join(ROOT, 'src', 'assets', 'cat-avatar.png')
 CREAM = (250, 245, 236)
+HILITE = (255, 250, 243)
+# Must match the first frame of the in-page splash in index.html.
+SPLASH_CAT_CSS = 88
+SPLASH_CAT_OFFSET_CSS = 45.5
+SPLASH_GLOW_RX_CSS = 600
+SPLASH_GLOW_RY_CSS = 420
+SPLASH_GLOW_CY_RATIO = 0.35
+SPLASH_GLOW_EXTENT = 0.7
 
 
 def decode_png(path):
@@ -128,6 +136,58 @@ def flatten(avatar, width, height, background=CREAM):
     return rows
 
 
+def build_splash(width, height, dpr, icon):
+    icon_size = icon[0]
+    center_x = width / 2
+    center_y = height / 2 - int(SPLASH_CAT_OFFSET_CSS * dpr + 0.5)
+    glow_x = width / 2
+    glow_y = height * SPLASH_GLOW_CY_RATIO
+    glow_rx = SPLASH_GLOW_RX_CSS * dpr
+    glow_ry = SPLASH_GLOW_RY_CSS * dpr
+    extent2 = SPLASH_GLOW_EXTENT ** 2
+
+    left = int(center_x - icon_size / 2 + 0.5)
+    top = int(center_y - icon_size / 2 + 0.5)
+    icon_pixels = icon[1]
+
+    x_start = max(0, int(glow_x - glow_rx * SPLASH_GLOW_EXTENT) - 1)
+    x_end = min(width, int(glow_x + glow_rx * SPLASH_GLOW_EXTENT) + 2)
+    x_terms = [((x - glow_x) / glow_rx) ** 2 for x in range(width)]
+    base_row = bytes(CREAM) * width
+
+    rows = []
+    for y in range(height):
+        row = bytearray(base_row)
+        y_term = ((y - glow_y) / glow_ry) ** 2
+        if y_term < extent2:
+            for x in range(x_start, x_end):
+                term = x_terms[x] + y_term
+                if term >= extent2:
+                    continue
+                ratio = 1 - math.sqrt(term) / SPLASH_GLOW_EXTENT
+                pos = x * 3
+                row[pos:pos + 3] = bytes((
+                    round(CREAM[0] + (HILITE[0] - CREAM[0]) * ratio),
+                    round(CREAM[1] + (HILITE[1] - CREAM[1]) * ratio),
+                    round(CREAM[2] + (HILITE[2] - CREAM[2]) * ratio)
+                ))
+        if top <= y < top + icon_size:
+            icon_y = y - top
+            for x in range(icon_size):
+                idx = (icon_y * icon_size + x) * 4
+                alpha = icon_pixels[idx + 3] / 255
+                if alpha <= 0:
+                    continue
+                pos = (left + x) * 3
+                row[pos:pos + 3] = bytes((
+                    round(icon_pixels[idx] * alpha + row[pos] * (1 - alpha)),
+                    round(icon_pixels[idx + 1] * alpha + row[pos + 1] * (1 - alpha)),
+                    round(icon_pixels[idx + 2] * alpha + row[pos + 2] * (1 - alpha))
+                ))
+        rows.append(row)
+    return rows
+
+
 def main():
     src_w, src_h, rows = decode_png(SOURCE)
     os.makedirs(PUBLIC, exist_ok=True)
@@ -148,29 +208,19 @@ def main():
         write_png(os.path.join(PUBLIC, name), size, size, flatten(resized, size, size), 2)
 
     splashes = (
-        (1170, 2532), (1179, 2556), (1290, 2796), (1206, 2622),
-        (1320, 2868), (1125, 2436), (828, 1792), (750, 1334)
+        (750, 1334, 2),
+        (1125, 2436, 3),
+        (828, 1792, 2),
+        (1170, 2532, 3),
+        (1179, 2556, 3),
+        (1206, 2622, 3),
+        (1290, 2796, 3),
+        (1320, 2868, 3)
     )
-    for width, height in splashes:
-        icon_size = int(min(width, height) * 0.24)
-        icon = resize_rgba(src_w, src_h, rows, icon_size, icon_size)
-        left = (width - icon_size) // 2
-        top = (height - icon_size) // 2
-        splash = []
-        for y in range(height):
-            row = bytearray(bytes(CREAM) * width)
-            if top <= y < top + icon_size:
-                for x in range(icon_size):
-                    idx = ((y - top) * icon_size + x) * 4
-                    alpha = icon[idx + 3] / 255
-                    if alpha <= 0:
-                        continue
-                    r = round(icon[idx] * alpha + CREAM[0] * (1 - alpha))
-                    g = round(icon[idx + 1] * alpha + CREAM[1] * (1 - alpha))
-                    b = round(icon[idx + 2] * alpha + CREAM[2] * (1 - alpha))
-                    pos = (left + x) * 3
-                    row[pos:pos + 3] = bytes((r, g, b))
-            splash.append(row)
+    for width, height, dpr in splashes:
+        icon_size = int(SPLASH_CAT_CSS * dpr + 0.5)
+        icon = (icon_size, resize_rgba(src_w, src_h, rows, icon_size, icon_size))
+        splash = build_splash(width, height, dpr, icon)
         write_png(os.path.join(PUBLIC, f'splash-{width}x{height}.png'), width, height, splash, 2)
 
     print('Built 果冻 icons, avatar and splash screens')

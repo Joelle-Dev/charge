@@ -9,7 +9,7 @@
         <button class="remove-chip" type="button" @click="emit('remove', entry, index)">删掉这条</button>
       </div>
       <div class="parsed-grid">
-        <div class="field full">
+        <div class="field amount-field">
           <span class="field-label">金额</span>
           <div class="amount-input">
             <span class="currency">¥</span>
@@ -40,7 +40,7 @@
             @update:model-value="updateEntryDate(entry, $event)"
           />
         </div>
-        <label class="field full">
+        <label class="field note-field">
           <span class="field-label">备注</span>
           <input v-model="entry.note" class="input" type="text" maxlength="40" :placeholder="entry.category">
         </label>

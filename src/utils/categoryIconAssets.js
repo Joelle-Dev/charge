@@ -46,9 +46,29 @@ export const CATEGORY_ICON_ASSET_KEYS = {
   '💰': 'money',
   '🧾': 'receipt',
   '🎫': 'ticket',
-  '💳': 'card'
+  '💳': 'card',
+  '🔑': 'key',
+  '📦': 'package',
+  '🔁': 'repeat',
+  '🛡️': 'shield',
+  '🅿️': 'circle-parking',
+  '✂️': 'scissors',
+  '🔧': 'wrench',
+  '👓': 'glasses',
+  '💻': 'laptop',
+  '👕': 'shirt',
+  '👶': 'baby',
+  '🍷': 'wine'
 };
 
+function normalizeIconKey(icon) {
+  return String(icon ?? '').replace(/\uFE0F/g, '');
+}
+
+const NORMALIZED_ASSET_KEYS = Object.fromEntries(
+  Object.entries(CATEGORY_ICON_ASSET_KEYS).map(([icon, key]) => [normalizeIconKey(icon), key])
+);
+
 export function iconAssetKey(icon) {
-  return CATEGORY_ICON_ASSET_KEYS[icon] || '';
+  return NORMALIZED_ASSET_KEYS[normalizeIconKey(icon)] || '';
 }

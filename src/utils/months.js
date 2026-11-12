@@ -1,5 +1,3 @@
-import { toDateInput } from './format.js';
-
 export function monthKey(value) {
   const date = value instanceof Date ? value : new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;

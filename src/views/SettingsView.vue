@@ -5,7 +5,7 @@
         <ProfileAvatar :avatar="profile.avatar" :name="profile.name" :size="44" />
         <span class="settings-profile-copy">
           <strong>{{ profileName }}</strong>
-          <small>{{ profile.name ? '主人 · 昵称和头像只存在这台设备' : '点这里设置昵称和头像' }}</small>
+          <small>{{ profile.name ? '铲屎官 · 点这里修改' : '点这里设置昵称和头像' }}</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m9 6 6 6-6 6"></path>
@@ -29,14 +29,14 @@
       </button>
       <button class="settings-action" type="button" @click="openYearSummary">
         <span>
-          花过的钱
-          <small>翻翻全部或当前账本的年/月花销</small>
+          小票
+          <small>按月看支出小票、足迹和果冻的话</small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 20V10"></path>
-          <path d="M10 20V4"></path>
-          <path d="M16 20v-7"></path>
-          <path d="M22 20H2"></path>
+          <path d="M6 2.5h12v19l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"></path>
+          <path d="M9 7h6"></path>
+          <path d="M9 10.5h6"></path>
+          <path d="M9 14h4"></path>
         </svg>
       </button>
       <button class="settings-action" type="button" @click="openSummary">
@@ -129,14 +129,17 @@
     </section>
 
     <p class="settings-privacy settings-privacy-plain">
-      账目和账本都乖乖待在这台设备里，不会上传。语音识别由浏览器和系统提供，要不要上传音频要看浏览器的实现。
+      账目、账本和你的昵称头像都乖乖待在这台设备里，不会上传。语音识别由浏览器和系统提供，要不要上传音频要看浏览器的实现。
     </p>
 
     <button class="settings-danger-link" type="button" @click="clearCurrentStage">
       清空这个账本的花销
     </button>
 
-    <p class="settings-footer">守财小果 · 果冻陪你记账 · 数据只属于你</p>
+    <p class="settings-footer">
+      守财小果 · 果冻陪你记账 · 数据只属于你
+      <template v-if="buildLabel"> · {{ buildLabel }}</template>
+    </p>
 
     <HelpSheet v-model:show="showHelp" />
 
@@ -172,6 +175,7 @@ import { useProfile } from '../composables/useProfile';
 import { exportStageCsvInWorker, saveBlob } from '../lib/dataClient';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
+import { setActiveScope } from '../lib/privacy.js';
 
 const router = useRouter();
 const {
@@ -189,10 +193,18 @@ const { profile, profileName, initProfile } = useProfile();
 
 const showInstallTip = ref(false);
 const showImport = ref(false);
+const buildLabel = (() => {
+  const date = new Date(__APP_BUILD_TIME__);
+  if (Number.isNaN(date.getTime())) return '';
+  const label = date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return `版本 ${label}`;
+})();
 const showBackup = ref(false);
 const showCategories = ref(false);
 const showHelp = ref(false);
 const showProfile = ref(false);
+
+setActiveScope('settings');
 
 onMounted(() => {
   initProfile().catch((err) => console.error(err));
@@ -210,7 +222,7 @@ function openImport() {
 }
 
 function openYearSummary() {
-  router.push('/history');
+  router.push('/diary');
 }
 
 async function shareApp() {

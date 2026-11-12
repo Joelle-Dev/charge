@@ -2,7 +2,7 @@
   <div
     ref="panelRef"
     class="record-curtain"
-    :class="{ 'is-dragging': curtainDragging, 'is-open': curtainOpen, 'is-keyboard-open': keyboardInset > 0 }"
+    :class="{ 'is-dragging': curtainDragging, 'is-open': curtainOpen, 'is-keyboard-open': keyboardOpen }"
     :style="panelStyle"
     @pointerdown="onCurtainPointerDown"
   >
@@ -10,7 +10,7 @@
       class="record-curtain-grabber"
       type="button"
       aria-label="收起记账面板"
-      @click="closeCurtain"
+      @click="closeCurtain()"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="m6 15 6-6 6 6"></path>
@@ -100,6 +100,7 @@
               enterkeyhint="done"
               @focus="onNoteFocus"
               @blur="onNoteBlur"
+              @input="scheduleKeyboardInset"
               @keydown.enter.prevent="blurNote"
               @keydown.esc.prevent="blurNote"
             >
@@ -169,7 +170,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { showToast } from 'vant';
+import { showConfirmDialog, showToast } from 'vant';
 import { useRouter } from 'vue-router';
 import NumberKeypad from './NumberKeypad.vue';
 import CategoryIcon from './CategoryIcon.vue';
@@ -200,6 +201,7 @@ import {
 } from '../utils/format';
 import { curtainVisibleHeight, shouldOpenCurtain } from '../utils/pullGesture';
 import { haptic } from '../utils/haptics';
+import { DANGER_COLOR } from '../utils/theme';
 
 const LAST_CATEGORY_KEY = 'shoucai:last-category';
 
@@ -216,7 +218,8 @@ const {
   beginCurtainPull,
   updateCurtainPull,
   endCurtainPull,
-  resetRecord
+  resetRecord,
+  setCloseGuard
 } = useRecordEntry();
 const { categories, currentStage, dataVersion, addExpense, updateExpense, iconFor, loadMonthExpenses } = useLedger();
 const { removeExpenseWithUndo } = useExpenseActions();
@@ -225,6 +228,7 @@ const panelRef = ref(null);
 const noteInput = ref(null);
 const amountValueRef = ref(null);
 const noteFocused = ref(false);
+const keyboardOpen = ref(false);
 const keyboardInset = ref(0);
 const amount = ref('');
 const selectedCategory = ref('');
@@ -241,6 +245,8 @@ const minDate = new Date(2000, 0, 1);
 const maxDate = new Date(2100, 11, 31);
 
 let previousOverflow = '';
+let keyboardCloseTimer = 0;
+let keyboardSyncTimer = 0;
 let dateStatsToken = 0;
 let closePointerId = null;
 let closeStartY = 0;
@@ -363,22 +369,53 @@ watch(amountDisplay, () => {
 
 function updateKeyboardInset() {
   const viewport = window.visualViewport;
-  if (!noteFocused.value || !viewport) {
+  if (!keyboardOpen.value || !viewport) {
     keyboardInset.value = 0;
     return;
   }
-  const inset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-  keyboardInset.value = inset > 80 ? inset : 0;
+  // Detect the keyboard by its height alone; offsetTop only tells us how far
+  // iOS scrolled the visual viewport, which must not hide a real keyboard.
+  const keyboardHeight = window.innerHeight - viewport.height;
+  if (keyboardHeight < 120) {
+    keyboardInset.value = 0;
+    return;
+  }
+  keyboardInset.value = Math.max(0, Math.round(keyboardHeight - viewport.offsetTop));
+}
+
+function scheduleKeyboardInset() {
+  if (!keyboardOpen.value) return;
+  updateKeyboardInset();
+  window.clearTimeout(keyboardSyncTimer);
+  // The keyboard/scroll settle a few frames after focus or text edits.
+  keyboardSyncTimer = window.setTimeout(updateKeyboardInset, 120);
+}
+
+function usesSoftKeyboard() {
+  return typeof window !== 'undefined' &&
+    Boolean(window.matchMedia?.('(pointer: coarse)')?.matches);
 }
 
 function onNoteFocus() {
   noteFocused.value = true;
-  nextTick(updateKeyboardInset);
+  // Desktop keeps the on-screen keypad: there is no soft keyboard to replace
+  // it, and typing the note works with the physical keyboard.
+  if (!usesSoftKeyboard()) return;
+  window.clearTimeout(keyboardCloseTimer);
+  keyboardOpen.value = true;
+  nextTick(scheduleKeyboardInset);
 }
 
 function onNoteBlur() {
   noteFocused.value = false;
-  keyboardInset.value = 0;
+  // Keep the number keypad hidden while the system keyboard settles back down.
+  window.clearTimeout(keyboardCloseTimer);
+  window.clearTimeout(keyboardSyncTimer);
+  keyboardCloseTimer = window.setTimeout(() => {
+    if (noteFocused.value) return;
+    keyboardOpen.value = false;
+    keyboardInset.value = 0;
+  }, 200);
 }
 
 async function loadDateStats(dateKey) {
@@ -415,6 +452,39 @@ function revealSelectedCategory() {
   strip.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
 }
 
+function hasUnsavedInput() {
+  const expense = editingExpense.value;
+  if (expense) {
+    return (
+      amount.value !== amountToInput(expense.amount) ||
+      note.value !== (expense.note || '') ||
+      selectedCategory.value !== expense.category ||
+      date.value !== toDateInput(expense.spentAt)
+    );
+  }
+  return Boolean(amount.value.trim() || note.value.trim());
+}
+
+async function closeGuard() {
+  if (saving.value || !hasUnsavedInput()) return true;
+  try {
+    await showConfirmDialog({
+      title: '还没记上呢',
+      message: editingExpense.value
+        ? '这一笔的修改还没保存，要收起来吗？'
+        : '填好的内容还没记上，要收起来吗？',
+      confirmButtonText: '收起来',
+      cancelButtonText: '继续记',
+      confirmButtonColor: DANGER_COLOR
+    });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+setCloseGuard(closeGuard);
+
 function measurePanel() {
   panelHeight.value = panelRef.value?.clientHeight || window.innerHeight;
 }
@@ -438,6 +508,9 @@ watch(curtainOpen, (open) => {
   } else {
     showCategories.value = false;
     noteFocused.value = false;
+    keyboardOpen.value = false;
+    window.clearTimeout(keyboardCloseTimer);
+    window.clearTimeout(keyboardSyncTimer);
     keyboardInset.value = 0;
     noteInput.value?.blur();
     document.body.style.overflow = previousOverflow;
@@ -445,6 +518,9 @@ watch(curtainOpen, (open) => {
 });
 
 onUnmounted(() => {
+  setCloseGuard(null);
+  window.clearTimeout(keyboardCloseTimer);
+  window.clearTimeout(keyboardSyncTimer);
   showCategories.value = false;
   document.body.style.overflow = previousOverflow;
   stopCurtainDrag();
@@ -554,7 +630,6 @@ async function save() {
       rememberCategory(selectedCategory.value);
       haptic('success');
       showToast('改好啦');
-      closeCurtain();
       resetRecord();
       if (backPath) router.back();
       return;
@@ -590,7 +665,6 @@ async function removeCurrent() {
   const backPath = returnTo.value;
   const removed = await removeExpenseWithUndo(expense);
   if (!removed) return;
-  closeCurtain();
   resetRecord();
   if (backPath) router.back();
 }
@@ -603,6 +677,12 @@ function onCurtainPointerDown(event) {
   if (!curtainOpen.value || showDatePicker.value || showCategories.value) return;
   if (event.pointerType === 'mouse' && event.button !== 0) return;
   if (!event.isPrimary) return;
+
+  // Tapping anywhere outside the note field should drop the system keyboard
+  // (and restore the number keypad) before the tap does anything else.
+  if (noteFocused.value && !event.target?.closest?.('.record-note-ghost')) {
+    noteInput.value?.blur();
+  }
   if (isInteractiveTarget(event.target)) return;
 
   closePointerId = event.pointerId;

@@ -1,11 +1,11 @@
 <template>
   <button
     type="button"
-    :aria-label="hideAmount ? '显示金额' : '隐藏金额'"
-    :aria-pressed="hideAmount"
-    @click="toggleHideAmount"
+    :aria-label="hidden ? '显示金额' : '隐藏金额'"
+    :aria-pressed="hidden"
+    @click="toggle"
   >
-    <svg v-if="!hideAmount" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <svg v-if="!hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
       <circle cx="12" cy="12" r="3"></circle>
     </svg>
@@ -18,7 +18,18 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { usePrivacy } from '../composables/usePrivacy';
 
-const { hideAmount, toggleHideAmount } = usePrivacy();
+const props = defineProps({
+  scope: { type: String, default: '' }
+});
+
+const { activeScope, scopes, toggleHideAmount } = usePrivacy();
+const ownScope = computed(() => props.scope || activeScope.value);
+const hidden = computed(() => Boolean(scopes[ownScope.value]));
+
+function toggle() {
+  toggleHideAmount(ownScope.value);
+}
 </script>

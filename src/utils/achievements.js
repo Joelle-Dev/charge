@@ -1,5 +1,3 @@
-import { toDateInput } from './format.js';
-
 export const ACHIEVEMENTS = [
   {
     id: 'first-paw',
@@ -82,74 +80,6 @@ export const ACHIEVEMENTS = [
     value: (stats) => stats.stageCount
   }
 ];
-
-function startOfDay(value) {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-export function buildAchievementStats(expenses, stages, now = new Date()) {
-  const days = new Set();
-  let totalAmount = 0;
-  let firstDate = null;
-
-  for (const expense of expenses) {
-    const date = startOfDay(expense.spentAt);
-    const key = toDateInput(date);
-    days.add(key);
-    totalAmount += Number(expense.amount) || 0;
-    if (!firstDate || date < firstDate) firstDate = date;
-  }
-
-  let cursor = startOfDay(now);
-  if (!days.has(toDateInput(cursor))) cursor.setDate(cursor.getDate() - 1);
-  let streak = 0;
-  while (days.has(toDateInput(cursor))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  let noSpendDays = 0;
-  if (firstDate) {
-    const end = startOfDay(now);
-    end.setDate(end.getDate() - 1);
-    const scan = new Date(firstDate);
-    scan.setDate(scan.getDate() + 1);
-    let guard = 0;
-    while (scan <= end && guard < 3660) {
-      if (!days.has(toDateInput(scan))) noSpendDays += 1;
-      scan.setDate(scan.getDate() + 1);
-      guard += 1;
-    }
-  }
-
-  const stageExpenses = new Map();
-  for (const expense of expenses) {
-    const list = stageExpenses.get(expense.stageId) || [];
-    list.push(expense);
-    stageExpenses.set(expense.stageId, list);
-  }
-
-  let budgetKeptStages = 0;
-  for (const stage of stages) {
-    const items = stageExpenses.get(stage.id) || [];
-    const budget = Number(stage.budget) || 0;
-    if (budget <= 0 || !items.length) continue;
-    const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    if (total <= budget) budgetKeptStages += 1;
-  }
-
-  return {
-    totalCount: expenses.length,
-    totalAmount,
-    recordDays: days.size,
-    streak,
-    noSpendDays,
-    stageCount: stages.length,
-    budgetKeptStages
-  };
-}
 
 export function getAchievementState(stats) {
   return ACHIEVEMENTS.map((achievement) => {

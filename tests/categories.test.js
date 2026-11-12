@@ -62,10 +62,12 @@ test('reorderCategoryList clamps targets and ignores invalid input', () => {
   assert.deepEqual(reorderCategoryList([DEFAULT_CATEGORY], 0, 0), [DEFAULT_CATEGORY]);
 });
 
-test('iconForCategory prefers overrides then defaults then first char', () => {
+test('iconForCategory prefers overrides then defaults then a stable line icon', () => {
   assert.equal(iconForCategory('餐饮'), DEFAULT_CATEGORY_ICONS['餐饮']);
   assert.equal(iconForCategory('餐饮', { 餐饮: '🍔' }), '🍔');
-  assert.equal(iconForCategory('猫粮'), '猫');
+  const fallback = iconForCategory('猫粮');
+  assert.ok(ICON_CHOICES.includes(fallback));
+  assert.equal(iconForCategory('猫粮'), fallback);
   assert.equal(iconForCategory(''), '·');
 });
 

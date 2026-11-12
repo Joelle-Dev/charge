@@ -8,6 +8,7 @@ import {
 import {
   buildSearchChunks,
   matchesSearchAmount,
+  matchesSearchDate,
   matchesSearchEntry,
   SEARCH_VERSION,
   SEARCH_BUILDING_VERSION,
@@ -46,7 +47,7 @@ function amountBound(value) {
   return Number.isFinite(number) && number >= 0 ? number : null;
 }
 
-async function search({ requestId, stageId, stageIds, query, category, limit, minAmount, maxAmount }) {
+async function search({ requestId, stageId, stageIds, query, category, limit, minAmount, maxAmount, fromIso, toIso }) {
   activeSearchId = requestId;
   const keyword = String(query || '').trim().toLowerCase();
   const categoryFilter = category || '';
@@ -78,7 +79,8 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
     for (const row of chunk.rows || []) {
       if (
         matchesSearchEntry(row, keyword, categoryFilter) &&
-        matchesSearchAmount(row, min, max)
+        matchesSearchAmount(row, min, max) &&
+        matchesSearchDate(row, fromIso, toIso)
       ) {
         count += 1;
         sum += Number(row.a ?? row.amount) || 0;

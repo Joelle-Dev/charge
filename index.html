@@ -39,146 +39,99 @@
       background:
         radial-gradient(600px 420px at 50% 35%, #fffaf3 0%, rgba(255, 250, 243, 0) 70%),
         #faf5ec;
-      transition: opacity 0.45s ease, transform 0.45s ease;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
     .splash-screen.is-hidden {
       opacity: 0;
       transform: scale(1.05);
       pointer-events: none;
     }
-    .splash-blob {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(2px);
-      opacity: 0.5;
-      animation: splash-float 6s ease-in-out infinite;
-    }
-    .splash-blob-a {
-      top: 12%;
-      left: -8%;
-      width: 180px;
-      height: 180px;
-      background: #f6e7db;
-    }
-    .splash-blob-b {
-      right: -10%;
-      bottom: 14%;
-      width: 220px;
-      height: 220px;
-      background: #fbe7e2;
-      animation-delay: -3s;
-    }
-    .splash-paws {
-      position: absolute;
-      right: 12%;
-      bottom: 13%;
-      left: 12%;
-      height: 60px;
-      pointer-events: none;
-    }
-    .splash-paw {
-      position: absolute;
-      bottom: 0;
-      width: 24px;
-      height: 24px;
-      color: #e9958d;
-      opacity: 0;
-      animation: splash-paw-step 2.6s ease-out infinite;
-    }
-    .splash-paw svg {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-    .splash-paw-1 { left: 4%;  --paw-rot: -16deg; animation-delay: 0s; }
-    .splash-paw-2 { left: 30%; --paw-rot: 12deg;  animation-delay: 0.45s; bottom: 18px; }
-    .splash-paw-3 { left: 56%; --paw-rot: -12deg; animation-delay: 0.9s; }
-    .splash-paw-4 { left: 82%; --paw-rot: 14deg;  animation-delay: 1.35s; bottom: 18px; }
     .splash-mark {
+      position: relative;
       display: block;
-      width: 96px;
-      height: 96px;
-      margin-bottom: 14px;
-      filter: drop-shadow(0 16px 24px rgba(90, 63, 43, 0.16));
-      animation:
-        splash-pop 0.7s cubic-bezier(0.2, 0.9, 0.25, 1.15) both,
-        splash-bob 3.2s ease-in-out 0.7s infinite;
+      width: 88px;
+      height: 88px;
+      animation: splash-pop 0.6s cubic-bezier(0.2, 0.9, 0.25, 1.1) both;
+    }
+    .splash-mark::before {
+      content: "";
+      position: absolute;
+      inset: -18px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(233, 149, 141, 0.16) 0%, rgba(233, 149, 141, 0) 70%);
+      animation: splash-halo 3s ease-in-out infinite;
     }
     .splash-mark img {
+      position: relative;
       display: block;
       width: 100%;
       height: 100%;
       object-fit: contain;
+      filter: drop-shadow(0 10px 18px rgba(90, 63, 43, 0.12));
     }
     .splash-title {
       display: flex;
-      gap: 0.12em;
-      font-size: 22px;
+      gap: 0.14em;
+      margin-top: 18px;
+      font-size: 19px;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.16em;
       color: #2d2723;
     }
     .splash-char {
       display: inline-block;
-      animation: splash-char 0.55s cubic-bezier(0.2, 0.85, 0.25, 1.2) both;
+      animation: splash-char 0.5s cubic-bezier(0.2, 0.85, 0.25, 1.2) both;
     }
-    .splash-char:nth-child(1) { animation-delay: 0.18s; }
-    .splash-char:nth-child(2) { animation-delay: 0.28s; }
-    .splash-char:nth-child(3) { animation-delay: 0.38s; }
-    .splash-char:nth-child(4) { animation-delay: 0.48s; }
+    .splash-char:nth-child(1) { animation-delay: 0.1s; }
+    .splash-char:nth-child(2) { animation-delay: 0.17s; }
+    .splash-char:nth-child(3) { animation-delay: 0.24s; }
+    .splash-char:nth-child(4) { animation-delay: 0.31s; }
     .splash-subtitle {
-      min-height: 18px;
+      min-height: 17px;
       margin-top: 10px;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      color: #8f8175;
+      font-size: 11.5px;
+      letter-spacing: 0.06em;
+      color: #9a8b7e;
       transition: opacity 0.18s ease, transform 0.18s ease;
     }
     .splash-subtitle.is-swap {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(4px);
     }
-    .splash-dots {
-      display: flex;
-      gap: 7px;
-      margin-top: 18px;
+    .splash-progress {
+      position: relative;
+      width: 96px;
+      height: 3px;
+      margin-top: 20px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(233, 149, 141, 0.18);
     }
-    .splash-dots i {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
+    .splash-progress::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40%;
+      border-radius: inherit;
       background: #e9958d;
-      animation: splash-dot 1s ease-in-out infinite;
+      animation: splash-progress 1.5s ease-in-out infinite;
     }
-    .splash-dots i:nth-child(2) { animation-delay: 0.15s; }
-    .splash-dots i:nth-child(3) { animation-delay: 0.3s; }
     @keyframes splash-pop {
-      0% { opacity: 0; transform: scale(0.5) rotate(-8deg); }
-      60% { opacity: 1; transform: scale(1.06) rotate(2deg); }
-      100% { opacity: 1; transform: scale(1) rotate(0deg); }
-    }
-    @keyframes splash-bob {
-      0%, 100% { transform: translateY(0) rotate(0deg); }
-      50% { transform: translateY(-5px) rotate(-1.5deg); }
-    }
-    @keyframes splash-char {
-      0% { opacity: 0; transform: translateY(14px) scale(0.7); }
-      70% { opacity: 1; transform: translateY(-3px) scale(1.06); }
+      0% { opacity: 1; transform: translateY(0) scale(0.985); }
       100% { opacity: 1; transform: translateY(0) scale(1); }
     }
-    @keyframes splash-paw-step {
-      0% { opacity: 0; transform: scale(0.5) rotate(var(--paw-rot)); }
-      20% { opacity: 0.55; transform: scale(1) rotate(var(--paw-rot)); }
-      65% { opacity: 0.35; transform: scale(1) rotate(var(--paw-rot)); }
-      100% { opacity: 0; transform: scale(1.08) rotate(var(--paw-rot)); }
+    @keyframes splash-halo {
+      0%, 100% { opacity: 0.6; transform: scale(0.96); }
+      50% { opacity: 1; transform: scale(1.04); }
     }
-    @keyframes splash-float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-16px); }
+    @keyframes splash-char {
+      0% { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
     }
-    @keyframes splash-dot {
-      0%, 100% { transform: translateY(0); opacity: 0.45; }
-      50% { transform: translateY(-5px); opacity: 1; }
+    @keyframes splash-progress {
+      0% { left: -40%; }
+      100% { left: 100%; }
     }
     @media (prefers-reduced-motion: reduce) {
       .splash-screen *,
@@ -193,14 +146,6 @@
 </head>
 <body>
   <div id="splash" class="splash-screen">
-    <div class="splash-blob splash-blob-a" aria-hidden="true"></div>
-    <div class="splash-blob splash-blob-b" aria-hidden="true"></div>
-    <div class="splash-paws" aria-hidden="true">
-      <span class="splash-paw splash-paw-1"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.4" rx="5.2" ry="4.2"></ellipse><ellipse cx="5.7" cy="9.4" rx="2.15" ry="2.65" transform="rotate(-20 5.7 9.4)"></ellipse><ellipse cx="9.8" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="14.2" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="18.3" cy="9.4" rx="2.15" ry="2.65" transform="rotate(20 18.3 9.4)"></ellipse></svg></span>
-      <span class="splash-paw splash-paw-2"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.4" rx="5.2" ry="4.2"></ellipse><ellipse cx="5.7" cy="9.4" rx="2.15" ry="2.65" transform="rotate(-20 5.7 9.4)"></ellipse><ellipse cx="9.8" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="14.2" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="18.3" cy="9.4" rx="2.15" ry="2.65" transform="rotate(20 18.3 9.4)"></ellipse></svg></span>
-      <span class="splash-paw splash-paw-3"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.4" rx="5.2" ry="4.2"></ellipse><ellipse cx="5.7" cy="9.4" rx="2.15" ry="2.65" transform="rotate(-20 5.7 9.4)"></ellipse><ellipse cx="9.8" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="14.2" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="18.3" cy="9.4" rx="2.15" ry="2.65" transform="rotate(20 18.3 9.4)"></ellipse></svg></span>
-      <span class="splash-paw splash-paw-4"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="12" cy="15.4" rx="5.2" ry="4.2"></ellipse><ellipse cx="5.7" cy="9.4" rx="2.15" ry="2.65" transform="rotate(-20 5.7 9.4)"></ellipse><ellipse cx="9.8" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="14.2" cy="6.4" rx="2.05" ry="2.55"></ellipse><ellipse cx="18.3" cy="9.4" rx="2.15" ry="2.65" transform="rotate(20 18.3 9.4)"></ellipse></svg></span>
-    </div>
     <div class="splash-mark" aria-hidden="true">
       <img src="./icons/cat-transparent.png" alt="">
     </div>
@@ -208,7 +153,7 @@
       <span class="splash-char">守</span><span class="splash-char">财</span><span class="splash-char">小</span><span class="splash-char">果</span>
     </div>
     <div class="splash-subtitle" id="splashSubtitle">说一句就记上</div>
-    <div class="splash-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="splash-progress" aria-hidden="true"></div>
   </div>
   <script>
     (function () {

@@ -29,17 +29,15 @@
 import { computed } from 'vue';
 import CategoryIcon from './CategoryIcon.vue';
 import { useLedger } from '../composables/useLedger';
-import { usePrivacy } from '../composables/usePrivacy';
-import { displayMoney } from '../utils/format';
+import { displayMoney } from '../utils/money';
 
 const props = defineProps({
   expense: { type: Object, required: true }
 });
 const emit = defineEmits(['select', 'menu']);
 
-const { hideAmount } = usePrivacy();
 
 const { iconFor } = useLedger();
 const icon = computed(() => iconFor(props.expense.category || '其他'));
-const amountLabel = computed(() => displayMoney(props.expense.amount, hideAmount.value));
+const amountLabel = computed(() => displayMoney(props.expense.amount));
 </script>

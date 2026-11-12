@@ -14,7 +14,7 @@
 
         <div class="summary-total">
           <span>一共花了</span>
-          <strong>¥{{ displayMoney(summary.total, hideAmount) }}</strong>
+          <strong>¥{{ displayMoney(summary.total) }}</strong>
           <small>{{ summary.count }} 笔 · {{ budgetText }}</small>
         </div>
 
@@ -22,7 +22,7 @@
           <div v-for="item in summary.topCategories" :key="item.category" class="summary-category">
             <div class="summary-category-line">
               <span class="summary-category-name"><CategoryIcon class="summary-category-icon" :name="iconFor(item.category)" /> {{ item.category }}</span>
-              <span>¥{{ displayMoney(item.amount, hideAmount) }} · {{ Math.round(item.percent) }}%</span>
+              <span>¥{{ displayMoney(item.amount) }} · {{ Math.round(item.percent) }}%</span>
             </div>
             <div class="summary-track">
               <div class="summary-fill" :style="{ width: `${item.percent}%`, background: categoryColor(item.category) }"></div>
@@ -61,15 +61,14 @@ import ProfileAvatar from './ProfileAvatar.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
 import { useProfile } from '../composables/useProfile';
-import { categoryColor, displayMoney } from '../utils/format';
-import { usePrivacy } from '../composables/usePrivacy';
+import { displayMoney } from '../utils/money';
+import { categoryColor } from '../utils/format';
 import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
 const { stageSummary , iconFor } = useLedger();
 const { profile, profileName } = useProfile();
-const { hideAmount } = usePrivacy();
 const cardRef = ref(null);
 const busy = ref(false);
 
@@ -95,9 +94,9 @@ const mood = computed(() => {
 
 const budgetText = computed(() => {
   if (!summary.value || !summary.value.budget) return '还没放猫粮预算';
-  const budget = displayMoney(summary.value.budget, hideAmount.value);
-  if (summary.value.remaining >= 0) return `猫粮罐 ¥${budget} · 还剩 ¥${displayMoney(summary.value.remaining, hideAmount.value)}`;
-  return `猫粮罐 ¥${budget} · 花超啦 ¥${displayMoney(Math.abs(summary.value.remaining), hideAmount.value)}`;
+  const budget = displayMoney(summary.value.budget);
+  if (summary.value.remaining >= 0) return `猫粮罐 ¥${budget} · 还剩 ¥${displayMoney(summary.value.remaining)}`;
+  return `猫粮罐 ¥${budget} · 花超啦 ¥${displayMoney(Math.abs(summary.value.remaining))}`;
 });
 
 function download(dataUrl, filename) {
@@ -130,7 +129,7 @@ async function shareSummary() {
         await navigator.share({
           files: [file],
           title: `${summary.value.stage.name} · 果冻的账本小结`,
-          text: `${summary.value.stage.name} 一共花了 ¥${displayMoney(summary.value.total, hideAmount.value)}`
+          text: `${summary.value.stage.name} 一共花了 ¥${displayMoney(summary.value.total)}`
         });
         showToast('分享打开啦');
       } catch (err) {

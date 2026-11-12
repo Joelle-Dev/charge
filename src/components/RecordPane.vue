@@ -1,15 +1,22 @@
 <template>
-  <section ref="rootRef" class="record-pane">
+  <section
+    ref="rootRef"
+    class="record-pane"
+    :class="{ 'is-header-compact': headerCompact }"
+  >
     <div class="record-header">
     <header class="record-pane-head">
       <img class="record-pane-cat" :src="catAvatar" alt="" aria-hidden="true">
       <div class="record-topbar">
-        <button class="record-topbar-button" type="button" aria-label="账本" @click="goLedgers">
+        <button class="record-batch-entry" type="button" aria-label="一次记多笔" @click="openBatch">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="4" width="12" height="16" rx="2"></rect>
-            <path d="M7 8h4M7 12h3"></path>
-            <path d="M8 20h10.5a2.5 2.5 0 0 0 2.5-2.5V6"></path>
+            <path d="M16 5H3"></path>
+            <path d="M11 12H3"></path>
+            <path d="M16 19H3"></path>
+            <path d="M18 9v6"></path>
+            <path d="M21 12h-6"></path>
           </svg>
+          <span>多笔</span>
         </button>
         <button
           class="record-topbar-title"
@@ -22,7 +29,7 @@
             <path d="m6 9 6 6 6-6"></path>
           </svg>
         </button>
-        <button class="record-topbar-button" type="button" aria-label="搜索支出" @click="openSearch">
+        <button class="record-topbar-button" type="button" aria-label="查明细" @click="openSearch">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7"></circle>
             <path d="m20 20-3.5-3.5"></path>
@@ -36,7 +43,7 @@
       <div class="record-head-total">
         <span class="record-total-label">{{ monthTotalLabel }}</span>
         <strong class="record-month-total">
-          <span class="record-total-currency">¥</span>{{ displayMoney(activeMonthTotal, hideAmount) }}
+          <span class="record-total-currency">¥</span>{{ displayMoney(activeMonthTotal) }}
         </strong>
       </div>
     </div>
@@ -44,10 +51,8 @@
     <span v-if="showPullHint" class="record-pull-hint" aria-hidden="true">下拉记一笔</span>
     </div>
 
-    <div v-if="loading" class="record-loading">
-      <span class="loading-dot"></span>
-      果冻在翻账本…
-    </div>
+    <div ref="scrollRef" class="record-pane-scroll">
+    <LoadingState v-if="loading" text="果冻在翻账本…" />
 
     <div v-else-if="feedError" class="record-empty">
       <strong>账本没翻成</strong>
@@ -63,16 +68,21 @@
         class="timeline-day"
         :data-month="day.key.slice(0, 7)"
       >
-        <div class="timeline-day-head">
-          <div class="timeline-day-main">
+        <button
+          class="timeline-day-head"
+          type="button"
+          :aria-label="`查看 ${day.label} 的每日账单`"
+          @click="openDay(day)"
+        >
+          <span class="timeline-day-main">
             <span class="timeline-day-node" :class="`heat-${day.heat}`" aria-hidden="true"></span>
             <span class="timeline-day-label">{{ day.label }}</span>
             <span class="timeline-day-summary">
               <span class="timeline-day-count">{{ day.items.length }} 笔</span>
-              <span class="timeline-day-total">¥{{ displayMoney(day.total, hideAmount) }}</span>
+              <span class="timeline-day-total">¥{{ displayMoney(day.total) }}</span>
             </span>
-          </div>
-        </div>
+          </span>
+        </button>
 
         <div class="timeline-items">
           <RecordLeaf
@@ -90,13 +100,12 @@
     <div v-else class="record-empty">
       <strong>果冻还没花过钱</strong>
       <span>记一笔试试嘛</span>
+      <button class="secondary-btn" type="button" @click="record.openRecord()">记一笔</button>
     </div>
 
-    <div v-if="loadingMore" class="record-loading record-loading-more">
-      <span class="loading-dot"></span>
-      再往前翻翻…
-    </div>
+    <LoadingState v-if="loadingMore" inline text="再往前翻翻…" />
     </template>
+    </div>
 
     <MonthPickerSheet
       v-model:show="showMonthPicker"
@@ -107,6 +116,7 @@
     <ExpenseActionSheets ref="rowActionsRef" />
 
     <Teleport to="body">
+      <Transition name="daily-sheet">
       <div v-if="dailyDate" class="daily-page">
         <div class="daily-header">
           <header class="daily-page-head">
@@ -143,17 +153,14 @@
 
           <section class="daily-summary">
             <span class="daily-summary-label">这天花了</span>
-            <strong class="daily-summary-total">¥{{ displayMoney(dailyTotal, hideAmount) }}</strong>
+            <strong class="daily-summary-total">¥{{ displayMoney(dailyTotal) }}</strong>
             <span class="daily-summary-count">{{ dailyExpenses.length }} 笔</span>
           </section>
         </div>
 
         <div class="daily-page-body">
 
-          <div v-if="dailyLoading" class="record-loading">
-            <span class="loading-dot"></span>
-            果冻在翻这一天的账本…
-          </div>
+          <LoadingState v-if="dailyLoading" text="果冻在翻这一天的账本…" />
 
           <div v-else-if="dailyError" class="record-empty">
             <strong>这一天没翻成</strong>
@@ -179,6 +186,7 @@
           </div>
         </div>
       </div>
+      </Transition>
     </Teleport>
   </section>
 </template>
@@ -189,6 +197,7 @@ import { showToast } from 'vant';
 import ExpenseActionSheets from './ExpenseActionSheets.vue';
 import ExpenseRow from './ExpenseRow.vue';
 import MonthNav from './MonthNav.vue';
+import LoadingState from './LoadingState.vue';
 import MonthPickerSheet from './MonthPickerSheet.vue';
 import RecordLeaf from './RecordLeaf.vue';
 import RecordPullHandle from './RecordPullHandle.vue';
@@ -196,20 +205,19 @@ import catAvatar from '../assets/cat-avatar.png';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useLedgerPanes } from '../composables/useLedgerPanes';
-import { usePrivacy } from '../composables/usePrivacy';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
 import { useSheets } from '../composables/useSheets';
-import { categoryColor, dayKey, displayMoney, sumAmounts, toDateInput } from '../utils/format';
+import { displayMoney } from '../utils/money';
+import { categoryColor, dayKey, sumAmounts, toDateInput } from '../utils/format';
 import { groupExpensesByDay } from '../utils/expenses';
 import { haptic } from '../utils/haptics';
 import { addMonths, currentMonthKey, monthLabel, shortMonthLabel } from '../utils/months';
 
-const { ready, currentStage, dataVersion, loadMonthExpenses } = useLedger();
+const { ready, currentStage, dataVersion, loadMonthExpenses, latestMonthBefore } = useLedger();
 const { removeExpenseWithUndo } = useExpenseActions();
 const { activePane, goToPane } = useLedgerPanes();
 const record = useRecordEntry();
-const { hideAmount } = usePrivacy();
 const { recordMonth, dailyOpen, dailyDate } = useRecordsView();
 const sheets = useSheets();
 
@@ -230,6 +238,7 @@ const monthTotalLabel = computed(() => {
 });
 const showMonthPicker = ref(false);
 const showPullHint = ref(false);
+const headerCompact = ref(false);
 const rowActionsRef = ref(null);
 const expenses = ref([]);
 const loading = ref(true);
@@ -241,6 +250,7 @@ let loadToken = 0;
 let dailyToken = 0;
 
 const rootRef = ref(null);
+const scrollRef = ref(null);
 const loadedMonths = ref([]);
 const feedDone = ref(false);
 const loadingMore = ref(false);
@@ -367,6 +377,19 @@ async function loadEarlier(stageId, token, maxLoops = 12) {
     if (token !== loadToken) return;
     loops += 1;
     if (hasData) return;
+
+    // The month was empty: jump straight to the latest month with data
+    // instead of walking month by month through the whole gap.
+    const jump = await latestMonthBefore(stageId, prev);
+    if (token !== loadToken) return;
+    if (!jump || jump >= prev) {
+      feedDone.value = true;
+      return;
+    }
+    const jumpedData = await appendMonth(stageId, jump, token);
+    if (token !== loadToken) return;
+    loops += 1;
+    if (jumpedData) return;
   }
 }
 
@@ -461,8 +484,7 @@ function updateVisibleMonth() {
   if (!root) return;
   const days = root.querySelectorAll('.timeline-day');
   if (!days.length) return;
-  const headerH = root.querySelector('.record-header')?.offsetHeight || 100;
-  const contentTop = (scrollEl?.getBoundingClientRect().top ?? 0) + headerH;
+  const contentTop = scrollEl?.getBoundingClientRect().top ?? 0;
   let current = null;
   for (const el of days) {
     if (el.getBoundingClientRect().bottom > contentTop) {
@@ -477,9 +499,16 @@ function onScroll() {
   if (scrollRaf) return;
   scrollRaf = requestAnimationFrame(() => {
     scrollRaf = 0;
+    updateHeaderCompact();
     updateVisibleMonth();
     if (needsMore()) ensureFilled();
   });
+}
+
+function updateHeaderCompact() {
+  const top = scrollEl?.scrollTop || 0;
+  const next = top > 72;
+  if (next !== headerCompact.value) headerCompact.value = next;
 }
 
 watch(
@@ -491,6 +520,8 @@ watch(
 watch(month, (value) => {
   recordMonth.value = value;
   visibleMonth.value = '';
+  headerCompact.value = false;
+  if (scrollEl) scrollEl.scrollTo({ top: 0, behavior: 'auto' });
 });
 
 watch(
@@ -501,14 +532,18 @@ watch(
   }
 );
 
-function goLedgers() {
-  haptic('light');
-  goToPane('home');
-}
-
 function openStages() {
   haptic('light');
   sheets.openStages();
+}
+
+function openBatch() {
+  haptic('light');
+  if (!currentStage.value) {
+    sheets.openStageForm();
+    return;
+  }
+  goToPane('batch');
 }
 
 function openSearch() {
@@ -533,6 +568,13 @@ function openDaily(expense) {
   dailyOpen.value = true;
   dailyExpenses.value = [];
   dailyDate.value = dayKey(new Date(expense.spentAt));
+}
+
+function openDay(day) {
+  haptic('light');
+  dailyOpen.value = true;
+  dailyExpenses.value = [];
+  dailyDate.value = day.key;
 }
 
 function closeDaily() {
@@ -632,9 +674,9 @@ watch(
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown);
-  scrollEl = rootRef.value?.closest('.record-pager-pane') || rootRef.value;
+  scrollEl = scrollRef.value;
   if (scrollEl) scrollEl.addEventListener('scroll', onScroll, { passive: true });
-  ensureFilled();
+  if (ready.value && !loading.value) ensureFilled();
 });
 
 onBeforeUnmount(() => {
