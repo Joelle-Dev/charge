@@ -212,6 +212,15 @@
       </div>
       </div>
 
+      <div class="report-actions">
+        <button class="secondary-btn" type="button" @click="openDetail">
+          看看这个月的明细
+        </button>
+        <button class="secondary-btn report-save-btn" type="button" @click="saveReceipt">
+          保存 / 分享小票
+        </button>
+      </div>
+
       <section class="report-calendar" aria-label="本月花钱足迹">
         <div class="report-section-head">
           <h2>花钱足迹</h2>
@@ -245,15 +254,6 @@
           <span>多</span>
         </div>
       </section>
-
-      <div class="report-actions">
-        <button class="secondary-btn" type="button" @click="openDetail">
-          看看这个月的明细
-        </button>
-        <button class="secondary-btn report-save-btn" type="button" @click="saveReceipt">
-          保存 / 分享小票
-        </button>
-      </div>
     </template>
   </section>
 </template>
