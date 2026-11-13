@@ -203,6 +203,7 @@ import {
 import { curtainVisibleHeight, shouldOpenCurtain } from '../utils/pullGesture';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
+import { getAllByIndex } from '../lib/db';
 
 const LAST_CATEGORY_KEY = 'shoucai:last-category';
 
@@ -222,7 +223,7 @@ const {
   resetRecord,
   setCloseGuard
 } = useRecordEntry();
-const { categories, currentStage, dataVersion, addExpense, updateExpense, iconFor, loadMonthExpenses } = useLedger();
+const { categories, currentStage, dataVersion, addExpense, updateExpense, iconFor } = useLedger();
 const { removeExpenseWithUndo } = useExpenseActions();
 
 const panelRef = ref(null);
@@ -427,9 +428,17 @@ async function loadDateStats(dateKey) {
     return;
   }
   try {
-    const items = await loadMonthExpenses(stage.id, dateKey.slice(0, 7));
+    // 只查这一天的记录，不再整月拉回来过滤
+    const start = combineLocal(dateKey, '00:00');
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const items = await getAllByIndex(
+      'expenses',
+      'stageId_spentAt',
+      IDBKeyRange.bound([stage.id, start.toISOString()], [stage.id, end.toISOString()], false, true)
+    );
     if (token !== dateStatsToken) return;
-    dateStatsCount.value = items.filter((expense) => toDateInput(expense.spentAt) === dateKey).length;
+    dateStatsCount.value = items.length;
   } catch (err) {
     if (token === dateStatsToken) dateStatsCount.value = 0;
   }
@@ -601,9 +610,13 @@ function confirmDate() {
   haptic('light');
 }
 
-function handleDone() {
+async function handleDone() {
   if (closeMode.value) {
     haptic('light');
+    // 只写了备注也算没保存的输入，走和其他关闭路径一样的确认，
+    // 免得备注被静默丢掉。
+    const allowed = await closeGuard();
+    if (!allowed) return;
     resetRecord();
     return;
   }

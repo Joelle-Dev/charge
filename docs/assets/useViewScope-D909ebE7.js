@@ -1,1 +1,0 @@
-import{r as e}from"./index-Cv8ICs_E.js";const c=e("current"),t=e(""),o=e(""),a=e("");function i(){return{stageScope:c,detailFrom:t,detailTo:o,detailCategory:a,setDetailContext(r="",n="",s=""){t.value=r||"",o.value=n||"",a.value=s||""}}}export{i as u};

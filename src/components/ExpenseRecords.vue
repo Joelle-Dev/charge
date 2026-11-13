@@ -99,6 +99,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { showToast } from 'vant';
 import { useRouter } from 'vue-router';
 import ExpenseActionSheets from './ExpenseActionSheets.vue';
 import ExpenseRow from './ExpenseRow.vue';
@@ -136,8 +137,8 @@ const {
   stageId
 } = useRecordsView();
 
-const todayKey = toDateInput(new Date());
-const currentMonth = currentMonthKey();
+const todayKey = computed(() => toDateInput(new Date()));
+const currentMonth = computed(() => currentMonthKey());
 const showMonthPicker = ref(false);
 const rowActionsRef = ref(null);
 const expandedKeys = ref(new Set());
@@ -148,7 +149,7 @@ if (!selectedMonth.value || stageId.value !== currentStage.value?.id) {
   stageId.value = currentStage.value?.id || null;
   selectedMonth.value = currentStage.value
     ? latestMonthForStage(currentStage.value.id)
-    : currentMonth;
+    : currentMonth.value;
   selectedDate.value = '';
 }
 
@@ -163,7 +164,7 @@ function openRowMenu(expense) {
 const filteredGroups = computed(() => groupExpensesByDay(monthExpenses.value));
 
 function emptyDateForMonth(month) {
-  return month === currentMonth ? todayKey : `${month}-01`;
+  return month === currentMonth.value ? todayKey.value : `${month}-01`;
 }
 
 function settleSelection(preserveDate = false) {
@@ -196,10 +197,16 @@ async function loadMonthData(month, preserveDate = false) {
     return;
   }
 
-  const items = await loadMonthExpenses(stage.id, month);
-  if (token !== loadToken) return;
-  loadedMonthExpenses.value = items;
-  settleSelection(preserveDate);
+  try {
+    const items = await loadMonthExpenses(stage.id, month);
+    if (token !== loadToken) return;
+    loadedMonthExpenses.value = items;
+    settleSelection(preserveDate);
+  } catch (err) {
+    console.error('加载月账目失败', err);
+    if (token !== loadToken) return;
+    showToast('账目没刷新出来，等会儿再试试');
+  }
 }
 
 function isExpanded(key) {
@@ -253,7 +260,7 @@ watch(
     if (id !== stageId.value) {
       stageId.value = id || null;
       selectedDate.value = '';
-      const latest = id ? latestMonthForStage(id) : currentMonth;
+      const latest = id ? latestMonthForStage(id) : currentMonth.value;
       if (month !== latest) {
         selectedMonth.value = latest;
         return;

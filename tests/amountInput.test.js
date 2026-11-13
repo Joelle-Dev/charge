@@ -86,3 +86,9 @@ test('expression input supports addition and subtraction', () => {
   assert.equal(appendExpressionOperator('12+', '-'), '12-');
   assert.equal(appendExpressionDecimal('12+'), '12+0.');
 });
+
+test('formatAmountInput preserves multi-dot and expression input', () => {
+  assert.equal(formatAmountInput('1.2.3'), '1.2.3');
+  assert.equal(formatAmountInput('1234+56'), '1,234+56');
+  assert.equal(formatAmountInput('007'), '7');
+});

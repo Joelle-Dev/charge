@@ -7,6 +7,7 @@ const {
   applyRuntimeExpenseDeltas,
   buildStatsFromExpenses,
   loadDayStats,
+  loadDayTotals,
   loadHomeStats,
   rebuildDerivedData,
   statsEntriesFromState
@@ -53,6 +54,22 @@ test('per-stage day stats are written on rebuild and kept in sync by deltas', as
 
   const otherStage = await loadDayStats({ stageId: 's2' });
   assert.equal(otherStage.days.get('2026-01-02').total, 30);
+});
+
+test('loadDayTotals aggregates straight from the expenses store', async () => {
+  await clearStores(['stats', 'expenses']);
+
+  await putMany('expenses', [
+    expense('o1', 's1', 10, '餐饮', new Date(2026, 9, 3, 12)),
+    expense('o2', 's1', 5, '餐饮', new Date(2026, 9, 20, 12)),
+    expense('o3', 's2', 7, '交通', new Date(2026, 10, 2, 12))
+  ]);
+
+  const { days } = await loadDayTotals({ stageIds: ['s1'] });
+  assert.equal(days.get('2026-10-03').total, 10);
+  assert.equal(days.get('2026-10-20').total, 5);
+  assert.equal(days.has('2026-11-02'), false);
+  assert.equal([...days.values()].reduce((sum, bucket) => sum + bucket.count, 0), 2);
 });
 
 test('derived rebuild writes search chunk metadata next to the index', async () => {

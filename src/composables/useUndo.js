@@ -1,4 +1,5 @@
 import { reactive } from 'vue';
+import { showToast } from 'vant';
 
 const undoState = reactive({
   visible: false,
@@ -35,7 +36,13 @@ function showUndo(message, action, duration = 4000) {
 async function runUndo() {
   const action = undoState.action;
   dismissUndo();
-  if (action) await action();
+  if (!action) return;
+  try {
+    await action();
+  } catch (err) {
+    console.error('撤销失败', err);
+    showToast('撤销没成功，再试试吧');
+  }
 }
 
 export function useUndo() {

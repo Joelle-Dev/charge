@@ -6,7 +6,15 @@
           <path d="m15 18-6-6 6-6"></path>
         </svg>
       </button>
-      <span class="report-month-current">{{ monthText }}</span>
+      <button
+        class="report-month-current"
+        type="button"
+        title="翻到别的月份"
+        aria-label="翻到别的月份"
+        @click="openMonthPicker"
+      >
+        {{ monthText }}
+      </button>
       <button
         class="report-month-arrow"
         type="button"
@@ -68,10 +76,12 @@
     <template v-else>
       <div class="receipt-export">
       <div ref="receiptRef" :key="month" class="receipt-paper">
+      <div class="receipt-body">
         <span class="receipt-slip-tag" aria-hidden="true">顾客联</span>
         <header class="receipt-head">
           <span class="receipt-brand">守财小果</span>
           <span class="receipt-brand-sub">MONTHLY RECEIPT</span>
+          <span class="receipt-month-title">{{ monthText }}</span>
           <span class="receipt-meta-line">
             <span>桌号 <b class="receipt-table-no">523</b></span>
             <em aria-hidden="true">·</em>
@@ -115,7 +125,10 @@
             <span class="receipt-rank">{{ String(index + 1).padStart(2, '0') }}</span>
             <span class="receipt-item-name">
               <CategoryIcon :name="iconFor(item.category)" />
-              <span class="receipt-row-name">{{ item.category }}</span>
+              <span class="receipt-item-text">
+                <span class="receipt-row-name">{{ item.category }}</span>
+                <small v-if="item.noteText" class="receipt-item-note">{{ item.noteText }}</small>
+              </span>
             </span>
             <span class="is-num">{{ item.count }}</span>
             <span class="is-num is-money"><i class="receipt-yen">¥</i>{{ formatAmount(item.price) }}</span>
@@ -211,50 +224,32 @@
         </footer>
       </div>
       </div>
+      </div>
 
       <div class="report-actions">
         <button class="secondary-btn" type="button" @click="openDetail">
           看看这个月的明细
         </button>
-        <button class="secondary-btn report-save-btn" type="button" @click="saveReceipt">
-          保存 / 分享小票
+        <button
+          class="secondary-btn report-save-btn"
+          type="button"
+          :disabled="saving"
+          @click="saveReceipt"
+        >
+          {{ saving ? '果冻在画画…' : '保存 / 分享小票' }}
         </button>
       </div>
-
-      <section class="report-calendar" aria-label="本月花钱足迹">
-        <div class="report-section-head">
-          <h2>花钱足迹</h2>
-          <span>{{ activeDays }} 天 · ¥{{ formatAmount(total) }}</span>
-        </div>
-        <div class="report-calendar-weekdays" aria-hidden="true">
-          <span v-for="weekday in WEEKDAY_LABELS" :key="weekday">{{ weekday }}</span>
-        </div>
-        <div class="report-calendar-grid">
-          <span
-            v-for="(cell, index) in calendarCells"
-            :key="cell ? cell.key : `pad-${index}`"
-            class="report-calendar-cell"
-            :class="{
-              'is-empty': !cell,
-              'is-future': cell?.isFuture,
-              'is-today': cell?.isToday,
-              [`level-${cell?.level || 0}`]: cell
-            }"
-            :title="cell && cell.amount ? `${cell.key} · ¥${formatAmount(cell.amount)}` : ''"
-          >
-            <template v-if="cell">
-              <span class="report-calendar-day">{{ cell.day }}</span>
-              <span v-if="cell.amount" class="report-calendar-amount">{{ compactAmount(cell.amount) }}</span>
-            </template>
-          </span>
-        </div>
-        <div class="report-calendar-legend" aria-hidden="true">
-          <span>少</span>
-          <i v-for="level in [0, 1, 2, 3, 4]" :key="level" :class="`level-${level}`"></i>
-          <span>多</span>
-        </div>
-      </section>
     </template>
+
+    <MonthPickerSheet
+      v-model:show="showMonthPicker"
+      :selected-month="month"
+      :footprint="true"
+      :day-totals="dayTotals"
+      :loading="loading"
+      @select="selectMonth"
+      @pick-day="openDayDetail"
+    />
   </section>
 </template>
 
@@ -262,19 +257,19 @@
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
-import { toPng } from 'html-to-image';
 import CatMood from '../components/CatMood.vue';
 import LoadingState from '../components/LoadingState.vue';
 import CategoryIcon from '../components/CategoryIcon.vue';
+import MonthPickerSheet from '../components/MonthPickerSheet.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
 import { useViewScope } from '../composables/useViewScope';
+import { DEFAULT_CATEGORY } from '../lib/parser';
 import { addMonths, currentMonthKey, monthBounds, monthLabel } from '../utils/months';
 import { dayKey, formatAmount, pad2 } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { saveImage } from '../utils/saveImage';
 
-const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 const router = useRouter();
@@ -300,6 +295,8 @@ const previousTotal = ref(0);
 const loading = ref(true);
 const loadError = ref(false);
 const receiptRef = ref(null);
+const showMonthPicker = ref(false);
+const saving = ref(false);
 let loadToken = 0;
 
 const scopeStageIds = computed(() => {
@@ -399,43 +396,43 @@ const busiestWeekday = computed(() => {
   return { label: WEEKDAY_NAMES[peak.weekday], days: peak.days, total: peak.total };
 });
 
-const calendarCells = computed(() => {
-  const { days } = monthDateRange.value;
-  const [year, monthNumber] = month.value.split('-').map(Number);
-  const firstWeekday = new Date(year, monthNumber - 1, 1).getDay();
-  const leading = (firstWeekday + 6) % 7;
-  const maxDay = Math.max(
-    1,
-    ...[...dayTotals.value.values()].map((bucket) => bucket.total)
-  );
-  const todayKey = dayKey(new Date());
-
-  const cells = Array.from({ length: leading }, () => null);
-  for (let day = 1; day <= days; day += 1) {
-    const key = `${month.value}-${pad2(day)}`;
-    const bucket = dayTotals.value.get(key);
-    const amount = bucket?.total || 0;
-    let level = 0;
-    if (amount > 0) {
-      level = Math.min(4, Math.ceil(amount / maxDay * 4));
+const categoryNotes = computed(() => {
+  const map = new Map();
+  for (const expense of rows.value) {
+    const note = String(expense?.note || '').trim();
+    if (!note) continue;
+    const key = String(expense?.category || DEFAULT_CATEGORY);
+    if (!map.has(key)) map.set(key, new Map());
+    const bag = map.get(key);
+    const seen = bag.get(note);
+    if (seen) {
+      seen.count += 1;
+    } else {
+      bag.set(note, {
+        count: 1,
+        at: Date.parse(expense?.spentAt) || Number(expense?.createdAt) || 0
+      });
     }
-    cells.push({
-      key,
-      day,
-      amount,
-      count: bucket?.count || 0,
-      level,
-      isFuture: key > todayKey,
-      isToday: key === todayKey
-    });
   }
-  return cells;
+  return map;
 });
 
-const categoryRanking = computed(() => categoryItems.value.map((item) => ({
-  ...item,
-  price: item.count ? item.amount / item.count : 0
-})));
+const categoryRanking = computed(() => {
+  const notes = categoryNotes.value;
+  return categoryItems.value.map((item) => {
+    const bag = notes.get(String(item.category || DEFAULT_CATEGORY));
+    const list = bag
+      ? [...bag.entries()]
+        .sort((a, b) => (a[1].at - b[1].at) || (b[1].count - a[1].count))
+        .map(([note]) => note)
+      : [];
+    return {
+      ...item,
+      price: item.count ? item.amount / item.count : 0,
+      noteText: list.join('、')
+    };
+  });
+});
 
 const largest = computed(() => rows.value.reduce((peak, expense) => (
   !peak || (Number(expense.amount) || 0) > (Number(peak.amount) || 0) ? expense : peak
@@ -489,14 +486,6 @@ const narrative = computed(() => {
 
 function stageNameFor(expense) {
   return stageNameById.value.get(expense.stageId) || '';
-}
-
-function compactAmount(value) {
-  const amount = Number(value) || 0;
-  if (!amount) return '';
-  if (amount >= 10000) return `${(amount / 10000).toFixed(1).replace(/\.0$/, '')}万`;
-  if (amount >= 1000) return `${(amount / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-  return String(Math.round(amount));
 }
 
 function dayLabel(value) {
@@ -599,9 +588,27 @@ function goCurrentMonth() {
   haptic('light');
 }
 
+function openMonthPicker() {
+  showMonthPicker.value = true;
+  haptic('light');
+}
+
+function selectMonth(next) {
+  const key = String(next || '') > currentMonthKey() ? currentMonthKey() : next;
+  if (key === month.value) return;
+  month.value = key;
+  haptic('light');
+}
+
 function openDetail() {
   const range = monthDateRange.value;
   setDetailContext(range.from, range.to);
+  haptic('light');
+  router.push('/search');
+}
+
+function openDayDetail(day) {
+  setDetailContext(day, day);
   haptic('light');
   router.push('/search');
 }
@@ -614,38 +621,85 @@ function openCategory(category) {
   router.push('/search');
 }
 
+function buildExportNode(node) {
+  // Render an off-screen copy so the visible receipt never shifts or flashes.
+  // The copy keeps the same paper styling; only the settled state is forced
+  // (no drop-in animation). A cream frame wraps it so the exported image has
+  // breathing room around the paper, just like it looks on the page.
+  const clone = node.cloneNode(true);
+  const width = node.getBoundingClientRect().width || node.clientWidth;
+  if (width) clone.style.width = `${width}px`;
+  clone.style.margin = '0';
+  clone.style.opacity = '1';
+  clone.style.transform = 'none';
+  clone.style.animation = 'none';
+
+  const background = getComputedStyle(document.documentElement)
+    .getPropertyValue('--bg')
+    .trim() || '#faf5ec';
+  const frame = document.createElement('div');
+  frame.style.width = `${(width || 344) + 40}px`;
+  frame.style.padding = '20px';
+  frame.style.background = background;
+  frame.style.margin = '0';
+  frame.appendChild(clone);
+
+  const holder = document.createElement('div');
+  holder.style.position = 'fixed';
+  holder.style.left = '-10000px';
+  holder.style.top = '0';
+  holder.style.pointerEvents = 'none';
+  holder.appendChild(frame);
+  document.body.appendChild(holder);
+  return { node: frame, holder };
+}
+
 async function saveReceipt() {
   const node = receiptRef.value;
-  if (!node) return;
+  if (!node || saving.value) return;
   haptic('light');
+  saving.value = true;
+
   try {
-    const dataUrl = await toPng(node, {
-      pixelRatio: 3,
-      cacheBust: true,
-      style: {
-        margin: '0',
-        opacity: '1',
-        transform: 'none',
-        animation: 'none',
-        filter: 'none',
-        boxShadow: 'none'
-      }
-    });
-    const result = await saveImage(dataUrl, `守财小果-${month.value}-小票.png`, {
-      title: '守财小果 · 月度小票',
-      text: `${monthText.value}的小票`
-    });
-    if (result === 'share') {
-      showToast('已打开分享，选「存储图像」保存');
-    } else if (result === 'preview') {
-      showToast('长按图片保存到相册');
-    } else if (result === 'download') {
-      showToast('小票已保存到下载文件夹');
+    let dataUrl = '';
+    let holder = null;
+    try {
+      const built = buildExportNode(node);
+      holder = built.holder;
+      // Let the off-screen copy finish laying out before it is captured.
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      const { toPng } = await import('html-to-image');
+      dataUrl = await toPng(built.node, {
+        pixelRatio: 3,
+        cacheBust: true
+      });
+    } catch (err) {
+      console.error('保存小票失败', err);
+      showToast('保存失败，再试一次');
+      return;
+    } finally {
+      holder?.remove();
     }
-    if (result !== 'cancelled') haptic('success');
-  } catch (err) {
-    console.error('保存小票失败', err);
-    showToast('保存失败，再试一次');
+
+    try {
+      const result = await saveImage(dataUrl, `守财小果-${month.value}-小票.png`, {
+        title: '守财小果 · 月度小票',
+        text: `${monthText.value}的小票`
+      });
+      if (result === 'share') {
+        showToast('已打开分享，选「存储图像」保存');
+      } else if (result === 'preview') {
+        showToast('长按图片保存到相册');
+      } else if (result === 'download') {
+        showToast('小票已保存到下载文件夹');
+      }
+      if (result !== 'cancelled') haptic('success');
+    } catch (err) {
+      console.error('保存小票失败', err);
+      showToast('保存失败，再试一次');
+    }
+  } finally {
+    saving.value = false;
   }
 }
 

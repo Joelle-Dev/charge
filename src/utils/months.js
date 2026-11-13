@@ -1,4 +1,9 @@
 export function monthKey(value) {
+  // 纯日期字符串按本地日期解读，避免被当成 UTC 午夜差一个月
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/);
+    if (match) return `${match[1]}-${match[2].padStart(2, '0')}`;
+  }
   const date = value instanceof Date ? value : new Date(value);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }

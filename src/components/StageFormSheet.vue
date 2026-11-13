@@ -29,8 +29,8 @@
       <p v-if="error" class="form-error">{{ error }}</p>
 
       <div class="form-actions">
-        <button class="primary-btn" type="submit">{{ editingStage ? '保存' : '建好就用它' }}</button>
-        <button v-if="editingStage" class="danger-btn" type="button" @click="toggleArchive">
+        <button class="primary-btn" type="submit" :disabled="busy">{{ editingStage ? '保存' : '建好就用它' }}</button>
+        <button v-if="editingStage" class="danger-btn" type="button" :disabled="busy" @click="toggleArchive">
           {{ editingStage.archived ? '恢复' : '收起来' }}
         </button>
       </div>
@@ -75,6 +75,7 @@ const {
 const name = ref('');
 const budget = ref('');
 const error = ref('');
+const busy = ref(false);
 
 watch(
   [show, editingStage, stageDraftName],
@@ -88,6 +89,7 @@ watch(
 );
 
 async function save() {
+  if (busy.value) return;
   const trimmed = String(name.value || '').trim();
   const budgetRaw = budget.value === '' || budget.value === null || budget.value === undefined
     ? ''
@@ -103,32 +105,48 @@ async function save() {
     return;
   }
 
-  if (editingStage.value) {
-    await updateStage(editingStage.value, { name: trimmed, budget: budgetValue });
-    haptic('success');
-    showToast('账本改好啦');
-  } else {
-    await createStage({ name: trimmed, budget: budgetValue });
-    haptic('success');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast(`「${trimmed}」建好啦`);
+  busy.value = true;
+  try {
+    if (editingStage.value) {
+      await updateStage(editingStage.value, { name: trimmed, budget: budgetValue });
+      haptic('success');
+      showToast('账本改好啦');
+    } else {
+      await createStage({ name: trimmed, budget: budgetValue });
+      haptic('success');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      showToast(`「${trimmed}」建好啦`);
+    }
+    show.value = false;
+  } catch (err) {
+    console.error('保存账本失败', err);
+    showToast('没保存好，再试试吧');
+  } finally {
+    busy.value = false;
   }
-  show.value = false;
 }
 
 async function toggleArchive() {
   const stage = editingStage.value;
-  if (!stage) return;
-  if (stage.archived) {
-    await restoreStage(stage);
-    haptic('light');
-    showToast(`「${stage.name}」回来啦`);
-  } else {
-    await archiveStage(stage);
-    haptic('light');
-    showToast(`「${stage.name}」收起来啦`);
+  if (!stage || busy.value) return;
+  busy.value = true;
+  try {
+    if (stage.archived) {
+      await restoreStage(stage);
+      haptic('light');
+      showToast(`「${stage.name}」回来啦`);
+    } else {
+      await archiveStage(stage);
+      haptic('light');
+      showToast(`「${stage.name}」收起来啦`);
+    }
+    show.value = false;
+  } catch (err) {
+    console.error('更新账本状态失败', err);
+    showToast('没弄好，再试试吧');
+  } finally {
+    busy.value = false;
   }
-  show.value = false;
 }
 
 async function removeStage() {
@@ -145,9 +163,17 @@ async function removeStage() {
   } catch (err) {
     return;
   }
-  await deleteStage(stage);
-  haptic('warning');
-  showToast('账本删掉啦');
-  show.value = false;
+  busy.value = true;
+  try {
+    await deleteStage(stage);
+    haptic('warning');
+    showToast('账本删掉啦');
+    show.value = false;
+  } catch (err) {
+    console.error('删除账本失败', err);
+    showToast('没删掉，再试试吧');
+  } finally {
+    busy.value = false;
+  }
 }
 </script>

@@ -95,3 +95,10 @@ test('every default and picker icon maps to a bundled asset', () => {
     assert.ok(existsSync(`${iconDir}${key}.svg`), `missing svg for ${key}`);
   }
 });
+
+test('iconForCategory falls back safely for inherited keys', () => {
+  const fallback = iconForCategory('constructor', {});
+  assert.equal(typeof fallback, 'string');
+  assert.equal(iconForCategory('constructor', { constructor: '🎯' }), '🎯');
+  assert.equal(typeof iconForCategory('toString', {}), 'string');
+});

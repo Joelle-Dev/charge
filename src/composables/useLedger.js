@@ -23,7 +23,7 @@ import {
   reorderCategoryList,
   seedCategories
 } from '../utils/categories';
-import { combineLocal, toDateInput, uid } from '../utils/format';
+import { combineLocal, roundCents, toDateInput, uid } from '../utils/format';
 import { addCategoryTotal, finalizeCategoryTotals } from '../utils/expenses';
 import { currentMonthKey, monthBounds, monthKey } from '../utils/months';
 import { catTitleForCategory } from '../utils/titles';
@@ -72,7 +72,13 @@ const mergeBusy = ref(false);
 const statsState = reactive(createStatsState());
 
 let initPromise = null;
-let statsRebuildPromise = null;
+let ledgerLock = Promise.resolve();
+
+function withLedgerLock(task) {
+  const run = ledgerLock.then(task, task);
+  ledgerLock = run.then(() => {}, () => {});
+  return run;
+}
 
 const REBUILD_PERCENT = {
   start: 1,
@@ -196,7 +202,10 @@ async function loadCategoryTotals({ stageId = null, stageIds = null, from, to } 
   if (!start || !end) return { total: 0, items: [] };
 
   const startIso = start.toISOString();
-  const endIso = new Date(end.getTime() + 86400000).toISOString();
+  // 用本地日期 +1 天求次日零点，跨夏令时也能对
+  const endExclusive = new Date(end);
+  endExclusive.setDate(endExclusive.getDate() + 1);
+  const endIso = endExclusive.toISOString();
   const totals = new Map();
   const add = (expense) => addCategoryTotal(totals, expense);
   const ids = Array.isArray(stageIds) ? stageIds.filter(Boolean) : [];
@@ -352,9 +361,7 @@ async function updateSearchChunks(removed = [], added = []) {
   }
 }
 
-async function commitExpenseChanges({ put = [], remove = [] } = {}) {
-  if (statsRebuildPromise) await statsRebuildPromise;
-
+async function commitExpenseChangesUnlocked({ put = [], remove = [] } = {}) {
   const putIds = new Set(put.map((expense) => expense.id));
   const deleteIds = remove.map((expense) => expense.id).filter((id) => !putIds.has(id));
 
@@ -364,16 +371,29 @@ async function commitExpenseChanges({ put = [], remove = [] } = {}) {
     settings: [{ key: 'statsDirty', value: true }]
   });
 
-  await applyStatsChanges(remove, put);
   try {
-    await ensureSearchIndex();
+    await applyStatsChanges(remove, put);
+    try {
+      await ensureSearchIndex();
+    } catch (err) {
+      console.error('搜索索引未就绪', err);
+    }
+    await updateSearchChunks(remove, put);
+    await setSetting('statsDirty', false);
   } catch (err) {
-    console.error('搜索索引未就绪', err);
+    // 账目本体已落库，绝不能向调用方报失败（否则用户重试会产生重复账目）。
+    // 派生数据留在 statsDirty 状态，后台重建兜底。
+    console.error('统计数据更新失败，已安排重建', err);
+    rebuildAndApplyStats().catch((rebuildErr) => {
+      console.error('统计数据重建失败', rebuildErr);
+    });
   }
-  await updateSearchChunks(remove, put);
-  await setSetting('statsDirty', false);
   await refreshStageViews();
   dataVersion.value += 1;
+}
+
+function commitExpenseChanges(op) {
+  return withLedgerLock(() => commitExpenseChangesUnlocked(op));
 }
 
 async function reloadStages() {
@@ -419,8 +439,9 @@ async function loadStagesAndCurrent() {
   await ensureCurrentStage();
 }
 
-async function rebuildAndApplyStats() {
-  statsRebuildPromise = rebuildDerivedDataInWorker({
+async function rebuildAndApplyStatsUnlocked() {
+  await setSetting('statsDirty', true);
+  await rebuildDerivedDataInWorker({
     onProgress: (phase) => {
       const percent = REBUILD_PERCENT[phase];
       loadingHint.value = percent
@@ -428,11 +449,6 @@ async function rebuildAndApplyStats() {
         : '果冻在整理账本…';
     }
   });
-  try {
-    await statsRebuildPromise;
-  } finally {
-    statsRebuildPromise = null;
-  }
 
   await setSetting('statsVersion', STATS_VERSION);
   await setSetting('statsDirty', false);
@@ -442,6 +458,10 @@ async function rebuildAndApplyStats() {
   if (hadDays) await loadDays(statsState);
   searchIndexPromise = Promise.resolve();
   return statsState;
+}
+
+function rebuildAndApplyStats() {
+  return withLedgerLock(rebuildAndApplyStatsUnlocked);
 }
 
 async function init() {
@@ -555,7 +575,7 @@ function clearMergeStages() {
   mergedStageIds.value = [];
 }
 
-async function mergeStages(targetId, { onProgress } = {}) {
+async function mergeStagesUnlocked(targetId, { onProgress } = {}) {
   if (mergeBusy.value) throw new Error('果冻还在合并账本，等一下下吧');
   const plan = buildMergePlan({
     stages: stages.value,
@@ -578,11 +598,17 @@ async function mergeStages(targetId, { onProgress } = {}) {
       }
     });
 
-    await reloadStages();
-    currentStageId.value = targetId;
-    await setSetting('currentStageId', targetId);
-    await rebuildAndApplyStats();
-    await refreshStageViews();
+    try {
+      await reloadStages();
+      currentStageId.value = targetId;
+      await setSetting('currentStageId', targetId);
+      await rebuildAndApplyStatsUnlocked();
+      await refreshStageViews();
+    } catch (err) {
+      // 合并已经在 Worker 里落库且不可逆，不能向调用方报失败。
+      console.error('合并后刷新失败，数据已合并', err);
+      await setSetting('statsDirty', true).catch(() => {});
+    }
     dataVersion.value += 1;
     mergeMode.value = false;
     mergedStageIds.value = [];
@@ -599,7 +625,11 @@ async function mergeStages(targetId, { onProgress } = {}) {
   }
 }
 
-async function undoMergeStages(snapshot) {
+function mergeStages(targetId, options) {
+  return withLedgerLock(() => mergeStagesUnlocked(targetId, options));
+}
+
+async function undoMergeStagesUnlocked(snapshot) {
   if (!snapshot || mergeBusy.value) return false;
   mergeBusy.value = true;
   try {
@@ -609,11 +639,17 @@ async function undoMergeStages(snapshot) {
       previousCurrentStageId: snapshot.previousCurrentStageId
     });
 
-    await reloadStages();
-    currentStageId.value = await getSetting('currentStageId', null);
-    await ensureCurrentStage();
-    await rebuildAndApplyStats();
-    await refreshStageViews();
+    try {
+      await reloadStages();
+      currentStageId.value = await getSetting('currentStageId', null);
+      await ensureCurrentStage();
+      await rebuildAndApplyStatsUnlocked();
+      await refreshStageViews();
+    } catch (err) {
+      // 撤销已经在 Worker 里落库，不能向调用方报失败。
+      console.error('撤销合并后刷新失败，数据已还原', err);
+      await setSetting('statsDirty', true).catch(() => {});
+    }
     dataVersion.value += 1;
     mergeMode.value = false;
     mergedStageIds.value = [];
@@ -622,6 +658,10 @@ async function undoMergeStages(snapshot) {
     mergeBusy.value = false;
     loadingHint.value = '果冻在翻小账本…';
   }
+}
+
+function undoMergeStages(snapshot) {
+  return withLedgerLock(() => undoMergeStagesUnlocked(snapshot));
 }
 
 async function createStage({ name, budget }) {
@@ -649,9 +689,12 @@ async function updateStage(stage, patch) {
   const record = {
     ...stage,
     ...patch,
-    budget: patch.budget && patch.budget > 0 ? patch.budget : null,
     updatedAt: Date.now()
   };
+  // 只有显式带 budget 的 patch 才动预算，避免顺手把预算清掉
+  if ('budget' in patch) {
+    record.budget = patch.budget && patch.budget > 0 ? patch.budget : null;
+  }
   await putRecord('stages', record);
   await reloadStages();
   await ensureCurrentStage();
@@ -681,16 +724,18 @@ async function restoreStage(stage) {
   dataVersion.value += 1;
 }
 
-async function deleteStage(stage) {
-  await setSetting('statsDirty', true);
-  await deleteByIndexRange('expenses', 'stageId', stage.id);
-  await deleteRecord('stages', stage.id);
-  await reloadStages();
-  mergedStageIds.value = mergedStageIds.value.filter((id) => id !== stage.id);
-  await ensureCurrentStage();
-  await rebuildAndApplyStats();
-  await refreshStageViews();
-  dataVersion.value += 1;
+function deleteStage(stage) {
+  return withLedgerLock(async () => {
+    await setSetting('statsDirty', true);
+    await deleteByIndexRange('expenses', 'stageId', stage.id);
+    await deleteRecord('stages', stage.id);
+    await reloadStages();
+    mergedStageIds.value = mergedStageIds.value.filter((id) => id !== stage.id);
+    await ensureCurrentStage();
+    await rebuildAndApplyStatsUnlocked();
+    await refreshStageViews();
+    dataVersion.value += 1;
+  });
 }
 
 async function addExpenses(entries) {
@@ -700,7 +745,7 @@ async function addExpenses(entries) {
   const records = entries.map((entry) => ({
     id: uid('expense'),
     stageId: stage.id,
-    amount: Math.round(Number(entry.amount) * 100) / 100,
+    amount: roundCents(Number(entry.amount)),
     category: entry.category || DEFAULT_CATEGORY,
     note: String(entry.note || '').trim(),
     spentAt: entry.spentAt,
@@ -724,16 +769,20 @@ async function addExpense(expense) {
 }
 
 async function updateExpense(expense, patch) {
-  const old = await getRecord('expenses', expense.id) || expense;
-  const record = { ...old, ...patch, updatedAt: Date.now() };
-  await commitExpenseChanges({ put: [record], remove: [old] });
-  return record;
+  return withLedgerLock(async () => {
+    const old = await getRecord('expenses', expense.id) || expense;
+    const record = { ...old, ...patch, updatedAt: Date.now() };
+    await commitExpenseChangesUnlocked({ put: [record], remove: [old] });
+    return record;
+  });
 }
 
 async function deleteExpense(expenseId) {
-  const old = await getRecord('expenses', expenseId);
-  if (!old) return;
-  await commitExpenseChanges({ remove: [old] });
+  return withLedgerLock(async () => {
+    const old = await getRecord('expenses', expenseId);
+    if (!old) return;
+    await commitExpenseChangesUnlocked({ remove: [old] });
+  });
 }
 
 async function restoreExpense(expense) {
@@ -741,12 +790,14 @@ async function restoreExpense(expense) {
   return expense;
 }
 
-async function clearStageExpenses(stageId) {
-  await setSetting('statsDirty', true);
-  await deleteByIndexRange('expenses', 'stageId', stageId);
-  await rebuildAndApplyStats();
-  await refreshStageViews();
-  dataVersion.value += 1;
+function clearStageExpenses(stageId) {
+  return withLedgerLock(async () => {
+    await setSetting('statsDirty', true);
+    await deleteByIndexRange('expenses', 'stageId', stageId);
+    await rebuildAndApplyStatsUnlocked();
+    await refreshStageViews();
+    dataVersion.value += 1;
+  });
 }
 
 async function setCategories(next) {
@@ -782,12 +833,14 @@ async function renameCategory(from, to) {
   if (oldName === DEFAULT_CATEGORY) throw new Error('「其他」是果冻的默认分类，不能改名哦');
   if (categories.value.includes(newName)) throw new Error('这个分类已经有啦');
 
-  const affected = await getAllByIndex('expenses', 'category', oldName);
-  if (affected.length) {
-    const updatedAt = Date.now();
-    const put = affected.map((expense) => ({ ...expense, category: newName, updatedAt }));
-    await commitExpenseChanges({ remove: affected, put });
-  }
+  await withLedgerLock(async () => {
+    const affected = await getAllByIndex('expenses', 'category', oldName);
+    if (affected.length) {
+      const updatedAt = Date.now();
+      const put = affected.map((expense) => ({ ...expense, category: newName, updatedAt }));
+      await commitExpenseChangesUnlocked({ remove: affected, put });
+    }
+  });
 
   await setCategories(categories.value.map((item) => (item === oldName ? newName : item)));
   const carriedIcon = categoryIcons.value[oldName] || DEFAULT_CATEGORY_ICONS[oldName];
@@ -806,7 +859,10 @@ function stageSummary(stage) {
 
 function isCategoryUsed(category) {
   for (const stage of statsState.stages.values()) {
-    if (stage.categories?.[category]?.count > 0) return true;
+    const entry = stage.categories && Object.hasOwn(stage.categories, category)
+      ? stage.categories[category]
+      : null;
+    if (entry && entry.count > 0) return true;
   }
   return false;
 }

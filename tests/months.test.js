@@ -28,3 +28,8 @@ test('month bounds cover the whole month in ISO strings', () => {
   assert.equal(new Date(end).getMonth(), 10);
   assert.equal(new Date(end).getDate(), 1);
 });
+
+test('monthKey treats date-only strings as local dates', () => {
+  assert.equal(monthKey('2026-11-01'), '2026-11');
+  assert.equal(monthKey('2026-2-5'), '2026-02');
+});

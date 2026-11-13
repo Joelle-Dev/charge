@@ -6,7 +6,8 @@ export function mergeStageTotals(stages = [], getStats = () => null) {
   let budgetedStages = 0;
   let minDate = '';
   let maxDate = '';
-  const categories = {};
+  // 分类名是用户输入，用无原型对象避免 __proto__ 之类的键污染
+  const categories = Object.create(null);
 
   for (const stage of selected) {
     const stats = getStats(stage.id) || {};
@@ -20,7 +21,9 @@ export function mergeStageTotals(stages = [], getStats = () => null) {
     }
 
     for (const [category, value] of Object.entries(stats.categories || {})) {
-      const current = categories[category] || { count: 0, amount: 0 };
+      const current = Object.hasOwn(categories, category)
+        ? categories[category]
+        : { count: 0, amount: 0 };
       current.count += Number(value.count) || 0;
       current.amount += Number(value.amount) || 0;
       categories[category] = current;
@@ -63,6 +66,9 @@ export function buildMergePlan({ stages = [], selectedIds = [], targetId = '', g
   const sources = selectedStages.filter((stage) => stage.id !== targetId);
   if (!sources.length) {
     return { ok: false, error: '至少需要一个被合并的账本' };
+  }
+  if (sources.some((stage) => stage.archived)) {
+    return { ok: false, error: '归档账本不能参与合并' };
   }
 
   return {

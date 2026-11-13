@@ -8,7 +8,8 @@ import {
   clearStores,
   putMany,
   deleteMany,
-  setSetting
+  setSetting,
+  scanIndex
 } from './db.js';
 import { DEFAULT_CATEGORY } from './parser.js';
 import { dayKey } from '../utils/format.js';
@@ -120,6 +121,25 @@ function dropBucketIfEmpty(collection, key) {
   if (bucket && bucket.count <= 0) collection.delete(key);
 }
 
+// 分类名是用户输入，可能是 __proto__/constructor 这类继承键，
+// 一律用 hasOwn 读、defineProperty 写，避免污染原型。
+function categoryStatsOf(categories, category) {
+  return Object.hasOwn(categories, category) ? categories[category] : null;
+}
+
+function ensureCategoryStats(categories, category) {
+  const existing = categoryStatsOf(categories, category);
+  if (existing) return existing;
+  const created = { count: 0, amount: 0 };
+  Object.defineProperty(categories, category, {
+    value: created,
+    writable: true,
+    enumerable: true,
+    configurable: true
+  });
+  return created;
+}
+
 export function applyExpenseDelta(state, expense, sign = 1) {
   const amount = Number(expense.amount) || 0;
   if (!amount || !expense.stageId) return;
@@ -139,10 +159,9 @@ export function applyExpenseDelta(state, expense, sign = 1) {
   stage.count += sign;
   stage.total += sign * amount;
   updateDateRange(stage, day, sign);
-  const categoryStats = stage.categories[category] || { count: 0, amount: 0 };
+  const categoryStats = ensureCategoryStats(stage.categories, category);
   categoryStats.count += sign;
   categoryStats.amount += sign * amount;
-  stage.categories[category] = categoryStats;
 
   const dayBucket = ensureBucket(state.days, day);
   dayBucket.count += sign;
@@ -167,7 +186,7 @@ export function applyExpenseDelta(state, expense, sign = 1) {
     if (currentStage && currentStage.count <= 0) {
       state.stages.delete(stageId);
     } else if (currentStage) {
-      const categoryStats = currentStage.categories[category];
+      const categoryStats = categoryStatsOf(currentStage.categories, category);
       if (categoryStats && categoryStats.count <= 0) delete currentStage.categories[category];
     }
 
@@ -304,10 +323,9 @@ export async function applyRuntimeExpenseDeltas(state, ops = []) {
     stage.count += sign;
     stage.total += sign * amount;
     updateDateRange(stage, day, sign);
-    const categoryStats = stage.categories[category] || { count: 0, amount: 0 };
+    const categoryStats = ensureCategoryStats(stage.categories, category);
     categoryStats.count += sign;
     categoryStats.amount += sign * amount;
-    stage.categories[category] = categoryStats;
 
     if (sign > 0) {
       if (dayWasEmpty) state.global.recordDays = (state.global.recordDays || 0) + 1;
@@ -452,6 +470,30 @@ export async function loadDayStats({ stageId = null } = {}) {
   };
 }
 
+/**
+ * Rebuild daily totals straight from the expenses store. Used as a safety net
+ * when the per-stage day stats cache is out of sync (e.g. after older imports),
+ * so the trend page never silently drops a month that has spending.
+ */
+export async function loadDayTotals({ stageIds = [] } = {}) {
+  const totals = new Map();
+  const add = (expense) => {
+    const date = new Date(expense?.spentAt);
+    if (Number.isNaN(date.getTime())) return;
+    const key = dayKey(date);
+    const bucket = totals.get(key) || { key, count: 0, total: 0 };
+    bucket.count += 1;
+    bucket.total += Number(expense.amount) || 0;
+    totals.set(key, bucket);
+  };
+
+  const ids = [...new Set((Array.isArray(stageIds) ? stageIds : []).filter(Boolean))];
+  for (const stageId of ids) {
+    await scanIndex('expenses', 'stageId', IDBKeyRange.only(stageId), add);
+  }
+  return { days: totals };
+}
+
 export async function rebuildDerivedData(onProgress) {
   const startedAt = typeof performance !== 'undefined' ? performance.now() : 0;
   const mark = (phase) => {
@@ -539,10 +581,13 @@ export function buildAchievementStatsFromState(state, stages = [], now = new Dat
   if (firstDate) {
     const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     yesterday.setDate(yesterday.getDate() - 1);
-    const todayKey = dayKey(now);
-    const span = Math.max(0, dayDiff(firstDate, dayKey(yesterday)));
-    const todayRecorded = days.has(todayKey) ? 1 : 0;
-    const recordedInSpan = Math.max(0, days.size - 1 - todayRecorded);
+    const yesterdayKey = dayKey(yesterday);
+    const span = Math.max(0, dayDiff(firstDate, yesterdayKey));
+    // 只统计 (firstDate, 昨天] 区间里的记账日，未来日期不能算进来
+    let recordedInSpan = 0;
+    for (const day of days.keys()) {
+      if (day > firstDate && day <= yesterdayKey) recordedInSpan += 1;
+    }
     noSpendDays = Math.max(0, span - recordedInSpan);
   }
 

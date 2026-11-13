@@ -72,10 +72,18 @@ GitHub Pages 推荐配置：
 
 也可以使用 `.github/workflows/deploy.yml` 通过 GitHub Actions 部署，将 Pages Source 改为 GitHub Actions，并按需启用 push 触发。
 
+每次 push 或 PR 会通过 `.github/workflows/ci.yml` 自动跑 `npm test` 和 `npm run build`。
+
 默认 `start_url` / `scope` 为 `/charge/`。如果仓库名不是 `charge`，构建时传入：
 
 ```bash
 VITE_APP_START_URL=/你的仓库名/ VITE_APP_SCOPE=/你的仓库名/ npm run build:docs
+```
+
+分享预览的 `og:url` / `og:image` 默认指向 `https://joelle-dev.github.io/charge/`。如果部署地址不同，再传入：
+
+```bash
+VITE_APP_PUBLIC_URL=https://你的地址/ npm run build:docs
 ```
 
 ## 语音识别环境

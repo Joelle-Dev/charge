@@ -21,11 +21,18 @@ if (typeof window !== 'undefined') {
 
 export function usePwaInstall() {
   async function promptInstall() {
-    if (!deferredPrompt.value) return false;
-    deferredPrompt.value.prompt();
-    const choice = await deferredPrompt.value.userChoice;
+    const prompt = deferredPrompt.value;
+    if (!prompt) return false;
+    // 先清空引用，防止双击对同一个事件重复调用 prompt()
     deferredPrompt.value = null;
-    return choice?.outcome === 'accepted';
+    try {
+      await prompt.prompt();
+      const choice = await prompt.userChoice;
+      return choice?.outcome === 'accepted';
+    } catch (err) {
+      console.error('安装提示失败', err);
+      return false;
+    }
   }
 
   return {

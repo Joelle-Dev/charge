@@ -44,6 +44,7 @@
       <section class="chart-card" aria-label="支出折线图">
         <div class="chart-card-head">
           <strong>合计 ¥{{ displayMoney(series.total) }}</strong>
+          <span v-if="scopeLabel" class="chart-card-scope">{{ scopeLabel }}</span>
         </div>
         <SpendLineChart
           :points="series.points"
@@ -107,7 +108,7 @@ import SpendLineChart from '../components/SpendLineChart.vue';
 import CategoryIcon from '../components/CategoryIcon.vue';
 import { useLedger } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
-import { loadDayStats } from '../lib/stats';
+import { loadDayStats, loadDayTotals } from '../lib/stats';
 import { buildTrendPeriodOptions, buildTrendSeries, periodRange, TREND_PERIODS } from '../utils/trend';
 import { displayMoney } from '../utils/money';
 import { categoryColor, toDateInput } from '../utils/format';
@@ -119,7 +120,7 @@ const PERIOD_OPTIONS = [
   { value: 'year', label: '年' }
 ];
 
-const { ready, currentStage, dataVersion, loadCategoryTotals, iconFor } = useLedger();
+const { ready, currentStage, dataVersion, loadCategoryTotals, stageStats, iconFor } = useLedger();
 const sheets = useSheets();
 const today = toDateInput(new Date());
 
@@ -136,6 +137,9 @@ let loadToken = 0;
 let categoryToken = 0;
 let loadedCategoryKey = '';
 let railReady = false;
+let autoAnchor = true;
+
+const scopeLabel = computed(() => currentStage.value?.name || '');
 
 const series = computed(() => buildTrendSeries({
   days: allDays.value,
@@ -170,8 +174,8 @@ async function loadDays() {
     loading.value = true;
     return;
   }
-  const stage = currentStage.value;
-  if (!stage) {
+  const stageIds = currentStage.value?.id ? [currentStage.value.id] : [];
+  if (!stageIds.length) {
     allDays.value = [];
     loading.value = false;
     return;
@@ -180,11 +184,31 @@ async function loadDays() {
   const token = ++loadToken;
   loading.value = true;
   try {
-    const state = await loadDayStats({ stageId: stage.id });
+    const states = await Promise.all(stageIds.map((stageId) => loadDayStats({ stageId })));
     if (token !== loadToken) return;
-    allDays.value = [...state.days.entries()]
-      .map(([key, bucket]) => ({ ...bucket, key }))
-      .sort((a, b) => a.key.localeCompare(b.key));
+    const merged = new Map();
+    for (const state of states) {
+      for (const [key, bucket] of state.days) {
+        const current = merged.get(key) || { key, count: 0, total: 0 };
+        current.count += Number(bucket.count) || 0;
+        current.total += Number(bucket.total) || 0;
+        merged.set(key, current);
+      }
+    }
+
+    // The stats cache can drift behind the real expenses (older imports etc.).
+    // If the day cache doesn't cover the ledger's records, rebuild from expenses.
+    const expected = stageIds.reduce((sum, id) => sum + (Number(stageStats(id)?.count) || 0), 0);
+    const actual = [...merged.values()].reduce((sum, bucket) => sum + (Number(bucket.count) || 0), 0);
+    let days = merged;
+    if ((!merged.size && stageIds.length) || (expected && actual !== expected)) {
+      const fallback = await loadDayTotals({ stageIds });
+      if (token !== loadToken) return;
+      days = fallback.days;
+    }
+
+    allDays.value = [...days.values()].sort((a, b) => a.key.localeCompare(b.key));
+    applyAutoAnchor();
   } catch (err) {
     if (token === loadToken) {
       console.error('加载看账数据失败', err);
@@ -195,10 +219,27 @@ async function loadDays() {
   }
 }
 
+function hasDataInAnchor() {
+  const range = periodRange(period.value, anchor.value);
+  return allDays.value.some((day) => (
+    day.key >= range.from && day.key <= range.to && (Number(day.total) || 0) > 0
+  ));
+}
+
+function applyAutoAnchor() {
+  if (!autoAnchor) return;
+  autoAnchor = false;
+  const latest = allDays.value.length ? allDays.value[allDays.value.length - 1].key : '';
+  if (!latest || hasDataInAnchor()) return;
+  anchor.value = periodRange(period.value, latest).from;
+}
+
 function setPeriod(next) {
   if (!TREND_PERIODS.includes(next) || period.value === next) return;
   period.value = next;
   anchor.value = periodRange(next, today).from;
+  autoAnchor = true;
+  applyAutoAnchor();
   haptic('light');
 }
 
@@ -295,6 +336,7 @@ watch(
   () => currentStage.value?.id,
   () => {
     anchor.value = periodRange(period.value, today).from;
+    autoAnchor = true;
   }
 );
 

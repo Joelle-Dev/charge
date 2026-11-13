@@ -21,7 +21,13 @@ export function useExpenseActions() {
       return false;
     }
 
-    await deleteExpense(expense.id);
+    try {
+      await deleteExpense(expense.id);
+    } catch (err) {
+      console.error('删除花销失败', err);
+      showToast('没删掉，再试试吧');
+      return false;
+    }
     haptic('warning');
     showToast('删掉啦');
     return true;
@@ -29,12 +35,23 @@ export function useExpenseActions() {
 
   async function removeExpenseWithUndo(expense) {
     const snapshot = { ...expense };
-    await deleteExpense(expense.id);
+    try {
+      await deleteExpense(expense.id);
+    } catch (err) {
+      console.error('删除花销失败', err);
+      showToast('没删掉，再试试吧');
+      return false;
+    }
     haptic('warning');
     showUndo('这笔花销删掉啦', async () => {
-      await restoreExpense(snapshot);
-      haptic('success');
-      showToast('又回来啦');
+      try {
+        await restoreExpense(snapshot);
+        haptic('success');
+        showToast('又回来啦');
+      } catch (err) {
+        console.error('恢复花销失败', err);
+        showToast('没找回来，再试试吧');
+      }
     });
     return true;
   }

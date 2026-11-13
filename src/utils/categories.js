@@ -87,8 +87,8 @@ export const ICON_CHOICES = ICON_GROUPS.flatMap((group) => group.icons);
 const FALLBACK_ICONS = ['🧾', '💰', '🎁', '📚', '💊', '🏠', '📱', '🎫'];
 
 export function iconForCategory(name, overrides = {}) {
-  if (overrides && overrides[name]) return overrides[name];
-  if (DEFAULT_CATEGORY_ICONS[name]) return DEFAULT_CATEGORY_ICONS[name];
+  if (overrides && Object.hasOwn(overrides, name) && overrides[name]) return overrides[name];
+  if (Object.hasOwn(DEFAULT_CATEGORY_ICONS, name)) return DEFAULT_CATEGORY_ICONS[name];
   const text = String(name || '').trim();
   if (!text) return '·';
   let hash = 0;

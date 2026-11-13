@@ -66,6 +66,22 @@ test('parseSpentAt handles relative days and explicit dates', () => {
   assert.equal(half.date.getMinutes(), 30);
 });
 
+test('parseSpentAt honors explicit years and rejects impossible dates', () => {
+  const explicit = parseSpentAt('2024年3月5日 买了书 88', NOW);
+  assert.equal(explicit.date.getFullYear(), 2024);
+  assert.equal(explicit.date.getMonth(), 2);
+  assert.equal(explicit.date.getDate(), 5);
+  assert.ok(explicit.consumed.join('').includes('2024年3月5日'));
+
+  const impossible = parseSpentAt('2月30日 买了书 88', NOW);
+  assert.equal(impossible.consumed.length, 0);
+
+  const rolled = parseExpenses('2024年3月5日 打车 88', { now: NOW });
+  assert.equal(rolled.length, 1);
+  assert.equal(rolled[0].note, '打车');
+  assert.equal(new Date(rolled[0].spentAt).getFullYear(), 2024);
+});
+
 test('parseExpenses splits multiple entries and builds notes', () => {
   const entries = parseExpenses('昨天午饭吃了35，打车25块5，还有门票120', { now: NOW });
   assert.equal(entries.length, 3);
@@ -123,6 +139,41 @@ test('parseExpenses splits chinese amounts without units', () => {
 test('extractAmount prefers the leftmost amount', () => {
   assert.equal(extractAmount('午饭三十五打车二十五块').amount, 35);
   assert.equal(extractAmount('三块半').amount, 3.5);
+});
+
+test('extractAmount combines jiao decimals after filler verbs', () => {
+  assert.equal(extractAmount('花了38块5').amount, 38.5);
+  assert.equal(extractAmount('午饭花了25块8').amount, 25.8);
+  assert.equal(extractAmount('花了3块半').amount, 3.5);
+  assert.equal(extractAmount('一共38块5').amount, 38.5);
+  assert.equal(extractAmount('付了12块5毛').amount, 12.5);
+});
+
+test('parseExpenses does not split kuai-jiao amounts into phantom entries', () => {
+  const entries = parseExpenses('早饭花了38块5', { now: NOW });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].amount, 38.5);
+  assert.equal(entries[0].category, '餐饮');
+  assert.equal(entries[0].note, '早饭');
+});
+
+test('parseExpenses handles HH:MM clock times', () => {
+  const entries = parseExpenses('昨天 15:30 打车 30元', { now: NOW });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].amount, 30);
+  assert.equal(entries[0].category, '交通');
+  assert.equal(entries[0].note, '打车');
+  const when = new Date(entries[0].spentAt);
+  assert.equal(when.getDate(), 22);
+  assert.equal(when.getHours(), 15);
+  assert.equal(when.getMinutes(), 30);
+});
+
+test('parseExpenses keeps clock minutes out of amounts', () => {
+  const entries = parseExpenses('下午3点30打车25', { now: NOW });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].amount, 25);
+  assert.equal(new Date(entries[0].spentAt).getHours(), 15);
 });
 
 test('multi-amount splitting ignores quantities and dates', () => {

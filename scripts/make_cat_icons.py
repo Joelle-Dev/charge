@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the app icons, transparent avatar and iOS splash screens from 果冻's transparent portrait."""
+"""Build the app icons, transparent avatar, iOS splash screens and share image from 果冻's transparent portrait."""
 import math
 import os
 import struct
@@ -18,6 +18,9 @@ SPLASH_GLOW_RX_CSS = 600
 SPLASH_GLOW_RY_CSS = 420
 SPLASH_GLOW_CY_RATIO = 0.35
 SPLASH_GLOW_EXTENT = 0.7
+OG_WIDTH = 1200
+OG_HEIGHT = 630
+OG_CAT_SIZE = 300
 
 
 def decode_png(path):
@@ -223,7 +226,11 @@ def main():
         splash = build_splash(width, height, dpr, icon)
         write_png(os.path.join(PUBLIC, f'splash-{width}x{height}.png'), width, height, splash, 2)
 
-    print('Built 果冻 icons, avatar and splash screens')
+    og_icon = (OG_CAT_SIZE, resize_rgba(src_w, src_h, rows, OG_CAT_SIZE, OG_CAT_SIZE))
+    og_image = build_splash(OG_WIDTH, OG_HEIGHT, 1, og_icon)
+    write_png(os.path.join(PUBLIC, 'og-image.png'), OG_WIDTH, OG_HEIGHT, og_image, 2)
+
+    print('Built 果冻 icons, avatar, splash screens and share image')
 
 
 if __name__ == '__main__':

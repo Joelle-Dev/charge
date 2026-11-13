@@ -39,6 +39,7 @@ import { useSheets } from './composables/useSheets';
 import { useVoiceEntry } from './composables/useVoiceEntry';
 import { useAchievements } from './composables/useAchievements';
 import { useProfile } from './composables/useProfile';
+import { requestPersistence } from './lib/storage';
 
 const { init, currentStage } = useLedger();
 const { initProfile } = useProfile();
@@ -76,6 +77,7 @@ onMounted(async () => {
   const profileReady = initProfile().catch((err) => console.error(err));
   await init();
   await profileReady;
+  requestPersistence().catch(() => {});
   if (typeof window.requestIdleCallback === 'function') {
     window.requestIdleCallback(scheduleAchievements, { timeout: 5000 });
   } else {

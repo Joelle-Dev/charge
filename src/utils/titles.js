@@ -10,5 +10,5 @@ const TITLES = {
 
 export function catTitleForCategory(category) {
   if (!category) return '小财迷';
-  return TITLES[category] || `${category}猫`;
+  return Object.hasOwn(TITLES, category) ? TITLES[category] : `${category}猫`;
 }

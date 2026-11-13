@@ -47,6 +47,7 @@ export function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let settled = false;
 
     request.onupgradeneeded = () => {
       const db = request.result;
@@ -73,9 +74,29 @@ export function openDB() {
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('另一个页面还抱着账本，关掉它再试试吧'));
+    request.onsuccess = () => {
+      const db = request.result;
+      if (settled) {
+        db.close();
+        return;
+      }
+      settled = true;
+      db.onversionchange = () => {
+        db.close();
+        dbPromise = null;
+      };
+      resolve(db);
+    };
+    request.onerror = () => {
+      settled = true;
+      dbPromise = null;
+      reject(request.error);
+    };
+    request.onblocked = () => {
+      settled = true;
+      dbPromise = null;
+      reject(new Error('另一个页面还抱着账本，关掉它再试试吧'));
+    };
   });
   return dbPromise;
 }
@@ -176,7 +197,12 @@ export async function scanAll(storeName, onRecord) {
         return;
       }
       count += 1;
-      onRecord(cursor.value);
+      try {
+        onRecord(cursor.value);
+      } catch (err) {
+        reject(err);
+        return;
+      }
       cursor.continue();
     };
   });
@@ -202,7 +228,12 @@ export async function scanIndex(storeName, indexName, query, onRecord) {
         return;
       }
       count += 1;
-      onRecord(cursor.value);
+      try {
+        onRecord(cursor.value);
+      } catch (err) {
+        reject(err);
+        return;
+      }
       cursor.continue();
     };
   });
@@ -286,7 +317,7 @@ export async function writeExpenses({ put = [], deleteIds = [], settings = [] } 
   for (const key of deleteIds) store.delete(key);
   for (const value of put) store.put(toPlain(value));
   const settingsStore = tx.objectStore('settings');
-  for (const { key, value } of settings) settingsStore.put({ key, value });
+  for (const { key, value } of settings) settingsStore.put({ key, value: toPlain(value) });
   await transactionDone(tx);
 }
 

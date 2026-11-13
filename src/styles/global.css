@@ -2817,6 +2817,11 @@ input[type='search']::-webkit-search-decoration {
   color: var(--muted);
 }
 
+.settings-action small.is-overdue {
+  color: var(--accent-strong);
+  font-weight: 550;
+}
+
 .settings-action svg {
   flex: none;
   color: var(--muted);
@@ -3074,6 +3079,52 @@ input[type='search']::-webkit-search-decoration {
 .settings-card .settings-action {
   padding-left: 0;
   padding-right: 0;
+}
+
+.settings-storage {
+  padding-top: 2px;
+}
+
+.settings-storage-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.settings-storage-row strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.settings-storage-hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.settings-storage-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: none;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-storage-btn:active {
+  background: var(--accent-tint);
+}
+
+.settings-storage-btn:disabled {
+  opacity: 0.6;
 }
 
 .settings-privacy {
@@ -4293,6 +4344,10 @@ input[type='search']::-webkit-search-decoration {
   font-weight: 650;
 }
 
+.month-picker-year.is-compact {
+  padding: 2px 0 10px;
+}
+
 .month-year-arrow {
   display: grid;
   place-items: center;
@@ -4308,6 +4363,65 @@ input[type='search']::-webkit-search-decoration {
 .month-year-arrow:active {
   transform: scale(0.93);
   background: var(--accent-soft);
+}
+
+.month-year-arrow:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* 横向滚动选月 */
+.month-strip {
+  display: flex;
+  gap: 8px;
+  margin: 0 -2px;
+  padding: 2px 2px 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.month-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.month-chip {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 44px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.month-chip strong {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.month-chip:disabled {
+  opacity: 0.35;
+}
+
+.month-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.month-chip.active strong {
+  color: var(--accent-strong);
+}
+
+.month-chip:active {
+  transform: scale(0.95);
 }
 
 .month-year-arrow svg {
@@ -6388,12 +6502,19 @@ input[type='search']::-webkit-search-decoration {
 .report-month-current {
   flex: none;
   padding: 0 1px;
+  border: 0;
+  background: none;
   color: var(--ink);
   font-size: 14px;
   font-weight: 750;
   letter-spacing: -0.02em;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.report-month-current:active {
+  opacity: 0.6;
 }
 
 .report-month-reset {
@@ -6462,35 +6583,56 @@ input[type='search']::-webkit-search-decoration {
   width: 100%;
   max-width: 344px;
   margin: 8px auto 8px;
+  padding: 12px 0 8px;
+  animation: receipt-drop 0.55s var(--ease-out);
+}
+
+.receipt-body {
   padding: 22px 18px 20px;
-  box-shadow:
-    inset 2px 0 5px -3px rgba(var(--shadow-rgb), 0.16),
-    inset -2px 0 5px -3px rgba(var(--shadow-rgb), 0.16);
   background-color: #fffdf8;
-  background-image:
-    linear-gradient(180deg, rgba(214, 197, 178, 0.14) 0%, rgba(214, 197, 178, 0) 22%),
-    repeating-linear-gradient(0deg, rgba(180, 160, 140, 0.05) 0 1px, transparent 1px 22px);
-  filter:
-    drop-shadow(0 12px 18px rgba(var(--shadow-rgb), 0.15))
-    drop-shadow(0 2px 4px rgba(var(--shadow-rgb), 0.08));
-  color: #3a332c;
+  box-shadow:
+    inset 2px 0 5px -3px rgba(var(--shadow-rgb), 0.12),
+    inset -2px 0 5px -3px rgba(var(--shadow-rgb), 0.12);
+  color: #42392f;
   font-family: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, Consolas, "PingFang SC", monospace;
-  transform: rotate(-0.28deg);
-  transform-origin: 50% 0;
-  animation: receipt-drop 0.55s var(--ease-out) both;
+}
+
+/* 撕纸口：圆钝手撕 + 果冻咬痕（单张 SVG 拉伸铺满，不留重复齿纹） */
+.receipt-paper::before,
+.receipt-paper::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
+.receipt-paper::before {
+  top: 0;
+  height: 12px;
+  background-size: 100% 12px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 344 12' preserveAspectRatio='none'%3E%3Cpath d='M0 12 L0 3.2 A4.6 1.7 0 0 0 9.3 1.8 A5.4 2.7 0 0 1 20.0 2.7 A3.6 1.7 0 0 1 27.3 2.9 A5.0 2.0 0 0 1 37.3 4.5 A7.4 2.6 0 0 0 52 3.7 A13.0 8.6 0 0 0 78 3.0 A6.9 2.2 0 0 0 91.8 1.4 A4.0 3.4 0 0 1 99.8 1.7 A4.1 2.4 0 0 0 108.1 3.5 A5.4 2.0 0 0 1 118.9 1.5 A5.9 2.8 0 0 1 130.7 2.9 A5.1 3.1 0 0 0 140.9 2.4 A4.4 3.5 0 0 1 149.6 3.5 A4.2 3.4 0 0 1 158 4.0 A11.0 7.6 0 0 0 180 2.6 A5.0 2.6 0 0 1 189.9 4.2 A3.6 2.8 0 0 0 197.2 3.9 A6.6 2.9 0 0 0 210.3 2.5 A5.5 3.7 0 0 0 221.4 3.0 A5.2 3.1 0 0 1 231.7 3.9 A5.8 2.2 0 0 0 243.2 5.2 A6.4 1.4 0 0 0 256 2.8 A12.0 8.2 0 0 0 280 3.1 A4.1 3.3 0 0 1 288.2 1.7 A4.0 3.5 0 0 1 296.1 2.2 A3.8 3.5 0 0 1 303.6 3.0 A6.4 2.5 0 0 1 316.4 4.7 A4.8 1.8 0 0 0 325.9 4.7 A4.1 2.6 0 0 1 334.1 2.1 A4.9 2.5 0 0 1 344 2.3 L344 12 Z' fill='%23fffdf8'/%3E%3C/svg%3E");
+}
+
+.receipt-paper::after {
+  bottom: 0;
+  height: 8px;
+  background-size: 100% 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 344 8' preserveAspectRatio='none'%3E%3Cpath d='M0 8 L0 3.0 A4.1 2.6 0 0 0 8.2 3.8 A4.3 2.7 0 0 0 16.7 4.2 A5.3 2.4 0 0 1 27.2 1.9 A5.5 2.0 0 0 0 38.3 1.3 A4.3 3.2 0 0 0 46.9 1.2 A6.6 2.3 0 0 1 60.1 3.5 A5.2 2.3 0 0 0 70.5 1.5 A4.0 3.6 0 0 1 78.6 4.3 A5.1 2.6 0 0 1 88.8 3.2 A3.6 3.1 0 0 1 96 1.9 A9.0 5.4 0 0 0 114 2.6 A6.2 3.6 0 0 0 126.5 1.8 A6.1 3.2 0 0 0 138.7 4.1 A3.9 2.0 0 0 0 146.6 2.9 A6.7 2.3 0 0 1 160.1 4.6 A5.1 2.4 0 0 0 170.2 2.5 A3.6 3.8 0 0 0 177.4 1.4 A5.2 3.2 0 0 0 187.9 3.0 A4.3 2.9 0 0 0 196.4 3.4 A4.1 3.6 0 0 1 204.7 1.7 A4.7 1.7 0 0 1 214.1 3.4 A3.7 2.4 0 0 0 221.6 4.3 A5.2 3.2 0 0 0 232 3.7 A8.0 4.8 0 0 0 248 3.7 A4.9 2.9 0 0 0 257.8 5.0 A6.6 2.1 0 0 1 271.0 3.0 A6.6 3.4 0 0 1 284.2 1.6 A6.2 1.6 0 0 0 296.6 2.9 A4.4 1.9 0 0 1 305.4 2.2 A3.7 3.8 0 0 0 312.9 2.4 A6.1 3.7 0 0 1 325.1 2.9 A5.3 2.0 0 0 1 335.8 3.9 A4.1 2.9 0 0 0 344 4.2 L344 8 Z' fill='%23fffdf8'/%3E%3C/svg%3E");
 }
 
 @keyframes receipt-drop {
   0% {
     opacity: 0;
-    transform: translateY(-14px) rotate(-1.1deg);
+    transform: translateY(-14px);
   }
   55% {
     opacity: 1;
   }
   100% {
     opacity: 1;
-    transform: translateY(0) rotate(-0.28deg);
+    transform: translateY(0);
   }
 }
 
@@ -6502,7 +6644,7 @@ input[type='search']::-webkit-search-decoration {
 
 .receipt-slip-tag {
   position: absolute;
-  top: 10px;
+  top: 22px;
   right: 12px;
   color: #b8a993;
   font-size: 8px;
@@ -6541,6 +6683,14 @@ input[type='search']::-webkit-search-decoration {
   letter-spacing: 0.34em;
 }
 
+.receipt-month-title {
+  margin-top: 1px;
+  color: #6f6355;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
 .receipt-meta-line {
   display: inline-flex;
   flex-wrap: wrap;
@@ -6560,15 +6710,10 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .receipt-table-no {
-  display: inline-block;
-  margin-left: 1px;
-  padding: 0 4px;
-  border: 1px dashed rgba(160, 142, 122, 0.55);
-  border-radius: 3px;
-  color: #a95048;
-  font-size: 9px;
+  color: #8a5a52;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .receipt-yen {
@@ -6590,7 +6735,7 @@ input[type='search']::-webkit-search-decoration {
 
 .receipt-divider {
   height: 1px;
-  margin: 12px 0;
+  margin: 9px 0;
   background-image: linear-gradient(90deg, rgba(160, 142, 122, 0.5) 0 4px, transparent 4px 8px);
   background-size: 8px 1px;
   background-repeat: repeat-x;
@@ -6602,21 +6747,21 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .receipt-divider.is-section {
-  margin: 21px 0;
+  margin: 14px 0;
 }
 
 
 .receipt-mood {
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .receipt-cat {
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   opacity: 0.96;
   filter: saturate(0.92);
 }
@@ -6634,25 +6779,25 @@ input[type='search']::-webkit-search-decoration {
 
 .receipt-say-label {
   display: inline-block;
-  margin-right: 4px;
-  padding: 0 5px;
-  border: 1px solid rgba(160, 142, 122, 0.5);
-  border-radius: 3px;
+  margin-right: 2px;
   color: #8a7d6d;
-  font-size: 8.5px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  vertical-align: 1px;
+  letter-spacing: 0.14em;
+}
+
+.receipt-say-label::after {
+  content: "：";
 }
 
 .receipt-block {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
 }
 
 .receipt-overview {
-  gap: 6px;
+  gap: 4px;
 }
 
 .receipt-block-title {
@@ -6677,7 +6822,7 @@ input[type='search']::-webkit-search-decoration {
   display: flex;
   align-items: baseline;
   gap: 5px;
-  color: #4a4136;
+  color: #4e453b;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -6727,7 +6872,7 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .receipt-row-note {
-  margin: -3px 0 3px;
+  margin: -2px 0 2px;
   color: #9a8c7b;
   font-size: 10.5px;
   line-height: 1.5;
@@ -6735,7 +6880,7 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .receipt-items {
-  gap: 4px;
+  gap: 3px;
 }
 
 .receipt-item {
@@ -6743,8 +6888,8 @@ input[type='search']::-webkit-search-decoration {
   grid-template-columns: 16px minmax(0, 1fr) 28px 62px 74px;
   align-items: baseline;
   gap: 5px;
-  padding: 1.5px 0;
-  color: #4a4136;
+  padding: 1px 0;
+  color: #4e453b;
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
 }
@@ -6759,14 +6904,30 @@ input[type='search']::-webkit-search-decoration {
 
 .receipt-item-name {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   min-width: 0;
   color: #5d5347;
 }
 
+.receipt-item-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.receipt-item-note {
+  margin-top: 1px;
+  color: #9a8c7b;
+  font-size: 9.5px;
+  line-height: 1.5;
+  font-family: var(--font);
+  word-break: break-word;
+}
+
 .receipt-item-name .category-icon-visual {
   flex: none;
+  margin-top: 1px;
   font-size: 13px;
 }
 
@@ -6803,9 +6964,9 @@ input[type='search']::-webkit-search-decoration {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin-top: 8px;
-  padding-top: 9px;
-  border-top: 1px dashed rgba(160, 142, 122, 0.45);
+  margin-top: 7px;
+  padding-top: 8px;
+  border-top: 3px double rgba(160, 142, 122, 0.5);
 }
 
 .receipt-total-label {
@@ -6857,37 +7018,42 @@ input[type='search']::-webkit-search-decoration {
 }
 
 
-/* 独立的花钱足迹卡片 */
+/* 花钱足迹（整合在月份面板里） */
 
-.report-calendar {
-  margin-top: 12px;
-  padding: 13px 14px 12px;
-  border: 1px dashed rgba(160, 142, 122, 0.45);
-  border-radius: 16px;
-  background-color: #fffdf8;
-  box-shadow: var(--shadow-soft);
+.month-footprint {
+  padding-top: 2px;
+  transition: opacity 0.15s ease;
 }
 
-.report-section-head {
+.month-footprint-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
-.report-section-head h2 {
-  margin: 0;
+.month-footprint-head > strong {
   color: var(--ink);
   font-size: 12.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
-.report-section-head span {
+.month-footprint-head .report-calendar-legend {
+  margin-top: 0;
+}
+
+.month-footprint.is-loading {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.month-footprint-hint {
+  margin: 8px 0 0;
   color: var(--muted);
   font-size: 10px;
-  font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .report-calendar-weekdays,
@@ -6918,12 +7084,22 @@ input[type='search']::-webkit-search-decoration {
   gap: 2px;
   min-height: 36px;
   padding: 3px 2px;
+  border: 0;
   border-radius: 8px;
   background: #f6efe6;
   color: #a2937f;
   font: inherit;
   font-variant-numeric: tabular-nums;
+  cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+.report-calendar-cell:disabled {
+  cursor: default;
+}
+
+.report-calendar-cell:not(:disabled):active {
+  transform: scale(0.94);
 }
 
 .report-calendar-day {
@@ -7014,7 +7190,7 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .receipt-thanks {
-  color: #5d5347;
+  color: #4e453b;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.3em;
@@ -7024,8 +7200,8 @@ input[type='search']::-webkit-search-decoration {
   display: flex;
   align-items: stretch;
   justify-content: center;
-  width: 150px;
-  height: 24px;
+  width: 168px;
+  height: 26px;
   opacity: 0.85;
 }
 
@@ -7036,7 +7212,7 @@ input[type='search']::-webkit-search-decoration {
 }
 
 .receipt-foot small {
-  color: #b3a491;
+  color: #9a8c7b;
   font-size: 9.5px;
   letter-spacing: 0.06em;
 }
@@ -7058,6 +7234,11 @@ input[type='search']::-webkit-search-decoration {
   background: transparent;
   box-shadow: none;
   color: var(--muted);
+}
+
+.report-save-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .report-save-btn:active {
@@ -7128,7 +7309,15 @@ input[type='search']::-webkit-search-decoration {
   font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
+}
+
+.chart-card-scope {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chart-ranking {

@@ -8,6 +8,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const startUrl = env.VITE_APP_START_URL || '/charge/';
   const scope = env.VITE_APP_SCOPE || startUrl;
+  const publicUrl = (env.VITE_APP_PUBLIC_URL || 'https://joelle-dev.github.io/charge/')
+    .replace(/\/?$/, '/');
 
   return {
     base: './',
@@ -21,6 +23,12 @@ export default defineConfig(({ mode }) => {
       }
     },
     plugins: [
+      {
+        name: 'app-public-url',
+        transformIndexHtml(html) {
+          return html.replaceAll('__APP_PUBLIC_URL__', publicUrl);
+        }
+      },
       vue(),
       Components({
         resolvers: [VantResolver()],
@@ -86,7 +94,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,json,webmanifest}'],
-          globIgnores: ['icons/splash-*'],
+          globIgnores: ['icons/splash-*', 'icons/og-image.png'],
           cleanupOutdatedCaches: true
         }
       })

@@ -21,7 +21,10 @@
       <button class="settings-action" type="button" @click="showBackup = true">
         <span>
           账本与备份
-          <small>导出果冻的全部账本、导入或搬新家</small>
+          <small :class="{ 'is-overdue': backupLoaded && backupInfo.overdue }">
+            {{ backupLoaded ? backupInfo.text : '果冻在看看备份记录…' }}
+            <template v-if="backupLoaded && !backupInfo.overdue"> · 导出全部账本、导入或搬新家</template>
+          </small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m9 6 6 6-6 6"></path>
@@ -61,6 +64,29 @@
           <path d="M5 21h14"></path>
         </svg>
       </button>
+    </section>
+
+    <section class="settings-card">
+      <div class="settings-card-head">
+        <h2>本机存储</h2>
+        <span>{{ storageLoaded ? (storageState.persisted ? '已保护' : '未保护') : '…' }}</span>
+      </div>
+      <div class="settings-storage">
+        <div class="settings-storage-row">
+          <span>已用空间</span>
+          <strong>{{ storageLoaded ? storageUsageText : '—' }}</strong>
+        </div>
+        <p class="settings-storage-hint">{{ storageLoaded ? storageHint : '果冻在看看存储状态…' }}</p>
+        <button
+          v-if="storageState.canPersist"
+          class="settings-storage-btn"
+          type="button"
+          :disabled="storageBusy"
+          @click="requestStoragePersist"
+        >
+          {{ storageBusy ? '果冻在申请…' : '开启存储保护' }}
+        </button>
+      </div>
     </section>
 
     <section class="settings-card">
@@ -157,7 +183,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { closeToast, showConfirmDialog, showLoadingToast, showToast } from 'vant';
 import BackupSheet from '../components/BackupSheet.vue';
@@ -173,6 +199,9 @@ import { useAchievements } from '../composables/useAchievements';
 import { usePwaInstall } from '../composables/usePwaInstall';
 import { useProfile } from '../composables/useProfile';
 import { exportStageCsvInWorker, saveBlob } from '../lib/dataClient';
+import { getSetting } from '../lib/db';
+import { formatBytes, getStorageState, requestPersistence } from '../lib/storage';
+import { backupReminder } from '../utils/backupReminder';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
 import { setActiveScope } from '../lib/privacy.js';
@@ -193,6 +222,30 @@ const { profile, profileName, initProfile } = useProfile();
 
 const showInstallTip = ref(false);
 const showImport = ref(false);
+const storageState = ref({
+  supported: false,
+  persisted: false,
+  canPersist: false,
+  usage: 0,
+  quota: 0
+});
+const storageBusy = ref(false);
+const storageLoaded = ref(false);
+const backupLoaded = ref(false);
+const lastBackupAt = ref(null);
+const backupInfo = computed(() => backupReminder(lastBackupAt.value));
+const storageUsageText = computed(() => {
+  const { usage, quota } = storageState.value;
+  if (quota > 0) return `${formatBytes(usage)} / ${formatBytes(quota)}`;
+  return usage > 0 ? formatBytes(usage) : '—';
+});
+const storageHint = computed(() => {
+  const { supported, persisted, canPersist } = storageState.value;
+  if (!supported) return '这个浏览器看不到存储状态，记得常打包备份。';
+  if (persisted) return '已受保护，存储紧张时浏览器也不会自动清理果冻的账本（手动清数据除外）。';
+  if (canPersist) return '开启后，存储紧张时浏览器不会自动清掉果冻的账本；换设备或手动清数据仍需备份。';
+  return '浏览器可能自动清理本站数据，记得常打包备份。';
+});
 const buildLabel = (() => {
   const date = new Date(__APP_BUILD_TIME__);
   if (Number.isNaN(date.getTime())) return '';
@@ -209,7 +262,53 @@ setActiveScope('settings');
 onMounted(() => {
   initProfile().catch((err) => console.error(err));
   initAchievements().catch((err) => console.error(err));
+  refreshStorage();
+  loadBackupAt();
 });
+
+watch(showBackup, (visible) => {
+  if (!visible) loadBackupAt();
+});
+
+async function loadBackupAt() {
+  try {
+    const stored = await getSetting('lastBackupAt', null);
+    lastBackupAt.value = stored ? Number(stored) : null;
+  } catch (err) {
+    lastBackupAt.value = null;
+  } finally {
+    backupLoaded.value = true;
+  }
+}
+
+async function refreshStorage() {
+  try {
+    storageState.value = await getStorageState();
+  } catch (err) {
+    // Keep the current state when the browser refuses to report.
+  } finally {
+    storageLoaded.value = true;
+  }
+}
+
+async function requestStoragePersist() {
+  if (storageBusy.value) return;
+  storageBusy.value = true;
+  try {
+    const result = await requestPersistence();
+    await refreshStorage();
+    if (result.persisted) {
+      haptic('success');
+      showToast('存储保护开启啦');
+    } else {
+      showToast('浏览器暂时没给保护，记得常打包备份');
+    }
+  } catch (err) {
+    showToast('没申请成功，再试一次吧');
+  } finally {
+    storageBusy.value = false;
+  }
+}
 
 function onImported() {
   showImport.value = false;

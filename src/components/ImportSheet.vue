@@ -347,15 +347,21 @@ async function parseBackupPreview(file, token) {
 }
 
 function onPickClick() {
-  // Don't clear the input before reading: iOS home-screen web apps hand out
-  // security-scoped files that can become unreadable once the value is reset.
-  if (parsing.value || busy.value || exportingCurrent.value || preview.value) return;
+  // Don't clear the input while a file is being read: iOS home-screen web
+  // apps hand out security-scoped files that can become unreadable once the
+  // value is reset. Once idle, clearing is safe and lets the same file be
+  // re-picked (which otherwise fires no change event).
+  if (parsing.value || busy.value || exportingCurrent.value) return;
   if (fileInput.value) fileInput.value.value = '';
 }
 
 async function onFileChange(event) {
   const file = event.target.files?.[0];
-  if (!file || parsing.value || busy.value) return;
+  if (!file) return;
+  if (parsing.value || busy.value) {
+    showToast('果冻还在忙上一个文件，等一下下再选吧');
+    return;
+  }
 
   const token = ++parseToken;
   error.value = '';

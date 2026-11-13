@@ -62,6 +62,8 @@ function ensureWorker() {
     const entry = active;
     active = null;
     entry?.reject(new Error('果冻的小帮手没启动，刷新再试试吧'));
+    worker?.terminate();
+    worker = null;
   };
   return worker;
 }

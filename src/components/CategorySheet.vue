@@ -345,6 +345,8 @@ function cancelEdit() {
   draft.value = '';
 }
 
+const busy = ref(false);
+
 function openIconPicker(category) {
   iconTarget.value = iconTarget.value === category ? '' : category;
   haptic('light');
@@ -352,14 +354,23 @@ function openIconPicker(category) {
 
 async function pickIcon(icon) {
   const target = iconTarget.value;
-  if (!target) return;
-  await setCategoryIcon(target, icon);
-  iconTarget.value = '';
-  haptic('light');
-  showToast(icon ? `「${target}」换上新图标啦` : `「${target}」用回默认样子`);
+  if (!target || busy.value) return;
+  busy.value = true;
+  try {
+    await setCategoryIcon(target, icon);
+    iconTarget.value = '';
+    haptic('light');
+    showToast(icon ? `「${target}」换上新图标啦` : `「${target}」用回默认样子`);
+  } catch (err) {
+    console.error('换图标失败', err);
+    showToast('没换上，再试一次吧');
+  } finally {
+    busy.value = false;
+  }
 }
 
 async function submit() {
+  if (busy.value) return;
   const name = draft.value.trim();
   if (!name) return;
 
@@ -379,6 +390,7 @@ async function submit() {
         return;
       }
     }
+    busy.value = true;
     showLoadingToast({ message: '果冻在改分类…', forbidClick: true, duration: 0 });
     try {
       await renameCategory(editing.value, name);
@@ -389,6 +401,8 @@ async function submit() {
     } catch (err) {
       closeToast();
       showToast(err?.message || '改名失败啦，再试一次吧');
+    } finally {
+      busy.value = false;
     }
     return;
   }
@@ -401,14 +415,23 @@ async function submit() {
     showToast('分类最多只能有 40 个哦');
     return;
   }
-  await setCategories([...categories.value, name]);
-  draft.value = '';
-  emit('created', name);
-  haptic('light');
-  showToast(`「${name}」加进来啦`);
+  busy.value = true;
+  try {
+    await setCategories([...categories.value, name]);
+    draft.value = '';
+    emit('created', name);
+    haptic('light');
+    showToast(`「${name}」加进来啦`);
+  } catch (err) {
+    console.error('添加分类失败', err);
+    showToast('没加上，再试一次吧');
+  } finally {
+    busy.value = false;
+  }
 }
 
 async function removeCategory(category) {
+  if (busy.value) return;
   if (category === DEFAULT_CATEGORY) {
     showToast('「其他」是果冻的默认分类，不能删哦');
     return;
@@ -429,11 +452,19 @@ async function removeCategory(category) {
       return;
     }
   }
-  await setCategories(categories.value.filter((item) => item !== category));
-  await setCategoryIcon(category, '');
-  if (editing.value === category) cancelEdit();
-  if (iconTarget.value === category) iconTarget.value = '';
-  haptic('light');
-  showToast(`「${category}」删掉啦`);
+  busy.value = true;
+  try {
+    await setCategories(categories.value.filter((item) => item !== category));
+    await setCategoryIcon(category, '');
+    if (editing.value === category) cancelEdit();
+    if (iconTarget.value === category) iconTarget.value = '';
+    haptic('light');
+    showToast(`「${category}」删掉啦`);
+  } catch (err) {
+    console.error('删除分类失败', err);
+    showToast('没删掉，再试一次吧');
+  } finally {
+    busy.value = false;
+  }
 }
 </script>

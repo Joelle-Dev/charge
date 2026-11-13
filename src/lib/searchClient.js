@@ -110,6 +110,8 @@ function ensureWorker() {
       derivedProgress = null;
       reject(error);
     }
+    worker?.terminate();
+    worker = null;
   };
 
   return worker;

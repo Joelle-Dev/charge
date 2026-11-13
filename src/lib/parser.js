@@ -1,3 +1,5 @@
+import { roundCents } from '../utils/format.js';
+
 export const PRESET_CATEGORIES = [
   '餐饮',
   '交通',
@@ -150,7 +152,6 @@ function normalize(text) {
   return String(text || '')
     .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
     .replace(/．/g, '.')
-    .replace(/，/g, '，')
     .replace(/(\d),(?=\d{3}(?:\D|$))/g, '$1')
     .replace(/([零〇一二两三四五六七八九十百千万亿])\s+(?=[零〇一二两三四五六七八九十百千万亿])/g, '$1')
     .replace(/([零〇一二两三四五六七八九十百千万亿])\s+(?=[块元圆毛角年月日号点时秒分个份杯瓶包张件次天晚位只斤克岁折成公里人])/g, '$1')
@@ -165,6 +166,12 @@ function numberFrom(token) {
 
 function validAmount(value) {
   return Number.isFinite(value) && value > 0 && value < 100000000;
+}
+
+function isClockFragment(before, after) {
+  if (/[:：]\s*$/.test(before) || /^\s*[:：]\d/.test(after)) return true;
+  if (/[点]\s*$/.test(before)) return true;
+  return false;
 }
 
 export function extractAmount(text) {
@@ -207,16 +214,18 @@ export function extractAmount(text) {
   ];
 
   patterns.forEach(({ re, calc }, order) => {
-    const flags = re.flags.includes('g') ? re.flags : `${re.flags}g`;
+    let flags = re.flags.includes('g') ? re.flags : `${re.flags}g`;
+    if (!flags.includes('d')) flags += 'd';
     const global = new RegExp(re.source, flags);
     let match;
     while ((match = global.exec(source))) {
-      const value = Math.round(calc(match) * 100) / 100;
+      const value = roundCents(calc(match));
       if (validAmount(value)) {
         candidates.push({
           amount: value,
           raw: match[0],
           index: match.index,
+          numIndex: match.indices?.[1]?.[0] ?? match.index,
           end: match.index + match[0].length,
           order
         });
@@ -232,12 +241,14 @@ export function extractAmount(text) {
     if (MEASURE_AFTER.test(after)) continue;
     const before = source.slice(0, m.index);
     if (/[第]$/.test(before)) continue;
+    if (isClockFragment(before, after)) continue;
     const value = Number(m[0]);
     if (!validAmount(value)) continue;
     candidates.push({
-      amount: Math.round(value * 100) / 100,
+      amount: roundCents(value),
       raw: m[0],
       index: m.index,
+      numIndex: m.index,
       end: m.index + m[0].length,
       order: 100
     });
@@ -250,13 +261,15 @@ export function extractAmount(text) {
     const before = source.slice(0, m.index);
     if (MEASURE_AFTER.test(after)) continue;
     if (/[第]$/.test(before)) continue;
+    if (isClockFragment(before, after)) continue;
     if (!m[2] && token.length < 2 && !/[十百千万亿]/.test(token)) continue;
     const value = chineseToNumber(token);
     if (!validAmount(value)) continue;
     candidates.push({
-      amount: Math.round(value * 100) / 100,
+      amount: roundCents(value),
       raw: token,
       index: m.index,
+      numIndex: m.index,
       end: m.index + token.length,
       order: 101
     });
@@ -266,7 +279,7 @@ export function extractAmount(text) {
   if (!candidates.length) return null;
 
   candidates.sort((a, b) => (
-    a.index - b.index ||
+    a.numIndex - b.numIndex ||
     b.end - a.end ||
     a.order - b.order
   ));
@@ -330,22 +343,25 @@ export function parseSpentAt(text, now = new Date()) {
     date.setDate(date.getDate() + relative);
   }
 
-  const monthDay = /(?<!\d)(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/.exec(source);
+  const monthDay = /(?<!\d)(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]?/.exec(source);
   const slashDate = /(?<!\d)(\d{1,2})[/-](\d{1,2})(?!\d)/.exec(source);
   const md = monthDay || slashDate;
 
   if (md) {
-    const month = Number(md[1]);
-    const day = Number(md[2]);
+    const year = monthDay && md[1] ? Number(md[1]) : null;
+    const month = Number(monthDay ? md[2] : md[1]);
+    const day = Number(monthDay ? md[3] : md[2]);
     if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
       let candidate = new Date(base);
-      candidate.setFullYear(base.getFullYear(), month - 1, day);
-      candidate.setHours(base.getHours(), base.getMinutes(), 0, 0);
-      if (candidate.getTime() - base.getTime() > 30 * 86400000) {
-        candidate.setFullYear(candidate.getFullYear() - 1);
+      candidate.setFullYear(year ?? base.getFullYear(), month - 1, day);
+      if (candidate.getMonth() === month - 1 && candidate.getDate() === day) {
+        candidate.setHours(base.getHours(), base.getMinutes(), 0, 0);
+        if (year === null && candidate.getTime() - base.getTime() > 30 * 86400000) {
+          candidate.setFullYear(candidate.getFullYear() - 1);
+        }
+        date.setFullYear(candidate.getFullYear(), candidate.getMonth(), candidate.getDate());
+        consumed.push(md[0]);
       }
-      date.setFullYear(candidate.getFullYear(), candidate.getMonth(), candidate.getDate());
-      consumed.push(md[0]);
     }
   }
 
@@ -360,20 +376,29 @@ export function parseSpentAt(text, now = new Date()) {
   }
 
   const timeMatch = /(?<!\d)(\d{1,2})\s*点\s*(半|(?:(\d{1,2})\s*分?)?)/.exec(source);
+  const clockMatch = /(?<!\d)(\d{1,2})\s*[:：]\s*(\d{2})(?!\d)/.exec(source);
+  let clock = null;
   if (timeMatch) {
-    let hour = Number(timeMatch[1]);
-    const minute = timeMatch[2] === '半' ? 30 : Number(timeMatch[3] || 0);
+    clock = { hour: Number(timeMatch[1]), minute: timeMatch[2] === '半' ? 30 : Number(timeMatch[3] || 0), raw: timeMatch[0] };
+  } else if (clockMatch) {
+    clock = { hour: Number(clockMatch[1]), minute: Number(clockMatch[2]), raw: clockMatch[0] };
+  }
+  if (clock) {
+    let hour = clock.hour;
+    const minute = clock.minute;
     if (periodMatch && /下午|傍晚|晚上/.test(periodMatch[1]) && hour < 12) hour += 12;
     if (periodMatch && periodMatch[1] === '中午' && hour < 11) hour += 12;
     if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
       date.setHours(hour, minute, 0, 0);
-      consumed.push(timeMatch[0]);
+      consumed.push(clock.raw);
+    } else {
+      clock = null;
     }
   }
 
   if (relative !== null && date.getTime() < startOfDay(base).getTime() + (relative + 1) * 86400000) {
     // keep the clock time for relative days unless a period/time was spoken
-    if (!periodMatch && !timeMatch) {
+    if (!periodMatch && !clock) {
       const keep = new Date(base);
       date.setHours(keep.getHours(), keep.getMinutes(), 0, 0);
     }

@@ -7,6 +7,32 @@ import 'vant/es/dialog/style';
 import 'vant/es/image-preview/style';
 import 'vant/es/toast/style';
 import './styles/global.css';
+import { isIgnorableError } from './lib/errors';
+
+const ERROR_TOAST = '果冻绊了一下，再试一次吧';
+const ERROR_TOAST_GAP = 3000;
+let lastErrorToastAt = 0;
+
+function reportError(error, context) {
+  if (isIgnorableError(error)) return;
+  console.error(`[守财小果] ${context}`, error);
+  const now = Date.now();
+  if (now - lastErrorToastAt < ERROR_TOAST_GAP) return;
+  lastErrorToastAt = now;
+  showToast(ERROR_TOAST);
+}
+
+window.addEventListener('unhandledrejection', (event) => {
+  if (isIgnorableError(event.reason)) return;
+  event.preventDefault();
+  reportError(event.reason, 'unhandledrejection');
+});
+
+window.addEventListener('error', (event) => {
+  // Resource load errors have no `error`; only surface runtime errors.
+  if (!event.error) return;
+  reportError(event.error, 'window.error');
+});
 
 const buildDate = new Date(__APP_BUILD_TIME__);
 const buildLabel = Number.isNaN(buildDate.getTime())
@@ -64,6 +90,9 @@ function hideSplash() {
 }
 
 const app = createApp(App);
+app.config.errorHandler = (error, instance, info) => {
+  reportError(error, `vue:${info}`);
+};
 app.use(router);
 app.mount('#app');
 

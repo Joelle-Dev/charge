@@ -104,3 +104,37 @@ test('buildMergePlan rejects an archived target', () => {
   assert.equal(plan.ok, false);
   assert.match(plan.error, /归档/);
 });
+
+test('buildMergePlan rejects archived sources', () => {
+  const plan = buildMergePlan({
+    stages: [
+      { id: 'daily', name: '本月日常', budget: 3000 },
+      { id: 'travel', name: '国庆旅行', budget: 5000, archived: true }
+    ],
+    selectedIds: ['daily', 'travel'],
+    targetId: 'daily',
+    getStats
+  });
+
+  assert.equal(plan.ok, false);
+  assert.equal(plan.error, '归档账本不能参与合并');
+});
+
+test('mergeStageTotals survives prototype-polluting category names', () => {
+  const result = mergeStageTotals([
+    { id: 'a', name: '甲', budget: 0 },
+    { id: 'b', name: '乙', budget: 0 }
+  ], (id) => ({
+    count: 1,
+    total: 10,
+    categories: id === 'a'
+      ? JSON.parse('{"__proto__": {"count": 1, "amount": 10}}')
+      : { constructor: { count: 1, amount: 10 } }
+  }));
+
+  assert.equal(Object.hasOwn(result.categories, '__proto__'), true);
+  assert.equal(Object.hasOwn(result.categories, 'constructor'), true);
+  assert.equal(result.categories.constructor.count, 1);
+  assert.equal(Object.prototype.count, undefined);
+  assert.equal(Object.prototype.amount, undefined);
+});

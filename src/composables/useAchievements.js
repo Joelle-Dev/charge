@@ -46,7 +46,9 @@ export function useAchievements() {
       if (!newIds.length) return;
 
       const merged = [...new Set([...unlockedIds.value, ...newIds])];
-      persist(merged);
+      persist(merged).catch((err) => {
+        console.error('成就保存失败', err);
+      });
       const names = list.filter((item) => newIds.includes(item.id)).map((item) => item.name);
       haptic('success');
       showToast(`新爪印解锁：${names.join('、')}`);

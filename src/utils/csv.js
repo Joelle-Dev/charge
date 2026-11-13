@@ -1,9 +1,12 @@
 import { DEFAULT_CATEGORY } from '../lib/parser.js';
-import { combineLocal, formatTime, pad2, toDateInput } from './format.js';
+import { combineLocal, formatTime, pad2, roundCents, toDateInput } from './format.js';
 import { monthLabel } from './months.js';
 
+const CSV_FORMULA_PREFIX = /^[=+@\t\r]|^-(?!\d+(?:\.\d+)?$)/;
+
 function csvCell(value) {
-  const text = String(value ?? '');
+  let text = String(value ?? '');
+  if (CSV_FORMULA_PREFIX.test(text)) text = `'${text}`;
   return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
@@ -65,7 +68,8 @@ export function parseCsv(text) {
     }
 
     if (char === '"') {
-      quoted = true;
+      if (field === '') quoted = true;
+      else field += char;
     } else if (char === ',') {
       row.push(field);
       field = '';
@@ -90,6 +94,17 @@ export function parseCsv(text) {
 function normalizeCsvDate(value) {
   const match = String(value ?? '').trim().match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
   if (!match) return '';
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const probe = new Date(year, month - 1, day);
+  if (
+    probe.getFullYear() !== year ||
+    probe.getMonth() !== month - 1 ||
+    probe.getDate() !== day
+  ) {
+    return '';
+  }
   return `${match[1]}-${pad2(match[2])}-${pad2(match[3])}`;
 }
 
@@ -98,7 +113,17 @@ function normalizeCsvTime(value) {
   if (!text) return '12:00';
   const match = text.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
   if (!match) return '';
-  return `${pad2(match[1])}:${match[2]}`;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return '';
+  return `${pad2(hour)}:${match[2]}`;
+}
+
+function normalizeMonthKey(value) {
+  const text = String(value ?? '').trim();
+  const match = text.match(/^(\d{4})年(\d{1,2})月$/);
+  if (match) return `${match[1]}-${pad2(match[2])}`;
+  return text;
 }
 
 export function parseStageCsv(text) {
@@ -134,8 +159,10 @@ export function parseStageCsv(text) {
     const line = index + 1;
     const date = normalizeCsvDate(row[indexes['日期']]);
     const time = normalizeCsvTime(row[indexes['时间']]);
-    const amountText = String(row[indexes['金额']] ?? '').replace(/[¥,\s]/g, '');
-    const amount = Number(amountText);
+    const amountText = String(row[indexes['金额']] ?? '')
+      .replace(/[¥\s]/g, '')
+      .replace(/(\d),(?=\d{3}(?:\D|$))/g, '$1');
+    const amount = /^\d+(?:\.\d+)?$/.test(amountText) ? Number(amountText) : NaN;
     const spentAt = date && time ? combineLocal(date, time) : null;
 
     if (!date) {
@@ -157,7 +184,7 @@ export function parseStageCsv(text) {
 
     const category = String(row[indexes['分类']] ?? '').trim() || DEFAULT_CATEGORY;
     expenses.push({
-      amount: Math.round(amount * 100) / 100,
+      amount: roundCents(amount),
       category,
       note: String(row[indexes['备注']] ?? '').trim(),
       spentAt: spentAt.toISOString()
@@ -166,8 +193,8 @@ export function parseStageCsv(text) {
 
   return {
     stageName: metadata['账本'] || '',
-    budget: Number(metadata['预算']) > 0 ? Math.round(Number(metadata['预算']) * 100) / 100 : null,
-    month: metadata['月份'] || '',
+    budget: Number(metadata['预算']) > 0 ? roundCents(Number(metadata['预算'])) : null,
+    month: normalizeMonthKey(metadata['月份'] || ''),
     expenses,
     errors,
     totalRows: Math.max(0, rows.length - headerIndex - 1)

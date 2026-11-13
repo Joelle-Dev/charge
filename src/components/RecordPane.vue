@@ -410,7 +410,6 @@ async function loadFeed() {
 
   const key = `${stage.id}|${month.value}`;
   const fresh = key !== feedKey;
-  feedKey = key;
 
   loading.value = true;
   feedError.value = false;
@@ -423,6 +422,7 @@ async function loadFeed() {
       if (token !== loadToken) return;
       // 当月没记账也继续往早翻，别让首屏空着
       if (!expenses.value.length) await loadEarlier(stage.id, token);
+      if (token !== loadToken) return;
     } else {
       const keys = [...loadedMonths.value];
       const acc = [];
@@ -433,6 +433,8 @@ async function loadFeed() {
       }
       expenses.value = acc;
     }
+    // 加载成功才记录 feedKey，失败后的重试会重新走 fresh 分支
+    feedKey = key;
     if (token !== loadToken) return;
   } catch (err) {
     console.error('加载账本失败', err);

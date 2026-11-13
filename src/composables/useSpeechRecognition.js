@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, ref } from 'vue';
 import { showToast } from 'vant';
 import { haptic } from '../utils/haptics';
 
@@ -32,6 +32,7 @@ export function useSpeechRecognition({ onFinish } = {}) {
   let finished = false;
   let restartTimer = null;
   let maxTimer = null;
+  let stopTimer = null;
   let lastFinalAt = 0;
   let restartAttempts = 0;
   let networkFailures = 0;
@@ -57,6 +58,10 @@ export function useSpeechRecognition({ onFinish } = {}) {
     if (maxTimer) {
       clearTimeout(maxTimer);
       maxTimer = null;
+    }
+    if (stopTimer) {
+      clearTimeout(stopTimer);
+      stopTimer = null;
     }
   }
 
@@ -95,9 +100,11 @@ export function useSpeechRecognition({ onFinish } = {}) {
     const now = performance.now();
     const previous = finalText.trimEnd();
     const needsSeparator = previous &&
-      !/[，,。.；;、！!？?]$/.test(previous) &&
+      !/[，,。.；;、！!？?\s]$/.test(previous) &&
       now - lastFinalAt > 650;
-    finalText = needsSeparator ? `${previous}，${value}` : `${previous}${value}`;
+    // 用空格而不是逗号做停顿分隔：逗号会被分段逻辑当成独立记账片段，
+    // 慢速口述「午饭…停…35」会把备注丢掉。
+    finalText = needsSeparator ? `${previous} ${value}` : `${previous}${value}`;
     lastFinalAt = now;
     interimText = '';
     text.value = finalText;
@@ -291,9 +298,10 @@ export function useSpeechRecognition({ onFinish } = {}) {
     if (recognition) {
       try {
         recognition.stop();
-        setTimeout(() => {
+        stopTimer = setTimeout(() => {
+          stopTimer = null;
           if (!closing && userStopped && recording.value) {
-            recognition = null;
+            detachRecognition();
             recording.value = false;
             flushInterim();
             finish();
@@ -301,7 +309,7 @@ export function useSpeechRecognition({ onFinish } = {}) {
         }, 800);
         return;
       } catch (err) {
-        recognition = null;
+        detachRecognition();
       }
     }
 
@@ -340,6 +348,11 @@ export function useSpeechRecognition({ onFinish } = {}) {
     recording.value = false;
     preparing.value = false;
     restarting.value = false;
+  }
+
+  // 组件卸载时兜底清理，调用方忘记 cleanup() 也不会泄漏
+  if (getCurrentScope()) {
+    onScopeDispose(() => cleanup());
   }
 
   return {

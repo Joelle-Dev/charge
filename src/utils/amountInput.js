@@ -1,3 +1,5 @@
+import { roundCents } from './format.js';
+
 export const MAX_AMOUNT = 9999999.99;
 const MAX_INTEGER_DIGITS = 7;
 const MAX_DECIMALS = 2;
@@ -57,7 +59,7 @@ export function amountToInput(value) {
 export function toAmountNumber(value) {
   const number = Number(value || 0);
   if (!Number.isFinite(number) || number <= 0) return 0;
-  return Math.round(number * 100) / 100;
+  return roundCents(number);
 }
 
 export function isValidAmount(value) {
@@ -69,10 +71,12 @@ export function formatAmountInput(value) {
   const raw = value || '';
   if (!raw) return '';
 
-  const [integerPart, decimalPart] = raw.split('.');
+  const dotIndex = raw.indexOf('.');
+  const integerPart = dotIndex === -1 ? raw : raw.slice(0, dotIndex);
+  const decimalPart = dotIndex === -1 ? '' : raw.slice(dotIndex + 1);
   const integer = (integerPart || '0').replace(/^0+(?=\d)/, '');
   const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  return raw.includes('.') ? `${grouped}.${decimalPart}` : grouped;
+  return dotIndex === -1 ? grouped : `${grouped}.${decimalPart}`;
 }
 
 function splitLastOperand(value) {
@@ -136,7 +140,7 @@ export function evaluateExpression(current) {
   }
 
   if (!hasOperand) return { valid: false, value: 0 };
-  return { valid: true, value: Math.round(total * 100) / 100 };
+  return { valid: true, value: roundCents(total) };
 }
 
 export function isValidExpression(current) {

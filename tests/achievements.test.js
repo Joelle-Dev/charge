@@ -46,3 +46,19 @@ test('stage summary includes range, totals and top categories', () => {
   assert.equal(summary.topCategories[0].amount, 45);
   assert.equal(summary.catTitle, '干饭猫');
 });
+
+test('no-spend days ignore future-dated records', () => {
+  const state = buildStatsFromExpenses([
+    { amount: 10, category: '餐饮', note: 'a', spentAt: '2026-10-20T12:00:00+08:00', stageId: 'a' },
+    { amount: 10, category: '餐饮', note: 'b', spentAt: '2026-10-24T12:00:00+08:00', stageId: 'a' },
+    { amount: 10, category: '餐饮', note: 'c', spentAt: '2026-11-30T12:00:00+08:00', stageId: 'a' }
+  ]);
+  const stats = buildAchievementStatsFromState(state, stages, now);
+  // 10-20 首日记账，昨天 10-25，跨度 5 天；(10-20, 10-25] 里只有 10-24 记了账
+  assert.equal(stats.noSpendDays, 4);
+});
+
+test('cat title falls back safely for inherited keys', () => {
+  assert.equal(catTitleForCategory('constructor'), 'constructor猫');
+  assert.equal(catTitleForCategory('__proto__'), '__proto__猫');
+});
