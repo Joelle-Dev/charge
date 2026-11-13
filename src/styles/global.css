@@ -5401,8 +5401,13 @@ input[type='search']::-webkit-search-decoration {
   color: var(--accent-strong);
 }
 
-.timeline-day:first-child .timeline-day-head {
+.timeline-day.is-first .timeline-day-head {
   padding-top: 8px;
+}
+
+.virtual-spacer {
+  flex: none;
+  pointer-events: none;
 }
 
 .timeline-day-main {

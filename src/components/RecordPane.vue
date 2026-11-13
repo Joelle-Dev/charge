@@ -62,10 +62,18 @@
 
     <template v-else>
     <div v-if="expenses.length" class="record-timeline">
+      <div
+        v-if="virtualTopSpace > 0"
+        class="virtual-spacer"
+        :style="{ height: `${virtualTopSpace}px` }"
+        aria-hidden="true"
+      ></div>
       <section
-        v-for="day in timelineDays"
+        v-for="day in visibleDays"
         :key="day.key"
+        :ref="(element) => trackRow(day.key, element)"
         class="timeline-day"
+        :class="{ 'is-first': day.key === firstDayKey }"
         :data-month="day.key.slice(0, 7)"
       >
         <button
@@ -95,6 +103,12 @@
           />
         </div>
       </section>
+      <div
+        v-if="virtualBottomSpace > 0"
+        class="virtual-spacer"
+        :style="{ height: `${virtualBottomSpace}px` }"
+        aria-hidden="true"
+      ></div>
     </div>
 
     <div v-else class="record-empty">
@@ -208,6 +222,7 @@ import { useLedgerPanes } from '../composables/useLedgerPanes';
 import { useRecordEntry } from '../composables/useRecordEntry';
 import { useRecordsView } from '../composables/useRecordsView';
 import { useSheets } from '../composables/useSheets';
+import { useVirtualRows } from '../composables/useVirtualRows';
 import { displayMoney } from '../utils/money';
 import { categoryColor, dayKey, sumAmounts, toDateInput } from '../utils/format';
 import { groupExpensesByDay } from '../utils/expenses';
@@ -296,16 +311,22 @@ const dailyYearMonth = computed(() => (
 
 const groups = computed(() => groupExpensesByDay(expenses.value));
 
+const itemMetaCache = new WeakMap();
+
 function itemMeta(expense) {
-  return {
+  const cached = itemMetaCache.get(expense);
+  if (cached) return cached;
+  const meta = {
     ...expense,
     color: categoryColor(expense.category),
     noteText: cleanNote(expense.note)
   };
+  itemMetaCache.set(expense, meta);
+  return meta;
 }
 
 const maxDayTotal = computed(() => (
-  Math.max(1, ...groups.value.map((group) => group.total))
+  groups.value.reduce((max, group) => Math.max(max, group.total), 1)
 ));
 
 function dayHeat(total) {
@@ -324,6 +345,27 @@ const timelineDays = computed(() => (
     items: group.items.map(itemMeta)
   })).sort((a, b) => (a.key < b.key ? 1 : -1))
 ));
+
+const firstDayKey = computed(() => timelineDays.value[0]?.key || '');
+
+const DAY_HEAD_ESTIMATE = 54;
+const ITEM_ESTIMATE = 54;
+
+function estimateDayHeight(day) {
+  const items = Math.max(1, day.items.length);
+  return DAY_HEAD_ESTIMATE + 6 + items * ITEM_ESTIMATE + Math.max(0, items - 1) * 2;
+}
+
+const {
+  visibleRows: visibleDays,
+  topSpace: virtualTopSpace,
+  bottomSpace: virtualBottomSpace,
+  trackRow
+} = useVirtualRows({
+  rows: timelineDays,
+  scrollRef,
+  estimateSize: estimateDayHeight
+});
 
 const HEAT_HINT_KEY = 'recordHeatHintSeen';
 const PULL_HINT_KEY = 'recordPullHintSeen';
