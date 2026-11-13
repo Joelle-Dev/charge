@@ -8,6 +8,9 @@ import 'vant/es/image-preview/style';
 import 'vant/es/toast/style';
 import './styles/global.css';
 import { isIgnorableError } from './lib/errors';
+import { initTheme } from './utils/theme';
+
+initTheme();
 
 const ERROR_TOAST = '果冻绊了一下，再试一次吧';
 const ERROR_TOAST_GAP = 3000;

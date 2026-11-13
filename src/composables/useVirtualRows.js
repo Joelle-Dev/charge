@@ -94,6 +94,16 @@ export function useVirtualRows({ rows, scrollRef, estimateSize, overscan = 320 }
     scheduleFlush();
   }
 
+  function scrollToKey(key, offset = 0) {
+    if (!el) return false;
+    const index = rows.value.findIndex((row) => row.key === key);
+    if (index < 0) return false;
+    const top = tops.value[index];
+    if (!Number.isFinite(top)) return false;
+    el.scrollTo({ top: Math.max(0, top + offset), behavior: 'smooth' });
+    return true;
+  }
+
   function onScroll() {
     if (scrollRaf) return;
     scrollRaf = requestAnimationFrame(() => {
@@ -152,6 +162,7 @@ export function useVirtualRows({ rows, scrollRef, estimateSize, overscan = 320 }
     visibleRows,
     topSpace,
     bottomSpace,
-    trackRow
+    trackRow,
+    scrollToKey
   };
 }

@@ -3922,6 +3922,32 @@ input[type='search']::-webkit-search-decoration {
   height: 100%;
 }
 
+.achievement-section + .achievement-section {
+  margin-top: 20px;
+}
+
+.achievement-group-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.achievement-section .achievement-grid {
+  margin-top: 8px;
+}
+
+.achievement-badge.milestone.unlocked {
+  border-color: rgba(184, 134, 11, 0.38);
+  background: linear-gradient(150deg, var(--surface-tint), #fdf6e4);
+}
+
+.achievement-badge.milestone.unlocked .achievement-icon {
+  background: #f7ecd2;
+  color: #9a7215;
+}
+
 .achievement-copy {
   display: flex;
   flex-direction: column;
@@ -5518,6 +5544,59 @@ input[type='search']::-webkit-search-decoration {
   padding: 7px 0 7px calc(var(--axis-x) + var(--axis-gap));
 }
 
+/* 刚记好的一笔：短暂强调一下，然后淡出 */
+.timeline-item.is-new {
+  isolation: isolate;
+}
+
+.timeline-item.is-new::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 1px;
+  bottom: 1px;
+  left: calc(var(--axis-x) + var(--axis-gap) - 7px);
+  right: -7px;
+  border-radius: 12px;
+  background: rgba(var(--accent-rgb), 0.16);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.22);
+  pointer-events: none;
+  animation: record-just-added 2.6s ease-out forwards;
+}
+
+@keyframes record-just-added {
+  0% {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-item.is-new::before {
+    animation: record-just-added-fade 2.6s linear forwards;
+  }
+}
+
+@keyframes record-just-added-fade {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .timeline-avatar {
   position: absolute;
   top: 7px;
@@ -6579,21 +6658,63 @@ input[type='search']::-webkit-search-decoration {
 /* 月度小票 */
 
 .receipt-export {
-  padding: 14px 8px 16px;
-  margin: -14px -8px -16px;
+  position: relative;
+  padding: 6px 8px 16px;
+  margin: -6px -8px -16px;
 }
+
+/* 小票上方的工具行：「看明细」独立一行，不再压在撕纸边上 */
+.receipt-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 344px;
+  margin: 0 auto 2px;
+}
+
+/* 低调的文字链接：像小票上的一行注记，不抢票面 */
+.receipt-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.receipt-detail-btn svg {
+  width: 12px;
+  height: 12px;
+  margin-top: 0.5px;
+  transition: transform 0.15s ease;
+}
+
+.receipt-detail-btn:active {
+  color: var(--accent-strong);
+}
+
+.receipt-detail-btn:active svg {
+  transform: translateX(2px);
+}
+
 
 .receipt-paper {
   position: relative;
   width: 100%;
   max-width: 344px;
-  margin: 8px auto 8px;
-  padding: 12px 0 8px;
+  margin: 0 auto 8px;
+  padding: 24px 0 0;
   animation: receipt-drop 0.55s var(--ease-out);
 }
 
 .receipt-body {
-  padding: 22px 18px 20px;
+  padding: 12px 18px 20px;
   background-color: #fffdf8;
   box-shadow:
     inset 2px 0 5px -3px rgba(var(--shadow-rgb), 0.12),
@@ -6603,28 +6724,17 @@ input[type='search']::-webkit-search-decoration {
 }
 
 /* 撕纸口：圆钝手撕 + 果冻咬痕（单张 SVG 拉伸铺满，不留重复齿纹） */
-.receipt-paper::before,
-.receipt-paper::after {
+.receipt-paper::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
-  background-repeat: no-repeat;
-  pointer-events: none;
-}
-
-.receipt-paper::before {
   top: 0;
-  height: 12px;
-  background-size: 100% 12px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 344 12' preserveAspectRatio='none'%3E%3Cpath d='M0 12 L0 3.2 A4.6 1.7 0 0 0 9.3 1.8 A5.4 2.7 0 0 1 20.0 2.7 A3.6 1.7 0 0 1 27.3 2.9 A5.0 2.0 0 0 1 37.3 4.5 A7.4 2.6 0 0 0 52 3.7 A13.0 8.6 0 0 0 78 3.0 A6.9 2.2 0 0 0 91.8 1.4 A4.0 3.4 0 0 1 99.8 1.7 A4.1 2.4 0 0 0 108.1 3.5 A5.4 2.0 0 0 1 118.9 1.5 A5.9 2.8 0 0 1 130.7 2.9 A5.1 3.1 0 0 0 140.9 2.4 A4.4 3.5 0 0 1 149.6 3.5 A4.2 3.4 0 0 1 158 4.0 A11.0 7.6 0 0 0 180 2.6 A5.0 2.6 0 0 1 189.9 4.2 A3.6 2.8 0 0 0 197.2 3.9 A6.6 2.9 0 0 0 210.3 2.5 A5.5 3.7 0 0 0 221.4 3.0 A5.2 3.1 0 0 1 231.7 3.9 A5.8 2.2 0 0 0 243.2 5.2 A6.4 1.4 0 0 0 256 2.8 A12.0 8.2 0 0 0 280 3.1 A4.1 3.3 0 0 1 288.2 1.7 A4.0 3.5 0 0 1 296.1 2.2 A3.8 3.5 0 0 1 303.6 3.0 A6.4 2.5 0 0 1 316.4 4.7 A4.8 1.8 0 0 0 325.9 4.7 A4.1 2.6 0 0 1 334.1 2.1 A4.9 2.5 0 0 1 344 2.3 L344 12 Z' fill='%23fffdf8'/%3E%3C/svg%3E");
-}
-
-.receipt-paper::after {
-  bottom: 0;
-  height: 8px;
-  background-size: 100% 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 344 8' preserveAspectRatio='none'%3E%3Cpath d='M0 8 L0 3.0 A4.1 2.6 0 0 0 8.2 3.8 A4.3 2.7 0 0 0 16.7 4.2 A5.3 2.4 0 0 1 27.2 1.9 A5.5 2.0 0 0 0 38.3 1.3 A4.3 3.2 0 0 0 46.9 1.2 A6.6 2.3 0 0 1 60.1 3.5 A5.2 2.3 0 0 0 70.5 1.5 A4.0 3.6 0 0 1 78.6 4.3 A5.1 2.6 0 0 1 88.8 3.2 A3.6 3.1 0 0 1 96 1.9 A9.0 5.4 0 0 0 114 2.6 A6.2 3.6 0 0 0 126.5 1.8 A6.1 3.2 0 0 0 138.7 4.1 A3.9 2.0 0 0 0 146.6 2.9 A6.7 2.3 0 0 1 160.1 4.6 A5.1 2.4 0 0 0 170.2 2.5 A3.6 3.8 0 0 0 177.4 1.4 A5.2 3.2 0 0 0 187.9 3.0 A4.3 2.9 0 0 0 196.4 3.4 A4.1 3.6 0 0 1 204.7 1.7 A4.7 1.7 0 0 1 214.1 3.4 A3.7 2.4 0 0 0 221.6 4.3 A5.2 3.2 0 0 0 232 3.7 A8.0 4.8 0 0 0 248 3.7 A4.9 2.9 0 0 0 257.8 5.0 A6.6 2.1 0 0 1 271.0 3.0 A6.6 3.4 0 0 1 284.2 1.6 A6.2 1.6 0 0 0 296.6 2.9 A4.4 1.9 0 0 1 305.4 2.2 A3.7 3.8 0 0 0 312.9 2.4 A6.1 3.7 0 0 1 325.1 2.9 A5.3 2.0 0 0 1 335.8 3.9 A4.1 2.9 0 0 0 344 4.2 L344 8 Z' fill='%23fffdf8'/%3E%3C/svg%3E");
+  height: 24px;
+  background-repeat: no-repeat;
+  background-size: 100% 24px;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 344 24' preserveAspectRatio='none'%3E%3Cpath d='M0 24 L0 4.20 A5.5 1.4 0 0 1 10.0 5.1 A5.5 1.4 0 0 0 20.0 4.7 A4.4 1.4 0 0 0 28.0 2.4 A5.0 1.8 0 0 1 37.0 5.8 A3.9 1.4 0 0 0 44.0 5.7 A5.5 1.4 0 0 1 54.0 7.8 A3.3 2.9 0 0 1 60.0 13.1 A6.6 3.0 0 0 0 72.0 7.7 A5.5 1.4 0 0 1 82.0 8.4 A5.0 2.1 0 0 0 91.0 4.6 A6.1 1.4 0 0 0 102.0 3.5 A4.4 5.6 0 0 1 110.0 13.7 A2.8 4.0 0 0 0 115.0 6.4 A7.7 1.4 0 0 1 129.0 7.5 A6.6 2.1 0 0 0 141.0 3.8 A6.1 1.7 0 0 1 152.0 6.8 A2.8 1.4 0 0 0 157.0 6.6 A5.0 5.8 0 0 1 166.0 17.2 A6.1 5.5 0 0 0 177.0 7.2 A2.8 1.8 0 0 0 182.0 3.9 A2.8 1.4 0 0 0 187.0 3.7 A5.5 1.4 0 0 1 197.0 3.8 A5.5 1.4 0 0 0 207.0 3.4 A7.2 2.1 0 0 1 220.0 7.3 A5.5 2.4 0 0 0 230.0 2.9 A2.8 1.4 0 0 1 235.0 3.6 A4.4 6.0 0 0 1 243.0 16.2 A5.0 6.0 0 0 0 252.0 3.3 A6.6 1.4 0 0 0 264.0 3.0 A7.2 1.4 0 0 1 277.0 4.0 A3.9 1.4 0 0 1 284.0 4.3 A7.7 1.4 0 0 1 298.0 6.7 A3.9 1.4 0 0 1 305.0 8.3 A7.2 3.1 0 0 0 318.0 2.6 A5.0 5.9 0 0 1 327.0 13.3 A3.3 5.7 0 0 0 333.0 2.8 A3.9 2.1 0 0 1 340.0 6.7 A2.2 1.4 0 0 0 344.0 6.4 L344 6.39 L344 24 Z' fill='%23fffdf8'/%3E%3C/svg%3E");
 }
 
 @keyframes receipt-drop {
@@ -6759,40 +6869,85 @@ input[type='search']::-webkit-search-decoration {
 .receipt-mood {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 7px;
+  margin-top: 10px;
 }
 
 .receipt-cat {
   flex: none;
-  width: 34px;
-  height: 34px;
-  opacity: 0.96;
-  filter: saturate(0.92);
+  width: 38px;
+  height: 38px;
+  margin-top: 4px;
+  opacity: 0.97;
+  filter: saturate(0.94);
 }
 
+/* 猫猫的对话气泡：手绘圆角 + 小尾巴 */
 .receipt-say {
+  position: relative;
   flex: 1;
   min-width: 0;
   margin: 0;
-  color: #5d5347;
-  font-size: 12px;
-  line-height: 1.7;
+  padding: 8px 11px 10px;
+  border: 1px dashed rgba(150, 132, 112, 0.55);
+  border-radius: 12px 12px 12px 4px;
+  background: rgba(255, 253, 248, 0.72);
+  color: #4e453b;
   text-align: left;
   font-family: var(--font);
 }
 
+.receipt-say-main {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.receipt-say-detail {
+  display: flex;
+  gap: 5px;
+  margin: 4px 0 0;
+  color: #938574;
+  font-size: 10.5px;
+  line-height: 1.55;
+}
+
+.receipt-say-detail::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 1px;
+  margin-top: 0.75em;
+  background: rgba(150, 132, 112, 0.5);
+}
+
+.receipt-say::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: -5px;
+  width: 8px;
+  height: 8px;
+  border-left: 1px dashed rgba(150, 132, 112, 0.55);
+  border-bottom: 1px dashed rgba(150, 132, 112, 0.55);
+  border-radius: 0 0 0 3px;
+  background: rgba(255, 253, 248, 0.9);
+  transform: rotate(45deg);
+}
+
 .receipt-say-label {
-  display: inline-block;
-  margin-right: 2px;
-  color: #8a7d6d;
-  font-size: 9px;
+  display: block;
+  margin-bottom: 2px;
+  color: #a2937f;
+  font-size: 8.5px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
 }
 
 .receipt-say-label::after {
-  content: "：";
+  content: " · MEOW";
+  letter-spacing: 0.1em;
 }
 
 .receipt-block {
@@ -7224,30 +7379,34 @@ input[type='search']::-webkit-search-decoration {
 
 .report-actions {
   display: flex;
-  gap: 8px;
   margin-top: 14px;
 }
 
 .report-actions .secondary-btn {
   flex: 1;
-  width: auto;
+  width: 100%;
   margin: 0;
+  font-size: 14.5px;
 }
 
+/* 保存 / 分享是这一页唯一的主操作 */
 .report-save-btn {
-  border-style: dashed;
-  background: transparent;
-  box-shadow: none;
-  color: var(--muted);
-}
-
-.report-save-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
+  border: 0;
+  min-height: 48px;
+  color: #fff8ef;
+  font-weight: 650;
+  background: linear-gradient(150deg, #3b312a, #241e1a);
+  box-shadow: 0 8px 18px rgba(var(--shadow-rgb), 0.18);
 }
 
 .report-save-btn:active {
-  background: var(--surface-muted);
+  filter: brightness(1.08);
+}
+
+.report-save-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  filter: none;
 }
 
 
@@ -8271,4 +8430,305 @@ button.history-category:active {
     padding: 0 12px;
     font-size: 12px;
   }
+}
+
+/* ==========================================================================
+   深色模式
+
+   约定：浅色样式保持原样不动，深色逻辑全部集中在这个覆盖层里，
+   用 [data-theme='dark'] 提高优先级。小票/分享图模拟的是「纸」，
+   两种主题下都保持纸感，不跟随主题。
+   ========================================================================== */
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* 底色与表面 */
+  --bg: #1b1613;
+  --surface: #241e1a;
+  --surface-soft: #2a231e;
+  --surface-tint: #2d2520;
+  --surface-muted: #221c18;
+  --surface-sunk: #16110e;
+
+  /* 文字与描边 */
+  --ink: #f0e6da;
+  --ink-soft: #ddd0c3;
+  --muted: #a89787;
+  --muted-soft: #978675;
+  --placeholder: #6b5c4e;
+  --line: #3a312a;
+  --line-strong: #4c4139;
+
+  /* 品牌色（同色系提亮） */
+  --accent: #e89990;
+  --accent-rgb: 232, 153, 144;
+  --accent-strong: #f0a79e;
+  --accent-ink: #f2b3ac;
+  --accent-soft: #472c28;
+  --accent-tint: #35211f;
+  --paw: #e9958d;
+
+  /* 巧克力卡片在深色里保持「深色身份」 */
+  --hero: #14100d;
+  --hero-soft: #2b221c;
+  --hero-deep: #0c0907;
+
+  /* 语义色 */
+  --danger: #e2685f;
+  --danger-soft: #3c2320;
+  --warning: #d69e4a;
+
+  /* 阴影 */
+  --shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.3);
+
+  /* Vant 弹层 */
+  --van-toast-background: rgba(240, 231, 220, 0.97);
+  --van-toast-text-color: #2d2723;
+  --van-picker-mask-color:
+    linear-gradient(180deg, rgba(27, 22, 19, 0.92), rgba(27, 22, 19, 0.35)),
+    linear-gradient(0deg, rgba(27, 22, 19, 0.92), rgba(27, 22, 19, 0.35));
+}
+
+html[data-theme='dark'] {
+  background: #120e0b;
+}
+
+/* ---- 白色表面 → 深色表面 ---- */
+
+[data-theme='dark'] .textarea,
+[data-theme='dark'] .amount-input,
+[data-theme='dark'] .chip,
+[data-theme='dark'] .stage-item,
+[data-theme='dark'] .mini-btn,
+[data-theme='dark'] .category-row,
+[data-theme='dark'] .category-row.is-dragging,
+[data-theme='dark'] .icon-picker-cell,
+[data-theme='dark'] .profile-avatar-cell,
+[data-theme='dark'] .import-preview,
+[data-theme='dark'] .search-field,
+[data-theme='dark'] .search-amount-field {
+  background: var(--surface);
+}
+
+[data-theme='dark'] .action-primary-icon {
+  background: linear-gradient(160deg, var(--surface) 0%, var(--surface-soft) 100%);
+}
+
+[data-theme='dark'] .action-primary.active .action-primary-icon {
+  background: linear-gradient(160deg, var(--accent-tint) 0%, var(--accent-soft) 100%);
+}
+
+[data-theme='dark'] .parsed-card {
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
+}
+
+[data-theme='dark'] .profile-avatar-initial {
+  background: linear-gradient(150deg, var(--accent-soft), var(--accent-tint));
+}
+
+/* ---- 浅色小块 / 图标底 → 深色小块 ---- */
+
+[data-theme='dark'] .category-icon,
+[data-theme='dark'] .category-row-btn,
+[data-theme='dark'] .day-count,
+[data-theme='dark'] .icon-btn,
+[data-theme='dark'] .achievement-icon {
+  background: #2b241e;
+}
+
+[data-theme='dark'] .category-chip {
+  background: color-mix(in srgb, var(--swatch, var(--accent)) 22%, #241e1a);
+}
+
+[data-theme='dark'] .category-chip-icon {
+  background: color-mix(in srgb, var(--swatch, var(--accent)) 32%, #241e1a);
+}
+
+/* ---- 白色玻璃层 / 高光 → 深色玻璃 ---- */
+
+[data-theme='dark'] .stage-pill {
+  background: rgba(42, 35, 30, 0.88);
+}
+
+[data-theme='dark'] .batch-stage-pill {
+  background: rgba(42, 35, 30, 0.55);
+}
+
+[data-theme='dark'] .day-group {
+  background: rgba(36, 30, 26, 0.92);
+}
+
+[data-theme='dark'] .help-item {
+  background: rgba(36, 30, 26, 0.6);
+}
+
+[data-theme='dark'] .settings-card {
+  background: rgba(36, 30, 26, 0.82);
+}
+
+[data-theme='dark'] .list-empty {
+  background: rgba(36, 30, 26, 0.45);
+}
+
+[data-theme='dark'] .empty-card {
+  background: linear-gradient(180deg, rgba(36, 30, 26, 0.8), rgba(36, 30, 26, 0.38));
+}
+
+[data-theme='dark'] .batch-panel {
+  background: linear-gradient(180deg, rgba(42, 35, 30, 0.92), rgba(36, 30, 26, 0.72));
+}
+
+[data-theme='dark'] .batch-textarea {
+  background: linear-gradient(180deg, rgba(42, 35, 30, 0.96), rgba(36, 30, 26, 0.82));
+}
+
+[data-theme='dark'] .profile-avatar {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme='dark'] .actionbar {
+  border-color: rgba(58, 49, 42, 0.92);
+  box-shadow: 0 12px 28px rgba(var(--shadow-rgb), 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='dark'] .loading-orb {
+  box-shadow:
+    0 8px 20px rgba(var(--shadow-rgb), 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='dark'] .record-pull-handle {
+  box-shadow:
+    0 8px 20px rgba(var(--shadow-rgb), 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] .record-pull-handle.is-open {
+  box-shadow:
+    0 10px 26px rgba(var(--shadow-rgb), 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* ---- 反色按钮：巧克力按钮在深色里换成奶油按钮 ---- */
+
+[data-theme='dark'] .primary-btn,
+[data-theme='dark'] .batch-parse,
+[data-theme='dark'] .report-save-btn {
+  color: #2d2723;
+  background: linear-gradient(150deg, #f0e2d2, #e4d1bc);
+}
+
+[data-theme='dark'] .keypad-done {
+  color: #2d2723;
+  background:
+    radial-gradient(100% 120% at 22% 0%, rgba(233, 149, 141, 0.28) 0%, rgba(233, 149, 141, 0) 58%),
+    linear-gradient(140deg, #f0e2d2 0%, #e4d1bc 100%);
+}
+
+[data-theme='dark'] .keypad-done:active {
+  background: #e4d1bc;
+}
+
+[data-theme='dark'] .undo-snackbar {
+  background: rgba(240, 231, 220, 0.97);
+  color: var(--ink);
+}
+
+[data-theme='dark'] .undo-snackbar-action {
+  color: var(--accent-strong);
+}
+
+/* ---- 提示类底色 ---- */
+
+[data-theme='dark'] .batch-error,
+[data-theme='dark'] .import-warnings {
+  background: #3a2c18;
+  color: #e0b25c;
+}
+
+[data-theme='dark'] .batch-voice-warn {
+  color: #e0b25c;
+}
+
+/* ---- 描边与小装饰 ---- */
+
+[data-theme='dark'] .danger-btn,
+[data-theme='dark'] .record-quick-delete {
+  border-color: #4a2f2c;
+}
+
+[data-theme='dark'] .stage-dot.inactive {
+  background: #6b5c4e;
+  box-shadow: 0 0 0 4px rgba(107, 92, 78, 0.16);
+}
+
+[data-theme='dark'] .sheet-grab::after {
+  background: #4c4139;
+}
+
+[data-theme='dark'] .empty-cat {
+  border-color: #3a312a;
+}
+
+/* ---- 成就与里程碑 ---- */
+
+[data-theme='dark'] .achievement-hero {
+  background: linear-gradient(150deg, var(--surface-tint), var(--accent-tint));
+}
+
+[data-theme='dark'] .achievement-badge.unlocked {
+  background: linear-gradient(150deg, var(--surface-tint), var(--accent-tint));
+}
+
+[data-theme='dark'] .achievement-badge.milestone.unlocked {
+  border-color: rgba(224, 178, 92, 0.4);
+  background: linear-gradient(150deg, var(--surface-tint), #3a2f1c);
+}
+
+[data-theme='dark'] .achievement-badge.milestone.unlocked .achievement-icon {
+  background: #3c3019;
+  color: #e0b25c;
+}
+
+/* ==========================================================================
+   主题切换（设置页 · 外观）
+   ========================================================================== */
+
+.settings-theme {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 0 5px;
+}
+
+.settings-theme-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.settings-theme-options {
+  display: flex;
+  gap: 6px;
+}
+
+.settings-theme-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.settings-theme-chip.active {
+  border-color: rgba(var(--accent-rgb), 0.5);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-weight: 600;
 }

@@ -49,9 +49,16 @@ export function useAchievements() {
       persist(merged).catch((err) => {
         console.error('成就保存失败', err);
       });
-      const names = list.filter((item) => newIds.includes(item.id)).map((item) => item.name);
+      const unlockedItems = list.filter((item) => newIds.includes(item.id));
+      const milestones = unlockedItems.filter((item) => item.group === 'milestone');
       haptic('success');
-      showToast(`新爪印解锁：${names.join('、')}`);
+      if (milestones.length === 1 && milestones[0].celebration) {
+        showToast(milestones[0].celebration);
+      } else if (milestones.length) {
+        showToast(`里程碑达成：${milestones.map((item) => item.name).join('、')}`);
+      } else {
+        showToast(`新爪印解锁：${unlockedItems.map((item) => item.name).join('、')}`);
+      }
     });
   }
 

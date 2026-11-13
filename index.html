@@ -26,6 +26,20 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="守财小果">
+  <script>
+    (function () {
+      try {
+        var mode = localStorage.getItem('shoucai:theme') || 'system';
+        var dark = mode === 'dark' ||
+          (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var theme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#1b1613' : '#faf5ec');
+      } catch (err) { /* 隐私模式下 localStorage 不可用，保持默认浅色 */ }
+    })();
+  </script>
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
   <link rel="apple-touch-startup-image" href="./icons/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
@@ -130,6 +144,24 @@
       border-radius: inherit;
       background: #e9958d;
       animation: splash-progress 1.5s ease-in-out infinite;
+    }
+    html[data-theme='dark'],
+    html[data-theme='dark'] body {
+      background: #1b1613;
+    }
+    html[data-theme='dark'] .splash-screen {
+      background:
+        radial-gradient(600px 420px at 50% 35%, #241e1a 0%, rgba(36, 30, 26, 0) 70%),
+        #1b1613;
+    }
+    html[data-theme='dark'] .splash-title {
+      color: #f0e6da;
+    }
+    html[data-theme='dark'] .splash-subtitle {
+      color: #a89787;
+    }
+    html[data-theme='dark'] .splash-mark img {
+      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
     }
     @keyframes splash-pop {
       0% { opacity: 1; transform: translateY(0) scale(0.985); }

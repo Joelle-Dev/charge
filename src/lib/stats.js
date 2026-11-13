@@ -599,6 +599,17 @@ export function buildAchievementStatsFromState(state, stages = [], now = new Dat
     if (stats.total <= budget) budgetKeptStages += 1;
   }
 
+  // 满整年才算一周年：首记 3-15，到次年 3-15 才算 1 年
+  let yearsActive = 0;
+  if (firstDate) {
+    const [firstYear, firstMonth, firstDay] = firstDate.split('-').map(Number);
+    yearsActive = now.getFullYear() - firstYear;
+    const month = now.getMonth() + 1;
+    const hadAnniversary = month > firstMonth || (month === firstMonth && now.getDate() >= firstDay);
+    if (!hadAnniversary) yearsActive -= 1;
+    yearsActive = Math.max(0, yearsActive);
+  }
+
   return {
     totalCount: global.count,
     totalAmount: global.total,
@@ -606,7 +617,9 @@ export function buildAchievementStatsFromState(state, stages = [], now = new Dat
     streak,
     noSpendDays,
     stageCount: stages.length,
-    budgetKeptStages
+    budgetKeptStages,
+    firstDate,
+    yearsActive
   };
 }
 

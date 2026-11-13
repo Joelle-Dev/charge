@@ -353,7 +353,7 @@ watch(
 
 .spend-line-dot.is-active {
   fill: var(--accent);
-  stroke: #fff;
+  stroke: var(--surface);
   stroke-width: 2;
 }
 

@@ -1,5 +1,9 @@
 <template>
-  <article class="timeline-item">
+  <article
+    class="timeline-item"
+    :class="{ 'is-new': highlighted }"
+    :data-expense-id="expense.id"
+  >
     <button
       class="timeline-avatar"
       type="button"
@@ -32,7 +36,8 @@ import { useLedger } from '../composables/useLedger';
 import { displayMoney } from '../utils/money';
 
 const props = defineProps({
-  expense: { type: Object, required: true }
+  expense: { type: Object, required: true },
+  highlighted: { type: Boolean, default: false }
 });
 const emit = defineEmits(['select', 'menu']);
 

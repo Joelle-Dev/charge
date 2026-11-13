@@ -62,3 +62,53 @@ test('cat title falls back safely for inherited keys', () => {
   assert.equal(catTitleForCategory('constructor'), 'constructor猫');
   assert.equal(catTitleForCategory('__proto__'), '__proto__猫');
 });
+
+test('milestones unlock on life-scale thresholds', () => {
+  const stats = {
+    totalCount: 1000,
+    totalAmount: 0,
+    recordDays: 100,
+    streak: 365,
+    noSpendDays: 0,
+    stageCount: 1,
+    budgetKeptStages: 0,
+    firstDate: '2020-01-01',
+    yearsActive: 2
+  };
+  const byId = Object.fromEntries(getAchievementState(stats).map((item) => [item.id, item]));
+
+  assert.equal(byId['thousand-records'].unlocked, true);
+  assert.equal(byId['ten-thousand-records'].unlocked, false);
+  assert.equal(byId['anniversary-1'].unlocked, true);
+  assert.equal(byId['anniversary-3'].unlocked, false);
+  assert.equal(byId['anniversary-10'].unlocked, false);
+  assert.equal(byId['streak-100'].unlocked, true);
+  assert.equal(byId['streak-365'].unlocked, true);
+  assert.equal(byId['thousand-records'].group, 'milestone');
+  assert.equal(byId['first-paw'].group, undefined);
+});
+
+test('yearsActive counts only completed anniversaries', () => {
+  const state = buildStatsFromExpenses([
+    { amount: 10, category: '餐饮', note: 'a', spentAt: '2025-03-15T12:00:00+08:00', stageId: 'a' }
+  ]);
+
+  const dayBefore = buildAchievementStatsFromState(state, stages, new Date(2026, 2, 14, 12));
+  assert.equal(dayBefore.firstDate, '2025-03-15');
+  assert.equal(dayBefore.yearsActive, 0);
+
+  const onDay = buildAchievementStatsFromState(state, stages, new Date(2026, 2, 15, 12));
+  assert.equal(onDay.yearsActive, 1);
+
+  const later = buildAchievementStatsFromState(state, stages, new Date(2029, 5, 1, 12));
+  assert.equal(later.yearsActive, 4);
+});
+
+test('milestone values stay capped and handle missing stats fields', () => {
+  const byId = Object.fromEntries(
+    getAchievementState({ totalCount: 20000 }).map((item) => [item.id, item])
+  );
+  assert.equal(byId['ten-thousand-records'].value, 10000);
+  assert.equal(byId['anniversary-1'].unlocked, false);
+  assert.equal(byId['streak-365'].value, 0);
+});

@@ -81,9 +81,86 @@ export const ACHIEVEMENTS = [
   }
 ];
 
+// 人生里程碑：跟着岁月慢慢长出来的纪念章
+export const MILESTONES = [
+  {
+    id: 'thousand-records',
+    group: 'milestone',
+    name: '千笔纪念',
+    description: '一共记了 1000 笔，日子都收好啦',
+    icon: 'crown',
+    target: 1000,
+    value: (stats) => stats.totalCount,
+    celebration: '第 1000 笔！果冻把这些年都替你收好啦'
+  },
+  {
+    id: 'ten-thousand-records',
+    group: 'milestone',
+    name: '万笔长卷',
+    description: '一万笔小账，日子都在里面了',
+    icon: 'crown',
+    target: 10000,
+    value: (stats) => stats.totalCount,
+    celebration: '一万笔了！这本账就是一部生活史'
+  },
+  {
+    id: 'anniversary-1',
+    group: 'milestone',
+    name: '一周年',
+    description: '小账本陪你走过第一年',
+    icon: 'cake',
+    target: 1,
+    value: (stats) => stats.yearsActive,
+    celebration: '记账一周年啦，果冻陪你走过第一年'
+  },
+  {
+    id: 'anniversary-3',
+    group: 'milestone',
+    name: '三周年',
+    description: '三年了，果冻还在陪你记',
+    icon: 'cake',
+    target: 3,
+    value: (stats) => stats.yearsActive,
+    celebration: '三周年，果冻还在陪你记'
+  },
+  {
+    id: 'anniversary-10',
+    group: 'milestone',
+    name: '十周年',
+    description: '十年老账本，值得一座金爪印',
+    icon: 'cake',
+    target: 10,
+    value: (stats) => stats.yearsActive,
+    celebration: '十年老账本，果冻给你盖一枚金爪印'
+  },
+  {
+    id: 'streak-100',
+    group: 'milestone',
+    name: '百日不断',
+    description: '连续 100 天都来记账',
+    icon: 'star',
+    target: 100,
+    value: (stats) => stats.streak,
+    celebration: '连续 100 天，好习惯养成了'
+  },
+  {
+    id: 'streak-365',
+    group: 'milestone',
+    name: '一年不断',
+    description: '连续 365 天从没断过',
+    icon: 'star',
+    target: 365,
+    value: (stats) => stats.streak,
+    celebration: '连续 365 天从没断过，太厉害了'
+  }
+];
+
+const ALL_BADGES = [...ACHIEVEMENTS, ...MILESTONES];
+
 export function getAchievementState(stats) {
-  return ACHIEVEMENTS.map((achievement) => {
-    const value = Math.min(achievement.value(stats), achievement.target);
+  return ALL_BADGES.map((achievement) => {
+    const raw = Number(achievement.value(stats)) || 0;
+    const value = Math.min(raw, achievement.target);
     return {
       ...achievement,
       value,

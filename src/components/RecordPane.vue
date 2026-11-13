@@ -97,6 +97,7 @@
             v-for="expense in day.items"
             :key="expense.id"
             :expense="expense"
+            :highlighted="expense.id === highlightId"
             :style="{ '--swatch': expense.color }"
             @select="openDaily"
             @menu="openRowMenu"
@@ -233,7 +234,7 @@ const { ready, currentStage, dataVersion, loadMonthExpenses, latestMonthBefore }
 const { removeExpenseWithUndo } = useExpenseActions();
 const { activePane, goToPane } = useLedgerPanes();
 const record = useRecordEntry();
-const { recordMonth, dailyOpen, dailyDate } = useRecordsView();
+const { recordMonth, dailyOpen, dailyDate, recentExpense, clearRecentExpense } = useRecordsView();
 const sheets = useSheets();
 
 const month = ref(recordMonth.value || currentMonthKey());
@@ -360,12 +361,57 @@ const {
   visibleRows: visibleDays,
   topSpace: virtualTopSpace,
   bottomSpace: virtualBottomSpace,
-  trackRow
+  trackRow,
+  scrollToKey
 } = useVirtualRows({
   rows: timelineDays,
   scrollRef,
   estimateSize: estimateDayHeight
 });
+
+const highlightId = ref('');
+let highlightTimer = null;
+let handledRecentId = '';
+
+function clearHighlight() {
+  if (highlightTimer) {
+    window.clearTimeout(highlightTimer);
+    highlightTimer = null;
+  }
+  highlightId.value = '';
+  handledRecentId = '';
+  clearRecentExpense();
+}
+
+function focusRecentExpense() {
+  const recent = recentExpense.value;
+  if (!recent?.id || handledRecentId === recent.id) return;
+  const target = expenses.value.find((expense) => expense.id === recent.id);
+  if (!target) return;
+
+  handledRecentId = recent.id;
+  highlightId.value = recent.id;
+  const day = dayKey(new Date(target.spentAt));
+  nextTick(() => {
+    scrollToKey(day, -10);
+  });
+
+  if (highlightTimer) window.clearTimeout(highlightTimer);
+  highlightTimer = window.setTimeout(() => {
+    highlightTimer = null;
+    highlightId.value = '';
+    handledRecentId = '';
+    clearRecentExpense();
+  }, 2600);
+}
+
+watch([recentExpense, expenses], () => {
+  if (recentExpense.value) focusRecentExpense();
+});
+
+watch([month, () => currentStage.value?.id], clearHighlight);
+
+onBeforeUnmount(clearHighlight);
 
 const HEAT_HINT_KEY = 'recordHeatHintSeen';
 const PULL_HINT_KEY = 'recordPullHintSeen';

@@ -59,10 +59,10 @@
       </div>
     </div>
 
-    <LoadingState v-if="loading" text="果冻在打这个月的小票…" />
+    <LoadingState v-if="loading" text="猫猫在打这个小票…" />
 
     <div v-else-if="loadError" class="list-empty">
-      <p>小票没打成</p>
+      <p>小票被猫猫抓花了</p>
       <span>果冻绊了一跤，再试一次吧</span>
       <button class="text-btn" type="button" @click="loadReport">重新写写</button>
     </div>
@@ -75,9 +75,17 @@
 
     <template v-else>
       <div class="receipt-export">
+      <div class="receipt-toolbar">
+        <button class="receipt-detail-btn" type="button" @click="openDetail">
+          <span>看这个月的明细</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 6 6 6-6 6"></path>
+          </svg>
+        </button>
+      </div>
       <div ref="receiptRef" :key="month" class="receipt-paper">
       <div class="receipt-body">
-        <span class="receipt-slip-tag" aria-hidden="true">顾客联</span>
+        <span class="receipt-slip-tag" aria-hidden="true">猫猫联</span>
         <header class="receipt-head">
           <span class="receipt-brand">守财小果</span>
           <span class="receipt-brand-sub">MONTHLY RECEIPT</span>
@@ -89,21 +97,11 @@
           </span>
         </header>
 
-        <div class="receipt-divider is-dashed" aria-hidden="true"></div>
-
-        <div class="receipt-mood">
-          <span class="receipt-cat" aria-hidden="true"><CatMood :mood="mood" /></span>
-          <p class="receipt-say">
-            <span class="receipt-say-label">果冻说</span>
-            {{ narrative }}
-          </p>
-        </div>
-
         <div class="receipt-divider" aria-hidden="true"></div>
 
         <section class="receipt-block receipt-items" aria-label="消费类别">
           <div class="receipt-block-title">
-            <strong>消费类别</strong>
+            <strong>都买了些啥</strong>
           </div>
           <div v-if="categoryRanking.length" class="receipt-item is-head" aria-hidden="true">
             <span></span>
@@ -134,7 +132,7 @@
             <span class="is-num is-money"><i class="receipt-yen">¥</i>{{ formatAmount(item.price) }}</span>
             <span class="is-num is-money is-strong"><i class="receipt-yen">¥</i>{{ formatAmount(item.amount) }}</span>
           </div>
-          <p v-if="!categoryRanking.length" class="receipt-empty">本月暂无消费记录</p>
+          <p v-if="!categoryRanking.length" class="receipt-empty">猫猫没记到东西，这个月清清淡淡</p>
           <div class="receipt-total-row">
             <span class="receipt-total-label">合计</span>
             <span class="receipt-total-count">{{ count }} 次</span>
@@ -146,9 +144,9 @@
 
         <div class="receipt-divider is-section" aria-hidden="true"></div>
 
-        <section class="receipt-block" aria-label="本月之最">
+        <section class="receipt-block" aria-label="猫猫之最">
           <div class="receipt-row">
-            <span class="receipt-row-label">最贵一笔</span>
+            <span class="receipt-row-label">剁手最狠</span>
             <span class="receipt-row-dots" aria-hidden="true"></span>
             <span class="receipt-row-value"><i class="receipt-yen">¥</i>{{ largest ? formatAmount(largest.amount) : '0.00' }}</span>
           </div>
@@ -157,11 +155,11 @@
               {{ largest.note || largest.category }} · {{ dayLabel(largest.spentAt) }}
               <template v-if="showStageName"> · {{ stageNameFor(largest) }}</template>
             </template>
-            <template v-else>这个月还没花钱</template>
+            <template v-else>猫猫还没出手</template>
           </p>
 
           <div class="receipt-row">
-            <span class="receipt-row-label">最常买</span>
+            <span class="receipt-row-label">买得最勤</span>
             <span class="receipt-row-dots" aria-hidden="true"></span>
             <span class="receipt-row-value">{{ topCategory ? topCategory.category : '—' }}</span>
           </div>
@@ -173,7 +171,7 @@
           </p>
 
           <div class="receipt-row">
-            <span class="receipt-row-label">最贵的一天</span>
+            <span class="receipt-row-label">钱包最疼那天</span>
             <span class="receipt-row-dots" aria-hidden="true"></span>
             <span class="receipt-row-value"><i class="receipt-yen">¥</i>{{ busiestDay ? formatAmount(busiestDay.total) : '0.00' }}</span>
           </div>
@@ -183,26 +181,26 @@
           </p>
 
           <div class="receipt-row">
-            <span class="receipt-row-label">最常花钱</span>
+            <span class="receipt-row-label">最爱上供</span>
             <span class="receipt-row-dots" aria-hidden="true"></span>
             <span class="receipt-row-value">{{ busiestWeekday ? busiestWeekday.label : '—' }}</span>
           </div>
           <p class="receipt-row-note">
-            <template v-if="busiestWeekday">有 {{ busiestWeekday.days }} 天在花</template>
+            <template v-if="busiestWeekday">有 {{ busiestWeekday.days }} 天在散财</template>
             <template v-else>还没有固定的节奏</template>
           </p>
         </section>
 
         <div class="receipt-divider is-section" aria-hidden="true"></div>
 
-        <section class="receipt-block receipt-overview" aria-label="本月概况">
+        <section class="receipt-block receipt-overview" aria-label="猫猫月报">
           <div class="receipt-row">
-            <span class="receipt-row-label">花钱的日子</span>
+            <span class="receipt-row-label">铲屎日</span>
             <span class="receipt-row-dots" aria-hidden="true"></span>
             <span class="receipt-row-value">{{ activeDays }} / {{ elapsedDays }} 天</span>
           </div>
           <div class="receipt-row">
-            <span class="receipt-row-label">无支出日</span>
+            <span class="receipt-row-label">猫粮罐安全日</span>
             <span class="receipt-row-dots" aria-hidden="true"></span>
             <span class="receipt-row-value">{{ noSpendDays }} 天</span>
           </div>
@@ -210,8 +208,19 @@
 
         <div class="receipt-divider is-dashed" aria-hidden="true"></div>
 
+        <div class="receipt-mood">
+          <span class="receipt-cat" aria-hidden="true"><CatMood :mood="mood" /></span>
+          <div class="receipt-say">
+            <span class="receipt-say-label">猫猫碎碎念</span>
+            <p class="receipt-say-main">{{ narrative.main }}</p>
+            <p v-if="narrative.detail" class="receipt-say-detail">{{ narrative.detail }}</p>
+          </div>
+        </div>
+
+        <div class="receipt-divider is-dashed" aria-hidden="true"></div>
+
         <footer class="receipt-foot">
-          <span class="receipt-thanks">谢谢惠顾</span>
+          <span class="receipt-thanks">谢谢投喂喵</span>
           <span class="receipt-barcode" aria-hidden="true">
             <i
               v-for="(bar, index) in barcodeBars"
@@ -220,23 +229,20 @@
             ></i>
           </span>
           <span class="receipt-barcode-no">No.{{ receiptNo }}</span>
-          <small>电子凭证 · 请妥善保管</small>
+          <small>猫猫打的电子小票 · 收好喵</small>
         </footer>
       </div>
       </div>
       </div>
 
       <div class="report-actions">
-        <button class="secondary-btn" type="button" @click="openDetail">
-          看看这个月的明细
-        </button>
         <button
           class="secondary-btn report-save-btn"
           type="button"
           :disabled="saving"
           @click="saveReceipt"
         >
-          {{ saving ? '果冻在画画…' : '保存 / 分享小票' }}
+          {{ saving ? '猫猫在画小票…' : '保存 / 分享小票' }}
         </button>
       </div>
     </template>
@@ -254,7 +260,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import CatMood from '../components/CatMood.vue';
@@ -266,7 +272,7 @@ import { useSheets } from '../composables/useSheets';
 import { useViewScope } from '../composables/useViewScope';
 import { DEFAULT_CATEGORY } from '../lib/parser';
 import { addMonths, currentMonthKey, monthBounds, monthLabel } from '../utils/months';
-import { dayKey, formatAmount, pad2 } from '../utils/format';
+import { dayKey, formatAmount, pad2, toDateInput } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { saveImage } from '../utils/saveImage';
 
@@ -299,10 +305,40 @@ const showMonthPicker = ref(false);
 const saving = ref(false);
 let loadToken = 0;
 
+// 当前月份随时间变化：集中成一个来源，跨午夜自动刷新
+const nowRef = ref(new Date());
+const currentMonth = computed(() => currentMonthKey(nowRef.value));
+let nowTimer = null;
+function refreshNow() {
+  const next = new Date();
+  // 同一天内不触发响应式更新，避免无谓重算
+  if (toDateInput(next) !== toDateInput(nowRef.value)) nowRef.value = next;
+}
+onMounted(() => {
+  nowTimer = window.setInterval(refreshNow, 60 * 1000);
+});
+onBeforeUnmount(() => {
+  if (nowTimer) window.clearInterval(nowTimer);
+  nowTimer = null;
+});
+
+// '2026-11' → { year: 2026, index: 10, days: 30 }
+function parseMonthKey(key) {
+  const [year, monthNumber] = String(key || '').split('-').map(Number);
+  return {
+    year,
+    index: monthNumber - 1,
+    days: new Date(year, monthNumber, 0).getDate()
+  };
+}
+
 const scopeStageIds = computed(() => {
   if (stageScope.value === 'all') return activeStages.value.map((stage) => stage.id);
   return currentStage.value ? [currentStage.value.id] : [];
 });
+
+// 稳定签名：账本集合没变时不重复加载（避免每次 activeStages 刷新都重打小票）
+const scopeSignature = computed(() => `${stageScope.value}:${scopeStageIds.value.join(',')}`);
 
 const showStageName = computed(() => stageScope.value === 'all' && activeStages.value.length > 1);
 const stageNameById = computed(() => {
@@ -325,19 +361,17 @@ const barcodeBars = computed(() => {
   });
 });
 const printText = computed(() => {
-  const now = new Date();
-  const isCurrent = month.value === currentMonthKey();
-  const [year, monthNumber] = month.value.split('-').map(Number);
-  const lastDay = new Date(year, monthNumber, 0);
-  const date = isCurrent ? now : lastDay;
-  const day = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-  const time = isCurrent ? `${pad2(now.getHours())}:${pad2(now.getMinutes())}` : '21:08';
-  return `${day} ${time}`;
+  const isCurrent = month.value === currentMonth.value;
+  if (isCurrent) {
+    const now = nowRef.value;
+    return `${toDateInput(now)} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  }
+  const { year, index } = parseMonthKey(month.value);
+  return `${year}-${pad2(index + 1)}-${pad2(new Date(year, index + 1, 0).getDate())} 21:08`;
 });
-const isCurrentMonth = computed(() => month.value >= currentMonthKey());
+const isCurrentMonth = computed(() => month.value >= currentMonth.value);
 const monthDateRange = computed(() => {
-  const [year, monthNumber] = month.value.split('-').map(Number);
-  const days = new Date(year, monthNumber, 0).getDate();
+  const { days } = parseMonthKey(month.value);
   return {
     from: `${month.value}-01`,
     to: `${month.value}-${pad2(days)}`,
@@ -345,10 +379,16 @@ const monthDateRange = computed(() => {
   };
 });
 const elapsedDays = computed(() => {
-  const nowMonth = currentMonthKey();
+  const nowMonth = currentMonth.value;
   if (month.value < nowMonth) return monthDateRange.value.days;
   if (month.value > nowMonth) return 1;
-  return Math.min(monthDateRange.value.days, new Date().getDate());
+  return Math.min(monthDateRange.value.days, nowRef.value.getDate());
+});
+
+// 本月还没过完：和上个月「同期」比，而不是拿半个月比人家整月
+const previousCutoffDay = computed(() => {
+  if (!isCurrentMonth.value) return null;
+  return Math.min(elapsedDays.value, parseMonthKey(addMonths(month.value, -1)).days);
 });
 
 const activeDayKeys = computed(() => new Set(
@@ -443,11 +483,15 @@ const topCategories = computed(() => categoryRanking.value.slice(0, 3));
 const topCategory = computed(() => topCategories.value[0] || null);
 
 const comparison = computed(() => {
+  const samePeriod = previousCutoffDay.value != null;
+  const baseline = samePeriod ? `上月同期（前 ${previousCutoffDay.value} 天）` : '上月';
+
   if (!previousTotal.value) {
     return {
       text: total.value ? '上月没花钱' : '—',
       tone: 'flat',
-      percent: 0
+      percent: 0,
+      baseline
     };
   }
   const diff = total.value - previousTotal.value;
@@ -455,7 +499,8 @@ const comparison = computed(() => {
   return {
     text: `${diff >= 0 ? '+' : ''}${percent}%`,
     tone: diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat',
-    percent
+    percent,
+    baseline
   };
 });
 
@@ -467,21 +512,34 @@ const mood = computed(() => {
 });
 
 const narrative = computed(() => {
-  if (!total.value) return '这个月果冻一分钱都没花，猫粮罐稳稳的。';
-
-  const bits = [];
-  if (topCategory.value) bits.push(`在「${topCategory.value.category}」上花得最多`);
-  if (largest.value?.note) bits.push(`最贵的一笔是「${largest.value.note}」`);
-  if (busiestWeekday.value) bits.push(`${busiestWeekday.value.label}最容易掏钱包`);
-  if (noSpendDays.value > 0) bits.push(`有 ${noSpendDays.value} 天没花钱`);
-
-  if (comparison.value.tone === 'down') {
-    bits.push(`比上月少花 ${Math.abs(comparison.value.percent)}%`);
-  } else if (comparison.value.tone === 'up') {
-    bits.push(`比上月多花 ${comparison.value.percent}%`);
+  if (!total.value) {
+    return elapsedDays.value <= 1
+      ? { main: '新的一月刚开始，猫粮罐亮亮的', detail: '喵～' }
+      : { main: `都 ${elapsedDays.value} 天了一分没花，猫粮罐稳稳的`, detail: '喵！' };
   }
 
-  return bits.length ? `果冻发现，${bits.join('，')}。` : '这个月过得刚刚好，果冻都记在小本本上啦。';
+  let main;
+  if (comparison.value.tone === 'up' && comparison.value.percent >= 30) {
+    main = `比${comparison.value.baseline}多花了 ${comparison.value.percent}%，猫猫捂脸`;
+  } else if (comparison.value.tone === 'down' && comparison.value.percent <= -15) {
+    main = `比${comparison.value.baseline}省了 ${Math.abs(comparison.value.percent)}%，走路带风`;
+  } else if (topCategory.value) {
+    main = `大部分钱都上供给「${topCategory.value.category}」`;
+  } else {
+    main = '这个月花得挺均匀';
+  }
+
+  const tail = comparison.value.tone === 'up' ? '喵……' : '喵～';
+  const details = [];
+  if (largest.value?.note) details.push(`最肉疼的是「${largest.value.note}」`);
+  else if (largest.value) details.push(`最肉疼的一笔 ¥${formatAmount(largest.value.amount)}`);
+  if (busiestWeekday.value && busiestWeekday.value.days >= 2) {
+    details.push(`${busiestWeekday.value.label}爪子最痒`);
+  }
+  if (noSpendDays.value >= 5) details.push(`有 ${noSpendDays.value} 天猫粮罐没动`);
+
+  if (!details.length) return { main: `${main}，${tail}` };
+  return { main, detail: `${details.slice(0, 2).join('，')}，${tail}` };
 });
 
 function stageNameFor(expense) {
@@ -495,6 +553,14 @@ function dayLabel(value) {
   return `${date.getMonth() + 1}月${date.getDate()}日`;
 }
 
+function resetReport() {
+  rows.value = [];
+  categoryItems.value = [];
+  total.value = 0;
+  count.value = 0;
+  previousTotal.value = 0;
+}
+
 async function loadReport() {
   if (!ready.value) {
     loading.value = true;
@@ -503,11 +569,7 @@ async function loadReport() {
 
   const stageIds = [...scopeStageIds.value];
   if (!stageIds.length) {
-    rows.value = [];
-    categoryItems.value = [];
-    total.value = 0;
-    count.value = 0;
-    previousTotal.value = 0;
+    resetReport();
     loading.value = false;
     loadError.value = false;
     return;
@@ -516,29 +578,27 @@ async function loadReport() {
   const token = ++loadToken;
   loading.value = true;
   loadError.value = false;
+
+  const scope = stageScope.value;
   const [fromIso, toIso] = monthBounds(month.value);
   const previousMonth = addMonths(month.value, -1);
-  const [prevFromIso, prevToIso] = monthBounds(previousMonth);
+  const [prevFromIso] = monthBounds(previousMonth);
+  // 上月同期：toIso 是开区间，所以取「上月第 N+1 天 00:00」作为截止
+  const prevParts = parseMonthKey(previousMonth);
+  const prevCutoffIso = previousCutoffDay.value != null
+    ? new Date(prevParts.year, prevParts.index, previousCutoffDay.value + 1).toISOString()
+    : monthBounds(previousMonth)[1];
 
   try {
-    const found = await searchExpenses({
-      stageIds,
-      fromIso,
-      toIso,
-      limit: 5000
-    });
+    // worker 的搜索是单通道的（后一次会取消前一次），所以本月与上月要串行
+    const found = await searchExpenses({ stageIds, fromIso, toIso, limit: 5000 });
     if (token !== loadToken) return;
 
     const [previous, categories] = await Promise.all([
-      searchExpenses({
-        stageIds,
-        fromIso: prevFromIso,
-        toIso: prevToIso,
-        limit: 1
-      }),
+      searchExpenses({ stageIds, fromIso: prevFromIso, toIso: prevCutoffIso, limit: 1 }),
       loadCategoryTotals({
-        stageId: stageScope.value === 'all' ? null : currentStage.value?.id || null,
-        stageIds: stageScope.value === 'all' ? stageIds : null,
+        stageId: scope === 'all' ? null : currentStage.value?.id || null,
+        stageIds: scope === 'all' ? stageIds : null,
         from: monthDateRange.value.from,
         to: monthDateRange.value.to
       })
@@ -555,15 +615,10 @@ async function loadReport() {
     previousTotal.value = Number(previous.sum) || 0;
   } catch (err) {
     if (err?.code === 'SEARCH_CANCELLED') return;
-    if (token === loadToken) {
-      console.error('加载小票失败', err);
-      rows.value = [];
-      categoryItems.value = [];
-      total.value = 0;
-      count.value = 0;
-      previousTotal.value = 0;
-      loadError.value = true;
-    }
+    if (token !== loadToken) return;
+    console.error('加载小票失败', err);
+    resetReport();
+    loadError.value = true;
   } finally {
     if (token === loadToken) loading.value = false;
   }
@@ -578,13 +633,13 @@ function setScope(scope) {
 
 function shiftMonth(delta) {
   const next = addMonths(month.value, delta);
-  if (next > currentMonthKey()) return;
+  if (next > currentMonth.value) return;
   month.value = next;
   haptic('light');
 }
 
 function goCurrentMonth() {
-  month.value = currentMonthKey();
+  month.value = currentMonth.value;
   haptic('light');
 }
 
@@ -594,7 +649,7 @@ function openMonthPicker() {
 }
 
 function selectMonth(next) {
-  const key = String(next || '') > currentMonthKey() ? currentMonthKey() : next;
+  const key = String(next || '') > currentMonth.value ? currentMonth.value : next;
   if (key === month.value) return;
   month.value = key;
   haptic('light');
@@ -717,5 +772,5 @@ watch(
   { immediate: true }
 );
 
-watch([ready, month, scopeStageIds, dataVersion], loadReport, { immediate: true });
+watch([ready, month, scopeSignature, dataVersion], loadReport, { immediate: true });
 </script>

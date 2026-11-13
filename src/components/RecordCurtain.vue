@@ -179,6 +179,7 @@ import CategorySheet from './CategorySheet.vue';
 import { useExpenseActions } from '../composables/useExpenseActions';
 import { useLedger } from '../composables/useLedger';
 import { useRecordEntry } from '../composables/useRecordEntry';
+import { useRecordsView } from '../composables/useRecordsView';
 import {
   amountToInput,
   appendExpressionDecimal,
@@ -225,6 +226,7 @@ const {
 } = useRecordEntry();
 const { categories, currentStage, dataVersion, addExpense, updateExpense, iconFor } = useLedger();
 const { removeExpenseWithUndo } = useExpenseActions();
+const { markRecentExpense } = useRecordsView();
 
 const panelRef = ref(null);
 const noteInput = ref(null);
@@ -657,12 +659,13 @@ async function save() {
       return;
     }
 
-    await addExpense({
+    const created = await addExpense({
       amount: value,
       category: selectedCategory.value,
       note: note.value.trim(),
       spentAt: spentAt.toISOString()
     });
+    markRecentExpense(created);
     rememberCategory(selectedCategory.value);
     haptic('success');
     showToast('喵，记好啦');

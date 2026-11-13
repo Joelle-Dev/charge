@@ -124,6 +124,23 @@
         <template v-if="isIos">在 Safari 点底部 <b>分享</b>，再选 <b>添加到主屏幕</b>，果冻就住进去啦。</template>
         <template v-else>在浏览器菜单里选 <b>安装应用 / 添加到主屏幕</b> 就好啦。</template>
       </div>
+      <div class="settings-theme">
+        <span class="settings-theme-label">外观</span>
+        <div class="settings-theme-options" role="radiogroup" aria-label="外观主题">
+          <button
+            v-for="option in THEME_OPTIONS"
+            :key="option.key"
+            type="button"
+            class="settings-theme-chip"
+            :class="{ active: themeMode === option.key }"
+            role="radio"
+            :aria-checked="themeMode === option.key"
+            @click="setThemeMode(option.key)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
+      </div>
     </section>
 
     <section class="settings-card">
@@ -198,6 +215,7 @@ import { useSheets } from '../composables/useSheets';
 import { useAchievements } from '../composables/useAchievements';
 import { usePwaInstall } from '../composables/usePwaInstall';
 import { useProfile } from '../composables/useProfile';
+import { THEME_OPTIONS, setThemeMode, themeMode } from '../utils/theme';
 import { exportStageCsvInWorker, saveBlob } from '../lib/dataClient';
 import { getSetting } from '../lib/db';
 import { formatBytes, getStorageState, requestPersistence } from '../lib/storage';

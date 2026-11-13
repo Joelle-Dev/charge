@@ -6,6 +6,20 @@ const dailyDate = ref('');
 const selectedMonth = ref('');
 const selectedDate = ref('');
 const stageId = ref(null);
+const recentExpense = ref(null);
+
+function markRecentExpense(expense) {
+  if (!expense?.id) return;
+  recentExpense.value = {
+    id: expense.id,
+    spentAt: expense.spentAt || '',
+    at: Date.now()
+  };
+}
+
+function clearRecentExpense() {
+  recentExpense.value = null;
+}
 
 export function useRecordsView() {
   return {
@@ -14,6 +28,9 @@ export function useRecordsView() {
     dailyDate,
     selectedMonth,
     selectedDate,
-    stageId
+    stageId,
+    recentExpense,
+    markRecentExpense,
+    clearRecentExpense
   };
 }
