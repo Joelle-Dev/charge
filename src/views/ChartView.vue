@@ -113,6 +113,7 @@ import { buildTrendPeriodOptions, buildTrendSeries, periodRange, TREND_PERIODS }
 import { displayMoney } from '../utils/money';
 import { categoryColor, toDateInput } from '../utils/format';
 import { haptic } from '../utils/haptics';
+import { setActiveScope } from '../lib/privacy.js';
 
 const PERIOD_OPTIONS = [
   { value: 'week', label: '周' },
@@ -123,6 +124,8 @@ const PERIOD_OPTIONS = [
 const { ready, currentStage, dataVersion, loadCategoryTotals, stageStats, iconFor } = useLedger();
 const sheets = useSheets();
 const today = toDateInput(new Date());
+
+setActiveScope('chart');
 
 const period = ref('month');
 const anchor = ref(periodRange('month', today).from);

@@ -275,6 +275,7 @@ import { addMonths, currentMonthKey, monthBounds, monthLabel } from '../utils/mo
 import { dayKey, formatAmount, pad2, toDateInput } from '../utils/format';
 import { haptic } from '../utils/haptics';
 import { saveImage } from '../utils/saveImage';
+import { setActiveScope } from '../lib/privacy.js';
 
 const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -291,6 +292,8 @@ const {
 } = useLedger();
 const sheets = useSheets();
 const { stageScope, setDetailContext } = useViewScope();
+
+setActiveScope('diary');
 
 const month = ref(currentMonthKey());
 const rows = ref([]);

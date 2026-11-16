@@ -22,6 +22,18 @@ test('amount visibility is independent for each page scope', () => {
   setActiveScope('home');
   assert.equal(displayMoney(12), '•••');
 
+  setActiveScope('chart');
+  assert.equal(displayMoney(12), formatMoney(12));
+
+  setActiveScope('diary');
+  assert.equal(displayMoney(12), formatMoney(12));
+
+  setActiveScope('batch');
+  assert.equal(displayMoney(12), formatMoney(12));
+
+  setActiveScope('home');
+  assert.equal(displayMoney(12), '•••');
+
   setHideAmount(false, 'home');
   setHideAmount(false, 'record');
 });

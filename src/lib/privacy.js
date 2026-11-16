@@ -2,7 +2,7 @@ import { computed, reactive, ref } from 'vue';
 
 const STORAGE_KEY = 'shoucai:hideAmountScopes';
 const GLOBAL_KEY = '__shoucaiPrivacy';
-const SCOPES = ['home', 'record', 'search', 'records', 'settings'];
+const SCOPES = ['home', 'record', 'batch', 'chart', 'diary', 'search', 'records', 'settings'];
 
 function emptyScopes() {
   return SCOPES.reduce((result, scope) => {
