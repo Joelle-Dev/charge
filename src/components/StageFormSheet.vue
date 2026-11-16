@@ -114,7 +114,6 @@ async function save() {
     } else {
       await createStage({ name: trimmed, budget: budgetValue });
       haptic('success');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
       showToast(`「${trimmed}」建好啦`);
     }
     show.value = false;

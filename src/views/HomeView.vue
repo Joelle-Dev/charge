@@ -2,7 +2,7 @@
   <LoadingState v-if="!ready" class="home-loading" :text="loadingHint" />
   <Transition v-else name="stage-fade" mode="out-in">
     <EmptyState v-if="!currentStage" key="empty" />
-    <div v-else :key="currentStage.id" class="dashboard ledger-home" :class="{ 'is-entering': entering }">
+    <div v-else key="dashboard" class="dashboard ledger-home" :class="{ 'is-entering': entering }">
       <header class="ledger-home-head">
         <div class="ledger-home-side">
         </div>

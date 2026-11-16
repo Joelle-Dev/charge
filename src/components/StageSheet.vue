@@ -105,7 +105,6 @@ async function selectStage(stage) {
   if (stage.id !== currentStage.value?.id) {
     await switchStage(stage.id);
     haptic('light');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     showToast(`已经换到「${stage.name}」啦`);
   }
   show.value = false;
