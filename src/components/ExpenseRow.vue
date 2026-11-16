@@ -3,6 +3,7 @@
     <div class="expense-row">
       <ExpenseItem :expense="expense" :stage-name="stageName" @select="select" />
       <button
+        v-if="showMenu"
         class="expense-more"
         type="button"
         :aria-label="`更多操作：${expense.note || expense.category}`"
@@ -31,7 +32,8 @@ import ExpenseItem from './ExpenseItem.vue';
 
 const props = defineProps({
   expense: { type: Object, required: true },
-  stageName: { type: String, default: '' }
+  stageName: { type: String, default: '' },
+  showMenu: { type: Boolean, default: true }
 });
 const emit = defineEmits(['select', 'edit', 'delete', 'menu']);
 const cellRef = ref(null);

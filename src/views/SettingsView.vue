@@ -23,75 +23,33 @@
           账本与备份
           <small :class="{ 'is-overdue': backupLoaded && backupInfo.overdue }">
             {{ backupLoaded ? backupInfo.text : '果冻在看看备份记录…' }}
-            <template v-if="backupLoaded && !backupInfo.overdue"> · 导出全部账本、导入或搬新家</template>
+            <template v-if="backupLoaded && !backupInfo.overdue"> · 打包、导入、导出 CSV</template>
           </small>
         </span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m9 6 6 6-6 6"></path>
         </svg>
       </button>
-      <button class="settings-action" type="button" @click="openYearSummary">
-        <span>
-          小票
-          <small>按月看支出小票、足迹和果冻的话</small>
-        </span>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M6 2.5h12v19l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4z"></path>
-          <path d="M9 7h6"></path>
-          <path d="M9 10.5h6"></path>
-          <path d="M9 14h4"></path>
-        </svg>
-      </button>
-      <button class="settings-action" type="button" @click="openSummary">
-        <span>
-          果冻的账本小结
-          <small>果冻风格图片，可以分享或保存</small>
-        </span>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="16" rx="3"></rect>
-          <circle cx="8.5" cy="9" r="1.5"></circle>
-          <path d="m5 17 5-5 4 4 2-2 3 3"></path>
-        </svg>
-      </button>
-      <button class="settings-action" type="button" @click="exportCsv">
-        <span>
-          导出这个账本的 CSV
-          <small>可以用 Excel 打开，带着账本标题</small>
-        </span>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 3v12"></path>
-          <path d="m7 10 5 5 5-5"></path>
-          <path d="M5 21h14"></path>
-        </svg>
-      </button>
     </section>
 
     <section class="settings-card">
-      <div class="settings-card-head">
-        <h2>本机存储</h2>
-        <span>{{ storageLoaded ? (storageState.persisted ? '已保护' : '未保护') : '…' }}</span>
-      </div>
-      <div class="settings-storage">
-        <div class="settings-storage-row">
-          <span>已用空间</span>
-          <strong>{{ storageLoaded ? storageUsageText : '—' }}</strong>
-        </div>
-        <p class="settings-storage-hint">{{ storageLoaded ? storageHint : '果冻在看看存储状态…' }}</p>
-        <button
-          v-if="storageState.canPersist"
-          class="settings-storage-btn"
-          type="button"
-          :disabled="storageBusy"
-          @click="requestStoragePersist"
-        >
-          {{ storageBusy ? '果冻在申请…' : '开启存储保护' }}
-        </button>
-      </div>
-    </section>
-
-    <section class="settings-card">
-      <div class="settings-card-head">
+      <div class="settings-card-head settings-card-head-theme">
         <h2>果冻的偏好</h2>
+        <div class="settings-theme-options" role="radiogroup" aria-label="外观主题">
+          <button
+            v-for="option in THEME_OPTIONS"
+            :key="option.key"
+            type="button"
+            class="settings-theme-chip"
+            :class="{ active: themeMode === option.key }"
+            role="radio"
+            :aria-checked="themeMode === option.key"
+            :aria-label="`外观：${option.label}`"
+            @click="setThemeMode(option.key)"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
       <button class="settings-action" type="button" @click="showCategories = true">
         <span>
@@ -124,40 +82,6 @@
         <template v-if="isIos">在 Safari 点底部 <b>分享</b>，再选 <b>添加到主屏幕</b>，果冻就住进去啦。</template>
         <template v-else>在浏览器菜单里选 <b>安装应用 / 添加到主屏幕</b> 就好啦。</template>
       </div>
-      <div class="settings-theme">
-        <span class="settings-theme-label">外观</span>
-        <div class="settings-theme-options" role="radiogroup" aria-label="外观主题">
-          <button
-            v-for="option in THEME_OPTIONS"
-            :key="option.key"
-            type="button"
-            class="settings-theme-chip"
-            :class="{ active: themeMode === option.key }"
-            role="radio"
-            :aria-checked="themeMode === option.key"
-            @click="setThemeMode(option.key)"
-          >
-            {{ option.label }}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section class="settings-card">
-      <div class="settings-card-head">
-        <h2>再逛逛</h2>
-      </div>
-      <button class="settings-action" type="button" @click="shareApp">
-        <span>
-          把果冻分享给朋友
-          <small>让朋友也来守财</small>
-        </span>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
-          <path d="M12 16V4"></path>
-          <path d="m8 8 4-4 4 4"></path>
-        </svg>
-      </button>
       <button class="settings-action" type="button" @click="showHelp = true">
         <span>
           果冻的使用说明
@@ -169,15 +93,44 @@
           <path d="M12 17h.01"></path>
         </svg>
       </button>
+      <button class="settings-action" type="button" @click="shareApp">
+        <span>
+          把果冻分享给朋友
+          <small>让朋友也来守财</small>
+        </span>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"></path>
+          <path d="M12 16V4"></path>
+          <path d="m8 8 4-4 4 4"></path>
+        </svg>
+      </button>
+    </section>
+
+    <section class="settings-card settings-storage-card">
+      <div class="settings-action settings-action-static">
+        <span>
+          本机存储
+          <small>{{ storageLoaded ? storageHint : '果冻在看看存储状态…' }}</small>
+        </span>
+        <span class="settings-storage-side">
+          <strong>{{ storageLoaded ? storageUsageText : '—' }}</strong>
+          <small>{{ storageLoaded ? (storageState.persisted ? '已保护' : '未保护') : '…' }}</small>
+          <button
+            v-if="storageState.canPersist"
+            class="settings-storage-btn"
+            type="button"
+            :disabled="storageBusy"
+            @click="requestStoragePersist"
+          >
+            {{ storageBusy ? '果冻在申请…' : '开启存储保护' }}
+          </button>
+        </span>
+      </div>
     </section>
 
     <p class="settings-privacy settings-privacy-plain">
       账目、账本和你的昵称头像都乖乖待在这台设备里，不会上传。语音识别由浏览器和系统提供，要不要上传音频要看浏览器的实现。
     </p>
-
-    <button class="settings-danger-link" type="button" @click="clearCurrentStage">
-      清空这个账本的花销
-    </button>
 
     <p class="settings-footer">
       守财小果 · 果冻陪你记账 · 数据只属于你
@@ -190,7 +143,12 @@
 
     <ProfileSheet v-model:show="showProfile" />
 
-    <BackupSheet v-model:show="showBackup" @import="openImport" />
+    <BackupSheet
+      v-model:show="showBackup"
+      @import="openImport"
+      @export-csv="exportCsv"
+      @clear-stage="clearCurrentStage"
+    />
 
     <ImportSheet
       v-model:show="showImport"
@@ -338,10 +296,6 @@ function openImport() {
   showImport.value = true;
 }
 
-function openYearSummary() {
-  router.push('/diary');
-}
-
 async function shareApp() {
   const url = `${window.location.origin}${window.location.pathname}`;
   const data = {
@@ -369,18 +323,6 @@ async function shareApp() {
   }
 }
 
-function openSummary() {
-  if (!currentStage.value) {
-    showToast('果冻还没有账本呢');
-    return;
-  }
-  if (!currentStageStats.value.count) {
-    showToast('这个账本果冻还没花过钱');
-    return;
-  }
-  sheets.openSummary(currentStage.value);
-}
-
 async function install() {
   if (standalone.value) {
     showToast('果冻已经住进桌面啦');
@@ -392,6 +334,7 @@ async function install() {
 }
 
 async function exportCsv() {
+  showBackup.value = false;
   if (!currentStage.value) {
     showToast('果冻还没有账本呢');
     return;
@@ -420,6 +363,7 @@ async function exportCsv() {
 }
 
 async function clearCurrentStage() {
+  showBackup.value = false;
   if (!currentStage.value) return;
   if (!currentStageStats.value.count) {
     showToast('这个账本果冻还没花过钱');

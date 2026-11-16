@@ -4,12 +4,15 @@
 
     <p class="backup-last">上次打包：{{ lastBackupText }}</p>
 
-    <div class="sheet-footer">
-      <button class="primary-btn" type="button" @click="exportBackup">
+    <div class="sheet-footer backup-footer">
+      <button class="primary-btn btn-block" type="button" @click="exportBackup">
         把全部账本打包带走
       </button>
       <button class="secondary-btn" type="button" @click="emit('import')">
         导入 / 搬新家
+      </button>
+      <button class="secondary-btn" type="button" @click="emit('export-csv')">
+        导出这个账本的 CSV
       </button>
     </div>
 
@@ -17,6 +20,10 @@
       <span>只住在本机</span>
       <span>不上传云端</span>
     </div>
+
+    <button class="settings-danger-link backup-danger" type="button" @click="emit('clear-stage')">
+      清空这个账本的花销
+    </button>
   </SheetFrame>
 </template>
 
@@ -31,7 +38,7 @@ import { exportBackupInWorker, saveBlob } from '../lib/dataClient';
 import { haptic } from '../utils/haptics';
 
 const show = defineModel('show', { type: Boolean, default: false });
-const emit = defineEmits(['import']);
+const emit = defineEmits(['import', 'export-csv', 'clear-stage']);
 
 const { stages } = useLedger();
 const { initAchievements } = useAchievements();

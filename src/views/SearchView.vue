@@ -208,6 +208,7 @@
                 :key="expense.id"
                 :expense="expense"
                 :stage-name="showStageName ? stageNameFor(expense) : ''"
+                :show-menu="false"
                 @select="openDaily"
                 @edit="editExpense"
                 @delete="removeSearchExpense"
