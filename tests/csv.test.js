@@ -3,19 +3,22 @@ import assert from 'node:assert/strict';
 import { buildStageCsv, parseCsv, parseStageCsv } from '../src/utils/csv.js';
 
 const stage = { name: '国庆旅行', budget: 1000 };
+
+// 导出用的是本地时间，测试数据也按本地时间构造，避免依赖运行环境的时区。
+const localDate = (month, day, hour, minute) => new Date(2026, month - 1, day, hour, minute);
+const exportedAt = localDate(10, 23, 16, 30);
+
 const expenses = [
   {
     amount: 35,
     category: '餐饮',
     note: '午饭',
-    spentAt: '2026-10-23T12:00:00+08:00'
+    spentAt: localDate(10, 23, 12, 0).toISOString()
   }
 ];
 
 test('CSV includes stage title and summary rows', () => {
-  const csv = buildStageCsv(stage, expenses, {
-    now: new Date('2026-10-23T16:30:00+08:00')
-  });
+  const csv = buildStageCsv(stage, expenses, { now: exportedAt });
 
   assert.ok(csv.startsWith('\ufeff'));
   assert.match(csv, /^﻿账本,国庆旅行/m);
@@ -30,7 +33,7 @@ test('CSV includes stage title and summary rows', () => {
 
 test('CSV can include a month title', () => {
   const csv = buildStageCsv(stage, expenses, {
-    now: new Date('2026-10-23T16:30:00+08:00'),
+    now: exportedAt,
     month: '2026-10'
   });
   assert.match(csv, /^月份,2026年10月$/m);
@@ -99,11 +102,11 @@ test('CSV import accepts valid rows', () => {
 
 test('CSV export neutralizes formula cells', () => {
   const csv = buildStageCsv(stage, [
-    { amount: 35, category: '餐饮', note: '=cmd|calc', spentAt: '2026-10-23T12:00:00+08:00' },
-    { amount: 20, category: '+购物', note: '@SUM(A1)', spentAt: '2026-10-23T12:00:00+08:00' },
-    { amount: 10, category: '餐饮', note: '-2+3+cmd', spentAt: '2026-10-23T12:00:00+08:00' },
-    { amount: 5, category: '餐饮', note: '-普通备注', spentAt: '2026-10-23T12:00:00+08:00' }
-  ], { now: new Date('2026-10-23T16:30:00+08:00') });
+    { amount: 35, category: '餐饮', note: '=cmd|calc', spentAt: localDate(10, 23, 12, 0).toISOString() },
+    { amount: 20, category: '+购物', note: '@SUM(A1)', spentAt: localDate(10, 23, 12, 0).toISOString() },
+    { amount: 10, category: '餐饮', note: '-2+3+cmd', spentAt: localDate(10, 23, 12, 0).toISOString() },
+    { amount: 5, category: '餐饮', note: '-普通备注', spentAt: localDate(10, 23, 12, 0).toISOString() }
+  ], { now: exportedAt });
 
   assert.match(csv, /,'=cmd\|calc,35\.00/);
   assert.match(csv, /,'\+购物,/);
@@ -114,8 +117,8 @@ test('CSV export neutralizes formula cells', () => {
 
 test('CSV export keeps negative numeric cells untouched', () => {
   const csv = buildStageCsv(stage, [
-    { amount: -5, category: '餐饮', note: '退了', spentAt: '2026-10-23T12:00:00+08:00' }
-  ], { now: new Date('2026-10-23T16:30:00+08:00') });
+    { amount: -5, category: '餐饮', note: '退了', spentAt: localDate(10, 23, 12, 0).toISOString() }
+  ], { now: exportedAt });
   assert.match(csv, /,-5\.00$/m);
 });
 
