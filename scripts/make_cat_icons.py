@@ -211,6 +211,7 @@ def main():
         write_png(os.path.join(PUBLIC, name), size, size, flatten(resized, size, size), 2)
 
     splashes = (
+        # iPhone
         (750, 1334, 2),
         (1125, 2436, 3),
         (828, 1792, 2),
@@ -218,7 +219,14 @@ def main():
         (1179, 2556, 3),
         (1206, 2622, 3),
         (1290, 2796, 3),
-        (1320, 2868, 3)
+        (1320, 2868, 3),
+        # iPad
+        (768, 1024, 2),
+        (810, 1080, 2),
+        (820, 1180, 2),
+        (834, 1112, 2),
+        (834, 1194, 2),
+        (1024, 1366, 2)
     )
     for width, height, dpr in splashes:
         icon_size = int(SPLASH_CAT_CSS * dpr + 0.5)

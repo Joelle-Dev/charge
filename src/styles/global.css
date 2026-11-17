@@ -2932,6 +2932,13 @@ input[type='search']::-webkit-search-decoration {
   color: var(--accent-strong);
 }
 
+.install-note {
+  margin: 8px 2px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 /* 使用帮助 */
 .help-list {
   display: grid;

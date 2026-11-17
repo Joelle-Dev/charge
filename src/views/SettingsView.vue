@@ -82,6 +82,9 @@
         <template v-if="isIos">在 Safari 点底部 <b>分享</b>，再选 <b>添加到主屏幕</b>，果冻就住进去啦。</template>
         <template v-else>在浏览器菜单里选 <b>安装应用 / 添加到主屏幕</b> 就好啦。</template>
       </div>
+      <p v-if="standalone && isIos" class="install-note">
+        启动画面会自己更新；换图标时 iOS 需要删掉旧图标重新添加，记得先打包账本。
+      </p>
       <button class="settings-action" type="button" @click="showHelp = true">
         <span>
           果冻的使用说明

@@ -1,8 +1,26 @@
 import { defineConfig, loadEnv } from 'vite';
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import Components from 'unplugin-vue-components/vite';
 import { VantResolver } from '@vant/auto-import-resolver';
 import { VitePWA } from 'vite-plugin-pwa';
+
+// iOS 只在启动时按 URL 取启动图，URL 不变就一直用旧的。
+// 用启动图内容哈希做版本号，图片一换 URL 就变，无需重建主屏幕图标。
+function splashVersion() {
+  try {
+    const dir = join(process.cwd(), 'public', 'icons');
+    const files = readdirSync(dir).filter((name) => name.startsWith('splash-')).sort();
+    if (!files.length) return '0';
+    const hash = createHash('sha256');
+    for (const name of files) hash.update(readFileSync(join(dir, name)));
+    return hash.digest('hex').slice(0, 10);
+  } catch (err) {
+    return '0';
+  }
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -10,6 +28,7 @@ export default defineConfig(({ mode }) => {
   const scope = env.VITE_APP_SCOPE || startUrl;
   const publicUrl = (env.VITE_APP_PUBLIC_URL || 'https://joelle-dev.github.io/charge/')
     .replace(/\/?$/, '/');
+  const iconVersion = splashVersion();
 
   return {
     base: './',
@@ -26,7 +45,9 @@ export default defineConfig(({ mode }) => {
       {
         name: 'app-public-url',
         transformIndexHtml(html) {
-          return html.replaceAll('__APP_PUBLIC_URL__', publicUrl);
+          return html
+            .replaceAll('__APP_PUBLIC_URL__', publicUrl)
+            .replaceAll('__APP_ICON_VERSION__', iconVersion);
         }
       },
       vue(),
