@@ -194,7 +194,7 @@ async function removeStage() {
     await showConfirmDialog({
       title: '删掉这个账本',
       message: recoverable
-        ? `要把「${stage.name}」和里面的 ${count} 笔花销一起删掉吗？删掉后 4 秒内可以撤销。`
+        ? `要把「${stage.name}」和里面的 ${count} 笔花销一起删掉吗？删掉后 8 秒内可以撤销。`
         : `「${stage.name}」里有 ${count} 笔花销，删掉就找不回来啦。建议先导出备份。`,
       confirmButtonText: '删掉吧',
       confirmButtonColor: DANGER_COLOR

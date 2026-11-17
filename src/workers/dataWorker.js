@@ -15,7 +15,7 @@ import {
 import { toMessage } from '../lib/errors.js';
 import { buildStageCsv, parseStageCsv } from '../utils/csv.js';
 import { DEFAULT_CATEGORY } from '../lib/parser.js';
-import { roundCents, toDateInput, uid } from '../utils/format.js';
+import { isStageColor, roundCents, toDateInput, uid } from '../utils/format.js';
 import { monthBounds } from '../utils/months.js';
 import { normalizeProfile } from '../utils/profile.js';
 import { rebuildDerivedData, STATS_VERSION } from '../lib/stats.js';
@@ -652,7 +652,7 @@ async function importBackup({ mode = 'replace' }) {
     const id = replace ? stage.id : uid('stage');
     stageMap.set(stage.id, id);
     const budget = Number(stage.budget);
-    return {
+    const record = {
       id,
       name: String(stage.name || '').trim(),
       budget: Number.isFinite(budget) && budget > 0 ? Math.round(budget * 100) / 100 : null,
@@ -660,6 +660,9 @@ async function importBackup({ mode = 'replace' }) {
       createdAt: Number(stage.createdAt) || now,
       updatedAt: now
     };
+    // 自定义书脊颜色要跟着备份一起搬，非法值直接丢掉回落到名字哈希。
+    if (isStageColor(stage.color)) record.color = stage.color;
+    return record;
   });
 
   for (const stage of manifest.stages) {
