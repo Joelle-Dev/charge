@@ -45,6 +45,30 @@
               <path d="m5 12 4.5 4.5L19 7"></path>
             </svg>
           </button>
+
+          <label
+            class="stage-color-cell stage-color-custom"
+            :class="{ active: isCustomColor, 'is-picked': isCustomColor }"
+            :style="isCustomColor ? { '--swatch': color } : null"
+            :aria-label="isCustomColor ? `自定义颜色，当前 ${color}` : '自定义颜色'"
+          >
+            <svg v-if="!isCustomColor" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-7-9-7Z"></path>
+              <circle cx="7.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"></circle>
+              <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none"></circle>
+              <circle cx="16.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"></circle>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m5 12 4.5 4.5L19 7"></path>
+            </svg>
+            <input
+              :value="color"
+              class="stage-color-input"
+              type="color"
+              aria-label="选择自定义颜色"
+              @input="pickColor($event.target.value)"
+            >
+          </label>
         </div>
       </div>
 
@@ -74,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { showConfirmDialog, showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
 import { useLedger, UNDO_DELETE_STAGE_MAX } from '../composables/useLedger';
@@ -106,9 +130,14 @@ const error = ref('');
 const busy = ref(false);
 
 function pickColor(value) {
-  color.value = value;
+  color.value = String(value || '').toLowerCase();
   haptic('light');
 }
+
+// 当前颜色不在 10 个预设里时，说明是用户自己调的，让自定义格高亮。
+const isCustomColor = computed(() => (
+  Boolean(color.value) && !STAGE_COLORS.some((option) => option.value === color.value)
+));
 
 watch(
   [show, editingStage, stageDraftName],

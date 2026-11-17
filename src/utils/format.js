@@ -140,12 +140,17 @@ export const STAGE_COLORS = [
 
 const STAGE_COLOR_VALUES = new Set(STAGE_COLORS.map((item) => item.value));
 
+// 只放行 #rrggbb：颜色会直接写进 CSS 变量和备份文件（用户可手改），
+// 严格格式既能支持自由选色，又挡掉任意字符串注入。
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
 export function isStageColor(value) {
-  return STAGE_COLOR_VALUES.has(String(value || ''));
+  const color = String(value || '');
+  return STAGE_COLOR_VALUES.has(color) || HEX_COLOR.test(color);
 }
 
 export function stageColor(stage) {
-  // 只接受调色板内的值，避免备份里混进任意字符串（会被塞进 CSS 变量）。
+  // 只接受合法十六进制色，避免备份里混进任意字符串（会被塞进 CSS 变量）。
   if (stage && typeof stage === 'object' && isStageColor(stage.color)) return stage.color;
   const seed = typeof stage === 'string'
     ? stage
