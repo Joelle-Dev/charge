@@ -38,13 +38,24 @@
       </button>
 
       <HeroSummary />
+
+      <div v-if="backupNotice" class="backup-notice" role="status">
+        <span>{{ backupNotice }}</span>
+        <button class="backup-notice-link" type="button" @click="openBackup">去打包</button>
+        <button class="backup-notice-close" type="button" aria-label="先不提醒" @click="dismissBackupNotice">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M18 6 6 18M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
       <StageLedgerList />
     </div>
   </Transition>
 </template>
 
 <script setup>
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLedger } from '../composables/useLedger';
 import { useProfile } from '../composables/useProfile';
@@ -54,6 +65,8 @@ import HeroSummary from '../components/HeroSummary.vue';
 import ProfileAvatar from '../components/ProfileAvatar.vue';
 import StageLedgerList from '../components/StageLedgerList.vue';
 import { greetingForHour } from '../utils/profile';
+import { backupReminder } from '../utils/backupReminder';
+import { getSetting, setSetting } from '../lib/db';
 
 const {
   ready,
@@ -73,9 +86,55 @@ const entering = ref(false);
 let enteredOnce = false;
 let enterTimer = 0;
 
+// 备份提醒：只在设置了「今天先不提醒」之外的隔天出现，避免天天弹。
+const BACKUP_SNOOZE_KEY = 'backupNoticeSnoozedAt';
+let backupSnoozedAt = 0;
+const backupInfo = ref(null);
+
+const backupNotice = computed(() => {
+  if (!currentStage.value || !backupInfo.value?.overdue) return '';
+  if (isSnoozedToday()) return '';
+  return backupInfo.value.text;
+});
+
+function isSnoozedToday() {
+  if (!backupSnoozedAt) return false;
+  const snoozed = new Date(backupSnoozedAt);
+  const today = new Date();
+  return snoozed.toDateString() === today.toDateString();
+}
+
+async function loadBackupNotice() {
+  try {
+    const [lastBackupAt, snoozed] = await Promise.all([
+      getSetting('lastBackupAt', null),
+      getSetting(BACKUP_SNOOZE_KEY, null)
+    ]);
+    backupSnoozedAt = Number(snoozed) || 0;
+    backupInfo.value = backupReminder(lastBackupAt ? Number(lastBackupAt) : null);
+  } catch (err) {
+    backupInfo.value = null;
+  }
+}
+
+async function dismissBackupNotice() {
+  backupSnoozedAt = Date.now();
+  try {
+    await setSetting(BACKUP_SNOOZE_KEY, backupSnoozedAt);
+  } catch (err) {
+    // 存不进去也没关系，本次会话内先隐藏。
+  }
+}
+
+function openBackup() {
+  router.push('/settings');
+}
+
 function openProfile() {
   router.push('/settings');
 }
+
+onMounted(loadBackupNotice);
 
 watch(ready, (isReady) => {
   if (!isReady || enteredOnce) return;

@@ -1,4 +1,4 @@
-import { pad2, toDateInput } from './format.js';
+import { pad2, roundCents, toDateInput } from './format.js';
 import { addMonths, monthLabel } from './months.js';
 
 export const TREND_PERIODS = ['week', 'month', 'year'];
@@ -69,7 +69,7 @@ function sumRange(days, from, to) {
   let total = 0;
   let key = from;
   while (key <= to) {
-    total += days.get(key) || 0;
+    total = roundCents(total + (days.get(key) || 0));
     key = addDays(key, 1);
   }
   return total;

@@ -107,3 +107,35 @@ test('stats entries use storage key prefixes', () => {
   assert.equal(state.days.get('2026-01-02').count, 2);
   assert.equal(state.months.get('s1|2026-01').total, 100);
 });
+
+test('floating point amounts stay exact at the cent level', () => {
+  // 0.1 + 0.2 + 0.3 在浮点里是 0.6000000000000001，
+  // 会让「预算刚好花完」被误判成「花超 ¥0」。
+  const state = buildStatsFromExpenses([
+    expense('a', 's1', 0.1, '餐饮', new Date(2026, 0, 2)),
+    expense('b', 's1', 0.2, '餐饮', new Date(2026, 0, 2)),
+    expense('c', 's1', 0.3, '餐饮', new Date(2026, 0, 2))
+  ]);
+
+  assert.equal(state.global.total, 0.6);
+  assert.equal(state.stages.get('s1').total, 0.6);
+  assert.equal(state.days.get('2026-01-02').total, 0.6);
+  assert.equal(state.stages.get('s1').categories['餐饮'].amount, 0.6);
+
+  const summary = buildStageSummaryFromState({ id: 's1', name: 'x', budget: 0.6 }, state);
+  assert.equal(summary.total, 0.6);
+  assert.equal(summary.remaining, 0);
+});
+
+test('removing expenses keeps totals exact', () => {
+  const list = [
+    expense('a', 's1', 0.1, '餐饮', new Date(2026, 0, 2)),
+    expense('b', 's1', 0.2, '餐饮', new Date(2026, 0, 2)),
+    expense('c', 's1', 0.3, '餐饮', new Date(2026, 0, 2))
+  ];
+  const state = buildStatsFromExpenses(list);
+  applyExpenseDelta(state, list[1], -1);
+
+  assert.equal(state.global.total, 0.4);
+  assert.equal(state.stages.get('s1').total, 0.4);
+});

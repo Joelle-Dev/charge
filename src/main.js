@@ -48,10 +48,29 @@ const buildLabel = Number.isNaN(buildDate.getTime())
     minute: '2-digit'
   });
 let refreshPrompting = false;
+const UPDATE_SNOOZE_KEY = 'shoucai:updateSnoozed';
+
+function wasSnoozedToday() {
+  try {
+    return sessionStorage.getItem(UPDATE_SNOOZE_KEY) === '1';
+  } catch (err) {
+    return false;
+  }
+}
+
+function snoozeUpdate() {
+  try {
+    sessionStorage.setItem(UPDATE_SNOOZE_KEY, '1');
+  } catch (err) {
+    // 隐私模式下写不进去，下次启动会再提醒一次，可接受。
+  }
+}
 
 const updateSW = registerSW({
   onNeedRefresh() {
     if (refreshPrompting) return;
+    // 同一个会话里点过「稍后」就不再打扰，下次打开再提醒。
+    if (wasSnoozedToday()) return;
     refreshPrompting = true;
     showConfirmDialog({
       title: '果冻换新衣服啦',
@@ -59,11 +78,12 @@ const updateSW = registerSW({
         ? `更新一下就能用新版本啦（${buildLabel}）`
         : '更新一下就能用新版本啦',
       confirmButtonText: '立即更新',
-      showCancelButton: false,
-      closeOnClickOverlay: false
+      cancelButtonText: '稍后',
+      showCancelButton: true,
+      closeOnClickOverlay: true
     })
       .then(() => updateSW(true))
-      .catch(() => {})
+      .catch(() => snoozeUpdate())
       .finally(() => {
         refreshPrompting = false;
       });
@@ -132,3 +152,35 @@ document.addEventListener(
   },
   { passive: false }
 );
+
+// 离线时语音识别必然失败，提前告诉用户原因，别让他以为是麦克风坏了。
+let offlineToastShown = false;
+function reportOffline() {
+  if (offlineToastShown) return;
+  offlineToastShown = true;
+  showToast('现在没网啦，记账照常用，语音要先连上网');
+}
+
+window.addEventListener('offline', reportOffline);
+if (navigator.onLine === false) reportOffline();
+window.addEventListener('online', () => {
+  offlineToastShown = false;
+});
+
+// Vant 的 toast 没有 aria-live，屏幕阅读器不会播报。
+// 这里统一给出现的 toast 容器补上，避免在每个调用点重复写。
+if (typeof MutationObserver === 'function') {
+  const labelToast = (node) => {
+    if (node.nodeType !== 1) return;
+    const toast = node.classList?.contains('van-toast') ? node : node.querySelector?.('.van-toast');
+    if (!toast) return;
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+  };
+
+  new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) labelToast(node);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+}

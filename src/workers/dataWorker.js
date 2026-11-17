@@ -15,7 +15,7 @@ import {
 import { toMessage } from '../lib/errors.js';
 import { buildStageCsv, parseStageCsv } from '../utils/csv.js';
 import { DEFAULT_CATEGORY } from '../lib/parser.js';
-import { toDateInput, uid } from '../utils/format.js';
+import { roundCents, toDateInput, uid } from '../utils/format.js';
 import { monthBounds } from '../utils/months.js';
 import { normalizeProfile } from '../utils/profile.js';
 import { rebuildDerivedData, STATS_VERSION } from '../lib/stats.js';
@@ -270,7 +270,7 @@ async function parseCsv({ file }) {
   const categories = new Set();
 
   for (const expense of expenses) {
-    total += Number(expense.amount) || 0;
+    total = roundCents(total + (Number(expense.amount) || 0));
     const time = new Date(expense.spentAt).getTime();
     if (Number.isFinite(time)) {
       if (time < minTime) minTime = time;

@@ -4,6 +4,7 @@ import {
   getAll,
   getRecord,
   putRecord,
+  putMany,
   deleteRecord,
   deleteByIndexRange,
   getSetting,
@@ -23,7 +24,7 @@ import {
   reorderCategoryList,
   seedCategories
 } from '../utils/categories';
-import { combineLocal, roundCents, toDateInput, uid } from '../utils/format';
+import { combineLocal, isStageColor, roundCents, toDateInput, uid } from '../utils/format';
 import { addCategoryTotal, finalizeCategoryTotals } from '../utils/expenses';
 import { currentMonthKey, monthBounds, monthKey } from '../utils/months';
 import { catTitleForCategory } from '../utils/titles';
@@ -664,7 +665,7 @@ function undoMergeStages(snapshot) {
   return withLedgerLock(() => undoMergeStagesUnlocked(snapshot));
 }
 
-async function createStage({ name, budget }) {
+async function createStage({ name, budget, color }) {
   const now = Date.now();
   const record = {
     id: uid('stage'),
@@ -674,6 +675,7 @@ async function createStage({ name, budget }) {
     createdAt: now,
     updatedAt: now
   };
+  if (isStageColor(color)) record.color = color;
   await putRecord('stages', record);
   await reloadStages();
   currentStageId.value = record.id;
@@ -694,6 +696,9 @@ async function updateStage(stage, patch) {
   // 只有显式带 budget 的 patch 才动预算，避免顺手把预算清掉
   if ('budget' in patch) {
     record.budget = patch.budget && patch.budget > 0 ? patch.budget : null;
+  }
+  if ('color' in patch && !isStageColor(patch.color)) {
+    delete record.color;
   }
   await putRecord('stages', record);
   await reloadStages();
@@ -724,6 +729,22 @@ async function restoreStage(stage) {
   dataVersion.value += 1;
 }
 
+// 撤销删除账本需要把整本明细留在内存里，笔数太多会吃光内存，
+// 所以只在小账本上提供撤销，大账本直接提示无法撤销。
+export const UNDO_DELETE_STAGE_MAX = 2000;
+
+async function loadStageExpensesForUndo(stageId) {
+  const rows = await getAllByIndex('expenses', 'stageId', IDBKeyRange.only(stageId));
+  if (rows.length > UNDO_DELETE_STAGE_MAX) return null;
+  return rows;
+}
+
+// 删除前先把明细读进内存，撤销时才能写回。
+// 超过上限返回 null，调用方据此不给撤销入口。
+async function loadStageExpensesSnapshot(stageId) {
+  return loadStageExpensesForUndo(stageId);
+}
+
 function deleteStage(stage) {
   return withLedgerLock(async () => {
     await setSetting('statsDirty', true);
@@ -735,6 +756,42 @@ function deleteStage(stage) {
     await rebuildAndApplyStatsUnlocked();
     await refreshStageViews();
     dataVersion.value += 1;
+  });
+}
+
+function restoreDeletedStage(stage, expenses) {
+  return withLedgerLock(async () => {
+    await putMany('stages', [stage]);
+    if (expenses.length) await putMany('expenses', expenses);
+    await reloadStages();
+    await ensureCurrentStage();
+    await rebuildAndApplyStatsUnlocked();
+    await refreshStageViews();
+    dataVersion.value += 1;
+    return true;
+  });
+}
+
+function clearStageExpensesWithUndo(stageId) {
+  return withLedgerLock(async () => {
+    const rows = await loadStageExpensesForUndo(stageId);
+    await setSetting('statsDirty', true);
+    await deleteByIndexRange('expenses', 'stageId', stageId);
+    await rebuildAndApplyStatsUnlocked();
+    await refreshStageViews();
+    dataVersion.value += 1;
+    return rows;
+  });
+}
+
+function restoreStageExpenses(expenses) {
+  return withLedgerLock(async () => {
+    if (!expenses.length) return false;
+    await putMany('expenses', expenses);
+    await rebuildAndApplyStatsUnlocked();
+    await refreshStageViews();
+    dataVersion.value += 1;
+    return true;
   });
 }
 
@@ -929,6 +986,10 @@ export function useLedger() {
     archiveStage,
     restoreStage,
     deleteStage,
+    restoreDeletedStage,
+    clearStageExpensesWithUndo,
+    restoreStageExpenses,
+    loadStageExpensesSnapshot,
     addExpenses,
     addExpense,
     updateExpense,

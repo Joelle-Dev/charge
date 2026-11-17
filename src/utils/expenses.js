@@ -1,5 +1,5 @@
 import { DEFAULT_CATEGORY } from '../lib/parser.js';
-import { dayKey, dayLabel } from './format.js';
+import { dayKey, dayLabel, roundCents } from './format.js';
 
 export function groupExpensesByDay(expenses = []) {
   const groups = new Map();
@@ -12,7 +12,7 @@ export function groupExpensesByDay(expenses = []) {
       groups.set(key, group);
     }
     group.items.push(expense);
-    group.total += Number(expense.amount) || 0;
+    group.total = roundCents(group.total + (Number(expense.amount) || 0));
   }
 
   return [...groups.values()];
@@ -23,14 +23,14 @@ export function addCategoryTotal(totals, expense) {
   if (!amount) return;
   const category = expense.category || DEFAULT_CATEGORY;
   const item = totals.get(category) || { category, amount: 0, count: 0 };
-  item.amount += amount;
+  item.amount = roundCents(item.amount + amount);
   item.count += 1;
   totals.set(category, item);
 }
 
 export function finalizeCategoryTotals(totals) {
   const items = [...totals.values()].sort((a, b) => b.amount - a.amount);
-  const total = items.reduce((sum, item) => sum + item.amount, 0);
+  const total = items.reduce((sum, item) => roundCents(sum + item.amount), 0);
   for (const item of items) {
     item.percent = total ? (item.amount / total) * 100 : 0;
   }

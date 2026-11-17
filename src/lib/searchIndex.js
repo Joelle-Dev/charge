@@ -1,7 +1,8 @@
 import { monthKey } from '../utils/months.js';
-import { formatMoney } from '../utils/format.js';
+import { formatMoney, roundCents } from '../utils/format.js';
 
-export const SEARCH_VERSION = 4;
+// 5：合计金额按分取整，避免浮点累加让搜索结果合计带误差。
+export const SEARCH_VERSION = 5;
 export const SEARCH_BUILDING_VERSION = -1;
 
 export function searchTextForExpense(expense) {
@@ -49,7 +50,7 @@ export function searchChunkStats(rows = []) {
   let sum = 0;
   let latest = '';
   for (const row of rows) {
-    sum += Number(row.a ?? row.amount) || 0;
+    sum = roundCents(sum + (Number(row.a ?? row.amount) || 0));
     const time = searchEntryTime(row);
     if (time > latest) latest = time;
   }

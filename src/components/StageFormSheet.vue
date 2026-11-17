@@ -26,6 +26,28 @@
         >
       </label>
 
+      <div class="field">
+        <span class="field-label">书脊颜色</span>
+        <div class="stage-color-grid" role="radiogroup" aria-label="账本颜色">
+          <button
+            v-for="option in STAGE_COLORS"
+            :key="option.key"
+            class="stage-color-cell"
+            :class="{ active: color === option.value }"
+            type="button"
+            role="radio"
+            :aria-checked="color === option.value"
+            :aria-label="option.label"
+            :style="{ '--swatch': option.value }"
+            @click="pickColor(option.value)"
+          >
+            <svg v-if="color === option.value" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m5 12 4.5 4.5L19 7"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
       <p v-if="error" class="form-error">{{ error }}</p>
 
       <div class="form-actions">
@@ -55,13 +77,16 @@
 import { ref, watch } from 'vue';
 import { showConfirmDialog, showToast } from 'vant';
 import SheetFrame from './SheetFrame.vue';
-import { useLedger } from '../composables/useLedger';
+import { useLedger, UNDO_DELETE_STAGE_MAX } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
+import { useUndo } from '../composables/useUndo';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
+import { STAGE_COLORS, stageColor } from '../utils/format';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
+const { showUndo } = useUndo();
 const { editingStage, stageDraftName } = sheets;
 const {
   createStage,
@@ -69,13 +94,21 @@ const {
   archiveStage,
   restoreStage,
   deleteStage,
+  restoreDeletedStage,
+  loadStageExpensesSnapshot,
   stageStats
 } = useLedger();
 
 const name = ref('');
 const budget = ref('');
+const color = ref('');
 const error = ref('');
 const busy = ref(false);
+
+function pickColor(value) {
+  color.value = value;
+  haptic('light');
+}
 
 watch(
   [show, editingStage, stageDraftName],
@@ -84,6 +117,10 @@ watch(
     const stage = editingStage.value;
     name.value = stage?.name || stageDraftName.value || '';
     budget.value = stage?.budget ? String(stage.budget) : '';
+    // 没设过颜色时，用名字哈希出来的默认色，让选择器起点与书架一致。
+    color.value = stage
+      ? stageColor(stage)
+      : stageColor({ name: stageDraftName.value });
     error.value = '';
   }
 );
@@ -108,11 +145,11 @@ async function save() {
   busy.value = true;
   try {
     if (editingStage.value) {
-      await updateStage(editingStage.value, { name: trimmed, budget: budgetValue });
+      await updateStage(editingStage.value, { name: trimmed, budget: budgetValue, color: color.value });
       haptic('success');
       showToast('账本改好啦');
     } else {
-      await createStage({ name: trimmed, budget: budgetValue });
+      await createStage({ name: trimmed, budget: budgetValue, color: color.value });
       haptic('success');
       showToast(`「${trimmed}」建好啦`);
     }
@@ -152,10 +189,13 @@ async function removeStage() {
   const stage = editingStage.value;
   if (!stage) return;
   const count = stageStats(stage.id).count;
+  const recoverable = count <= UNDO_DELETE_STAGE_MAX;
   try {
     await showConfirmDialog({
       title: '删掉这个账本',
-      message: `要把「${stage.name}」和里面的 ${count} 笔花销一起删掉吗？删掉就找不回来啦。`,
+      message: recoverable
+        ? `要把「${stage.name}」和里面的 ${count} 笔花销一起删掉吗？删掉后 4 秒内可以撤销。`
+        : `「${stage.name}」里有 ${count} 笔花销，删掉就找不回来啦。建议先导出备份。`,
       confirmButtonText: '删掉吧',
       confirmButtonColor: DANGER_COLOR
     });
@@ -164,10 +204,26 @@ async function removeStage() {
   }
   busy.value = true;
   try {
+    const snapshot = recoverable && count > 0 ? await loadStageExpensesSnapshot(stage.id) : null;
+    const snapshotStage = { ...stage };
     await deleteStage(stage);
     haptic('warning');
-    showToast('账本删掉啦');
     show.value = false;
+
+    if (snapshot) {
+      showUndo(`「${stage.name}」删掉啦`, async () => {
+        try {
+          await restoreDeletedStage(snapshotStage, snapshot);
+          haptic('success');
+          showToast(`「${stage.name}」回来啦`);
+        } catch (err) {
+          console.error('恢复账本失败', err);
+          showToast('没找回来，再试试吧');
+        }
+      }, 8000);
+    } else {
+      showToast('账本删掉啦');
+    }
   } catch (err) {
     console.error('删除账本失败', err);
     showToast('没删掉，再试试吧');

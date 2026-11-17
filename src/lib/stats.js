@@ -12,7 +12,7 @@ import {
   scanIndex
 } from './db.js';
 import { DEFAULT_CATEGORY } from './parser.js';
-import { dayKey } from '../utils/format.js';
+import { dayKey, roundCents } from '../utils/format.js';
 import { monthKey } from '../utils/months.js';
 import { catTitleForCategory } from '../utils/titles.js';
 import {
@@ -22,7 +22,9 @@ import {
   SEARCH_BUILDING_VERSION
 } from './searchIndex.js';
 
-export const STATS_VERSION = 4;
+// 5：累加改为按分取整，修复 0.1+0.2+0.3 导致的「预算刚好花完却显示花超 ¥0」；
+// 老数据里已带浮点误差，靠版本号触发一次重建。
+export const STATS_VERSION = 5;
 
 function emptyGlobal() {
   return { key: 'global', count: 0, total: 0, minDate: '', maxDate: '', recordDays: 0 };
@@ -151,29 +153,31 @@ export function applyExpenseDelta(state, expense, sign = 1) {
   const stageId = expense.stageId;
   const category = expense.category || DEFAULT_CATEGORY;
 
+  // 金额都以「分」为准取整后再累加，否则 0.1+0.2+0.3 会得到
+  // 0.6000000000000001，导致「预算刚好花完」被误判成「花超 ¥0」。
   state.global.count += sign;
-  state.global.total += sign * amount;
+  state.global.total = roundCents(state.global.total + sign * amount);
   updateDateRange(state.global, day, sign);
 
   const stage = ensureStage(state, stageId);
   stage.count += sign;
-  stage.total += sign * amount;
+  stage.total = roundCents(stage.total + sign * amount);
   updateDateRange(stage, day, sign);
   const categoryStats = ensureCategoryStats(stage.categories, category);
   categoryStats.count += sign;
-  categoryStats.amount += sign * amount;
+  categoryStats.amount = roundCents(categoryStats.amount + sign * amount);
 
   const dayBucket = ensureBucket(state.days, day);
   dayBucket.count += sign;
-  dayBucket.total += sign * amount;
+  dayBucket.total = roundCents(dayBucket.total + sign * amount);
 
   const monthBucket = ensureBucket(state.months, `${stageId}|${month}`);
   monthBucket.count += sign;
-  monthBucket.total += sign * amount;
+  monthBucket.total = roundCents(monthBucket.total + sign * amount);
 
   const stageDayBucket = ensureBucket(state.stageDays, `${stageId}|${day}`);
   stageDayBucket.count += sign;
-  stageDayBucket.total += sign * amount;
+  stageDayBucket.total = roundCents(stageDayBucket.total + sign * amount);
 
   if (sign < 0) {
     dropBucketIfEmpty(state.days, day);
@@ -309,23 +313,23 @@ export async function applyRuntimeExpenseDeltas(state, ops = []) {
     const dayWasEmpty = dayBucket.count <= 0;
 
     dayBucket.count += sign;
-    dayBucket.total += sign * amount;
+    dayBucket.total = roundCents(dayBucket.total + sign * amount);
     stageDayBucket.count += sign;
-    stageDayBucket.total += sign * amount;
+    stageDayBucket.total = roundCents(stageDayBucket.total + sign * amount);
     monthBucket.count += sign;
-    monthBucket.total += sign * amount;
+    monthBucket.total = roundCents(monthBucket.total + sign * amount);
 
     state.global.count += sign;
-    state.global.total += sign * amount;
+    state.global.total = roundCents(state.global.total + sign * amount);
     updateDateRange(state.global, day, sign);
 
     const stage = ensureStage(state, stageId);
     stage.count += sign;
-    stage.total += sign * amount;
+    stage.total = roundCents(stage.total + sign * amount);
     updateDateRange(stage, day, sign);
     const categoryStats = ensureCategoryStats(stage.categories, category);
     categoryStats.count += sign;
-    categoryStats.amount += sign * amount;
+    categoryStats.amount = roundCents(categoryStats.amount + sign * amount);
 
     if (sign > 0) {
       if (dayWasEmpty) state.global.recordDays = (state.global.recordDays || 0) + 1;
@@ -483,7 +487,7 @@ export async function loadDayTotals({ stageIds = [] } = {}) {
     const key = dayKey(date);
     const bucket = totals.get(key) || { key, count: 0, total: 0 };
     bucket.count += 1;
-    bucket.total += Number(expense.amount) || 0;
+    bucket.total = roundCents(bucket.total + (Number(expense.amount) || 0));
     totals.set(key, bucket);
   };
 

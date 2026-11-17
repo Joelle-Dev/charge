@@ -138,3 +138,15 @@ test('mergeStageTotals survives prototype-polluting category names', () => {
   assert.equal(Object.prototype.count, undefined);
   assert.equal(Object.prototype.amount, undefined);
 });
+
+test('mergeStageTotals keeps totals exact at the cent level', () => {
+  const stats = new Map([
+    ['a', { count: 1, total: 0.1, categories: { 餐饮: { count: 1, amount: 0.1 } } }],
+    ['b', { count: 1, total: 0.2, categories: { 餐饮: { count: 1, amount: 0.2 } } }],
+    ['c', { count: 1, total: 0.3, categories: { 餐饮: { count: 1, amount: 0.3 } } }]
+  ]);
+  const merged = mergeStageTotals([{ id: 'a' }, { id: 'b' }, { id: 'c' }], (id) => stats.get(id));
+
+  assert.equal(merged.total, 0.6);
+  assert.equal(merged.categories['餐饮'].amount, 0.6);
+});

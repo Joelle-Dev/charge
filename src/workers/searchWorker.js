@@ -18,6 +18,7 @@ import {
   SEARCH_BUILDING_VERSION,
   sortSearchChunksByRecency
 } from '../lib/searchIndex.js';
+import { roundCents } from '../utils/format.js';
 import { rebuildDerivedData } from '../lib/stats.js';
 import { toMessage } from '../lib/errors.js';
 import { monthBounds } from '../utils/months.js';
@@ -123,7 +124,7 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
         const full = chunkFullyCovered(meta, fromIso, toIso);
         if (full) {
           count += Number(meta.count) || 0;
-          sum += Number(meta.sum) || 0;
+          sum = roundCents(sum + (Number(meta.sum) || 0));
           if (ids.length < maxIds) {
             const chunk = await getChunk(meta);
             for (const row of chunk?.rows || []) {
@@ -136,7 +137,7 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
           for (const row of chunk?.rows || []) {
             if (!matchesSearchDate(row, fromIso, toIso)) continue;
             count += 1;
-            sum += Number(row.a ?? row.amount) || 0;
+            sum = roundCents(sum + (Number(row.a ?? row.amount) || 0));
             if (ids.length < maxIds) ids.push(row.id);
           }
         }
@@ -169,7 +170,7 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
     if (!hasRowFilters && chunkHasStats(chunk)) {
       if (full) {
         count += chunk.count;
-        sum += chunk.sum;
+        sum = roundCents(sum + (Number(chunk.sum) || 0));
         if (ids.length < maxIds) {
           for (const row of chunk.rows || []) {
             ids.push(row.id);
@@ -180,7 +181,7 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
         for (const row of chunk.rows || []) {
           if (!matchesSearchDate(row, fromIso, toIso)) continue;
           count += 1;
-          sum += Number(row.a ?? row.amount) || 0;
+          sum = roundCents(sum + (Number(row.a ?? row.amount) || 0));
           if (ids.length < maxIds) ids.push(row.id);
         }
       }
@@ -192,7 +193,7 @@ async function search({ requestId, stageId, stageIds, query, category, limit, mi
           matchesSearchAmount(row, min, max)
         ) {
           count += 1;
-          sum += Number(row.a ?? row.amount) || 0;
+          sum = roundCents(sum + (Number(row.a ?? row.amount) || 0));
           if (ids.length < maxIds) ids.push(row.id);
         }
       }

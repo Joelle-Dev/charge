@@ -1,3 +1,5 @@
+import { roundCents } from './format.js';
+
 export function mergeStageTotals(stages = [], getStats = () => null) {
   const selected = (Array.isArray(stages) ? stages : []).filter(Boolean);
   let count = 0;
@@ -12,7 +14,7 @@ export function mergeStageTotals(stages = [], getStats = () => null) {
   for (const stage of selected) {
     const stats = getStats(stage.id) || {};
     count += Number(stats.count) || 0;
-    total += Number(stats.total) || 0;
+    total = roundCents(total + (Number(stats.total) || 0));
 
     const stageBudget = Number(stage.budget) || 0;
     if (stageBudget > 0) {
@@ -25,7 +27,7 @@ export function mergeStageTotals(stages = [], getStats = () => null) {
         ? categories[category]
         : { count: 0, amount: 0 };
       current.count += Number(value.count) || 0;
-      current.amount += Number(value.amount) || 0;
+      current.amount = roundCents(current.amount + (Number(value.amount) || 0));
       categories[category] = current;
     }
 

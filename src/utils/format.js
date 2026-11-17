@@ -125,8 +125,28 @@ export function categoryColor(name) {
   return PALETTE[hash % PALETTE.length];
 }
 
+export const STAGE_COLORS = [
+  { key: 'clay', label: '陶土', value: '#8a6f5c' },
+  { key: 'slate', label: '青灰', value: '#6f859a' },
+  { key: 'plum', label: '梅紫', value: '#9a7b8f' },
+  { key: 'moss', label: '苔绿', value: '#7f8f6d' },
+  { key: 'amber', label: '琥珀', value: '#b08a5e' },
+  { key: 'teal', label: '松绿', value: '#6f8f88' },
+  { key: 'cocoa', label: '可可', value: '#93796b' },
+  { key: 'rose', label: '玫瑰', value: '#b0777d' },
+  { key: 'ocean', label: '海蓝', value: '#5f8aa8' },
+  { key: 'olive', label: '橄榄', value: '#8d9761' }
+];
+
+const STAGE_COLOR_VALUES = new Set(STAGE_COLORS.map((item) => item.value));
+
+export function isStageColor(value) {
+  return STAGE_COLOR_VALUES.has(String(value || ''));
+}
+
 export function stageColor(stage) {
-  if (stage && typeof stage === 'object' && stage.color) return stage.color;
+  // 只接受调色板内的值，避免备份里混进任意字符串（会被塞进 CSS 变量）。
+  if (stage && typeof stage === 'object' && isStageColor(stage.color)) return stage.color;
   const seed = typeof stage === 'string'
     ? stage
     : String(stage?.name || stage?.id || '');

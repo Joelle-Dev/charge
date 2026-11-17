@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { groupExpensesByDay, collapseCategoryTotals, summarizeCategoryTotals } from '../src/utils/expenses.js';
+import {
+  addCategoryTotal,
+  collapseCategoryTotals,
+  finalizeCategoryTotals,
+  groupExpensesByDay,
+  summarizeCategoryTotals
+} from '../src/utils/expenses.js';
 
 function expense(id, amount, date) {
   return {
@@ -104,4 +110,24 @@ test('collapseCategoryTotals merges the tail into a rest row', () => {
   assert.equal(rest.amount, 30 + 20 + 10);
   assert.equal(rest.percent, 6 + 4 + 2);
   assert.equal(rest.count, 6 + 7 + 8);
+});
+
+test('day group totals stay exact at the cent level', () => {
+  const groups = groupExpensesByDay([
+    { id: 'a', amount: 0.1, category: '餐饮', spentAt: '2026-01-02T04:00:00.000Z' },
+    { id: 'b', amount: 0.2, category: '餐饮', spentAt: '2026-01-02T05:00:00.000Z' },
+    { id: 'c', amount: 0.3, category: '餐饮', spentAt: '2026-01-02T06:00:00.000Z' }
+  ]);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].total, 0.6);
+});
+
+test('category totals stay exact at the cent level', () => {
+  const totals = new Map();
+  for (const amount of [0.1, 0.2, 0.3]) {
+    addCategoryTotal(totals, { amount, category: '餐饮' });
+  }
+  const result = finalizeCategoryTotals(totals);
+  assert.equal(result.total, 0.6);
+  assert.equal(result.items[0].amount, 0.6);
 });

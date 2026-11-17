@@ -171,8 +171,9 @@ import ImportSheet from '../components/ImportSheet.vue';
 import PawIcon from '../components/PawIcon.vue';
 import ProfileAvatar from '../components/ProfileAvatar.vue';
 import ProfileSheet from '../components/ProfileSheet.vue';
-import { useLedger } from '../composables/useLedger';
+import { useLedger, UNDO_DELETE_STAGE_MAX } from '../composables/useLedger';
 import { useSheets } from '../composables/useSheets';
+import { useUndo } from '../composables/useUndo';
 import { useAchievements } from '../composables/useAchievements';
 import { usePwaInstall } from '../composables/usePwaInstall';
 import { useProfile } from '../composables/useProfile';
@@ -192,9 +193,12 @@ const {
   currentStageStats,
   currentCatTitle,
   globalStats,
-  clearStageExpenses
+  clearStageExpenses,
+  clearStageExpensesWithUndo,
+  restoreStageExpenses
 } = useLedger();
 const sheets = useSheets();
+const { showUndo } = useUndo();
 const { unlockedCount, initAchievements } = useAchievements();
 const { standalone, isIos, promptInstall } = usePwaInstall();
 const { profile, profileName, initProfile } = useProfile();
@@ -372,18 +376,47 @@ async function clearCurrentStage() {
     showToast('这个账本果冻还没花过钱');
     return;
   }
+  const stageId = currentStage.value.id;
+  const stageName = currentStage.value.name;
+  const count = currentStageStats.value.count;
+  const recoverable = count <= UNDO_DELETE_STAGE_MAX;
   try {
     await showConfirmDialog({
       title: '清空这个账本的花销',
-      message: `要把「${currentStage.value.name}」里的花销都清掉吗？清掉就找不回来啦。`,
+      message: recoverable
+        ? `要把「${stageName}」里的 ${count} 笔花销都清掉吗？清掉后 8 秒内可以撤销。`
+        : `要把「${stageName}」里的 ${count} 笔花销都清掉吗？清掉就找不回来啦。`,
       confirmButtonText: '清空吧',
       confirmButtonColor: DANGER_COLOR
     });
   } catch (err) {
     return;
   }
-  await clearStageExpenses(currentStage.value.id);
+
+  let snapshot = null;
+  try {
+    snapshot = recoverable ? await clearStageExpensesWithUndo(stageId) : null;
+    if (!recoverable) await clearStageExpenses(stageId);
+  } catch (err) {
+    console.error('清空账本失败', err);
+    showToast('没清掉，再试试吧');
+    return;
+  }
+
   haptic('warning');
-  showToast('这个账本的花销清空啦');
+  if (snapshot && snapshot.length) {
+    showUndo(`「${stageName}」的花销清空啦`, async () => {
+      try {
+        await restoreStageExpenses(snapshot);
+        haptic('success');
+        showToast('花销又回来啦');
+      } catch (err) {
+        console.error('恢复花销失败', err);
+        showToast('没找回来，再试试吧');
+      }
+    }, 8000);
+  } else {
+    showToast('这个账本的花销清空啦');
+  }
 }
 </script>
