@@ -125,28 +125,12 @@ export function categoryColor(name) {
   return PALETTE[hash % PALETTE.length];
 }
 
-export const STAGE_COLORS = [
-  { key: 'clay', label: '陶土', value: '#8a6f5c' },
-  { key: 'slate', label: '青灰', value: '#6f859a' },
-  { key: 'plum', label: '梅紫', value: '#9a7b8f' },
-  { key: 'moss', label: '苔绿', value: '#7f8f6d' },
-  { key: 'amber', label: '琥珀', value: '#b08a5e' },
-  { key: 'teal', label: '松绿', value: '#6f8f88' },
-  { key: 'cocoa', label: '可可', value: '#93796b' },
-  { key: 'rose', label: '玫瑰', value: '#b0777d' },
-  { key: 'ocean', label: '海蓝', value: '#5f8aa8' },
-  { key: 'olive', label: '橄榄', value: '#8d9761' }
-];
-
-const STAGE_COLOR_VALUES = new Set(STAGE_COLORS.map((item) => item.value));
-
-// 只放行 #rrggbb：颜色会直接写进 CSS 变量和备份文件（用户可手改），
-// 严格格式既能支持自由选色，又挡掉任意字符串注入。
+// 书脊颜色由用户自己挑，只放行 #rrggbb：
+// 颜色会直接写进 CSS 变量和备份文件（用户可手改），严格格式能挡掉任意字符串注入。
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export function isStageColor(value) {
-  const color = String(value || '');
-  return STAGE_COLOR_VALUES.has(color) || HEX_COLOR.test(color);
+  return HEX_COLOR.test(String(value || ''));
 }
 
 export function stageColor(stage) {

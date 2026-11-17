@@ -1,18 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { STAGE_COLORS, isStageColor, stageColor } from '../src/utils/format.js';
+import { isStageColor, stageColor } from '../src/utils/format.js';
 
-test('isStageColor accepts palette values', () => {
-  for (const option of STAGE_COLORS) {
-    assert.equal(isStageColor(option.value), true);
-  }
-});
-
-test('isStageColor accepts any #rrggbb for自由选色', () => {
+test('isStageColor accepts any #rrggbb the user picks', () => {
   assert.equal(isStageColor('#000000'), true);
   assert.equal(isStageColor('#ffffff'), true);
   assert.equal(isStageColor('#1A2B3C'), true);
   assert.equal(isStageColor('#abcdef'), true);
+  assert.equal(isStageColor('#8a6f5c'), true);
 });
 
 test('isStageColor rejects anything that is not a hex color', () => {
@@ -29,17 +24,20 @@ test('isStageColor rejects anything that is not a hex color', () => {
   assert.equal(isStageColor(undefined), false);
 });
 
-test('stageColor prefers a valid custom color', () => {
-  const preset = STAGE_COLORS[2].value;
-  assert.equal(stageColor({ name: '随便', color: preset }), preset);
-  // 自由选色也应该生效
+test('stageColor prefers the color the user picked', () => {
   assert.equal(stageColor({ name: '随便', color: '#1a2b3c' }), '#1a2b3c');
+  assert.equal(stageColor({ name: '随便', color: '#8a6f5c' }), '#8a6f5c');
 });
 
 test('stageColor ignores invalid custom colors and falls back to name hash', () => {
   const invalid = stageColor({ name: '十月日常', color: 'javascript:alert(1)' });
   assert.notEqual(invalid, 'javascript:alert(1)');
   assert.match(invalid, /^#[0-9a-f]{6}$/i);
+});
+
+test('stageColor falls back to name hash when the user picked nothing', () => {
+  assert.match(stageColor({ name: '国庆旅行' }), /^#[0-9a-f]{6}$/i);
+  assert.match(stageColor({ name: '国庆旅行', color: '' }), /^#[0-9a-f]{6}$/i);
 });
 
 test('stageColor is stable for the same name', () => {

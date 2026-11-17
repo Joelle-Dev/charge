@@ -27,48 +27,29 @@
       </label>
 
       <div class="field">
-        <span class="field-label">书脊颜色</span>
-        <div class="stage-color-grid" role="radiogroup" aria-label="账本颜色">
-          <button
-            v-for="option in STAGE_COLORS"
-            :key="option.key"
-            class="stage-color-cell"
-            :class="{ active: color === option.value }"
-            type="button"
-            role="radio"
-            :aria-checked="color === option.value"
-            :aria-label="option.label"
-            :style="{ '--swatch': option.value }"
-            @click="pickColor(option.value)"
-          >
-            <svg v-if="color === option.value" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m5 12 4.5 4.5L19 7"></path>
-            </svg>
-          </button>
-
-          <label
-            class="stage-color-cell stage-color-custom"
-            :class="{ active: isCustomColor, 'is-picked': isCustomColor }"
-            :style="isCustomColor ? { '--swatch': color } : null"
-            :aria-label="isCustomColor ? `自定义颜色，当前 ${color}` : '自定义颜色'"
-          >
-            <svg v-if="!isCustomColor" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.4-4-7-9-7Z"></path>
-              <circle cx="7.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"></circle>
-              <circle cx="12" cy="7.5" r="1.2" fill="currentColor" stroke="none"></circle>
-              <circle cx="16.5" cy="10.5" r="1.2" fill="currentColor" stroke="none"></circle>
-            </svg>
-            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m5 12 4.5 4.5L19 7"></path>
-            </svg>
+        <span class="field-label">书脊颜色 <span>可选</span></span>
+        <div class="stage-color-picker">
+          <div class="stage-color-swatch" :style="{ '--swatch': previewColor }">
             <input
-              :value="color"
+              :value="previewColor"
               class="stage-color-input"
               type="color"
-              aria-label="选择自定义颜色"
+              aria-label="选择书脊颜色"
               @input="pickColor($event.target.value)"
             >
-          </label>
+          </div>
+          <span class="stage-color-copy">
+            <strong>{{ color ? previewColor.toUpperCase() : '用默认颜色' }}</strong>
+            <small>{{ color ? '点色块可以换个颜色' : '点色块自己挑一个' }}</small>
+          </span>
+          <button
+            v-if="color"
+            class="text-btn stage-color-reset"
+            type="button"
+            @click="resetColor"
+          >
+            用默认
+          </button>
         </div>
       </div>
 
@@ -106,7 +87,7 @@ import { useSheets } from '../composables/useSheets';
 import { useUndo } from '../composables/useUndo';
 import { haptic } from '../utils/haptics';
 import { DANGER_COLOR } from '../utils/theme';
-import { STAGE_COLORS, stageColor } from '../utils/format';
+import { isStageColor, stageColor } from '../utils/format';
 
 const show = defineModel('show', { type: Boolean, default: false });
 const sheets = useSheets();
@@ -134,10 +115,14 @@ function pickColor(value) {
   haptic('light');
 }
 
-// 当前颜色不在 10 个预设里时，说明是用户自己调的，让自定义格高亮。
-const isCustomColor = computed(() => (
-  Boolean(color.value) && !STAGE_COLORS.some((option) => option.value === color.value)
-));
+function resetColor() {
+  // 清空后回落到名字哈希出来的默认色，不再写入 stage.color。
+  color.value = '';
+  haptic('light');
+}
+
+// 色块展示用：用户选过就显示所选色，没选过显示默认色。
+const previewColor = computed(() => color.value || stageColor({ name: name.value }));
 
 watch(
   [show, editingStage, stageDraftName],
@@ -146,10 +131,8 @@ watch(
     const stage = editingStage.value;
     name.value = stage?.name || stageDraftName.value || '';
     budget.value = stage?.budget ? String(stage.budget) : '';
-    // 没设过颜色时，用名字哈希出来的默认色，让选择器起点与书架一致。
-    color.value = stage
-      ? stageColor(stage)
-      : stageColor({ name: stageDraftName.value });
+    // 只有用户自己选过的颜色才算「已保存」，其余一律留空走默认色。
+    color.value = isStageColor(stage?.color) ? String(stage.color).toLowerCase() : '';
     error.value = '';
   }
 );
