@@ -48,29 +48,10 @@ const buildLabel = Number.isNaN(buildDate.getTime())
     minute: '2-digit'
   });
 let refreshPrompting = false;
-const UPDATE_SNOOZE_KEY = 'shoucai:updateSnoozed';
-
-function wasSnoozedToday() {
-  try {
-    return sessionStorage.getItem(UPDATE_SNOOZE_KEY) === '1';
-  } catch (err) {
-    return false;
-  }
-}
-
-function snoozeUpdate() {
-  try {
-    sessionStorage.setItem(UPDATE_SNOOZE_KEY, '1');
-  } catch (err) {
-    // 隐私模式下写不进去，下次启动会再提醒一次，可接受。
-  }
-}
 
 const updateSW = registerSW({
   onNeedRefresh() {
     if (refreshPrompting) return;
-    // 同一个会话里点过「稍后」就不再打扰，下次打开再提醒。
-    if (wasSnoozedToday()) return;
     refreshPrompting = true;
     showConfirmDialog({
       title: '果冻换新衣服啦',
@@ -78,12 +59,11 @@ const updateSW = registerSW({
         ? `更新一下就能用新版本啦（${buildLabel}）`
         : '更新一下就能用新版本啦',
       confirmButtonText: '立即更新',
-      cancelButtonText: '稍后',
-      showCancelButton: true,
-      closeOnClickOverlay: true
+      showCancelButton: false,
+      closeOnClickOverlay: false
     })
       .then(() => updateSW(true))
-      .catch(() => snoozeUpdate())
+      .catch(() => {})
       .finally(() => {
         refreshPrompting = false;
       });
