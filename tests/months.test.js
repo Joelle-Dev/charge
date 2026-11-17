@@ -9,7 +9,7 @@ import {
   shortMonthLabel
 } from '../src/utils/months.js';
 
-const now = new Date('2026-10-23T12:00:00+08:00');
+const now = new Date(2026, 9, 23, 12, 0);
 
 test('month helpers format and navigate months', () => {
   assert.equal(monthKey(now), '2026-10');

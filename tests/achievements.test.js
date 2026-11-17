@@ -8,11 +8,13 @@ import {
   buildStatsFromExpenses
 } from '../src/lib/stats.js';
 
-const now = new Date('2026-10-26T12:00:00+08:00');
+// 全部用本地时间构造，避免运行时区不同导致「哪一天」发生变化。
+const now = new Date(2026, 9, 26, 12, 0);
+const localSpentAt = (y, m, d) => new Date(y, m - 1, d, 12, 0).toISOString();
 const expenses = [
-  { amount: 35, category: '餐饮', note: '午饭', spentAt: '2026-10-24T12:00:00+08:00', stageId: 'a' },
-  { amount: 20, category: '交通', note: '打车', spentAt: '2026-10-25T12:00:00+08:00', stageId: 'a' },
-  { amount: 10, category: '餐饮', note: '咖啡', spentAt: '2026-10-26T12:00:00+08:00', stageId: 'a' }
+  { amount: 35, category: '餐饮', note: '午饭', spentAt: localSpentAt(2026, 10, 24), stageId: 'a' },
+  { amount: 20, category: '交通', note: '打车', spentAt: localSpentAt(2026, 10, 25), stageId: 'a' },
+  { amount: 10, category: '餐饮', note: '咖啡', spentAt: localSpentAt(2026, 10, 26), stageId: 'a' }
 ];
 const stages = [{ id: 'a', name: '测试阶段', budget: 100 }];
 
@@ -49,9 +51,9 @@ test('stage summary includes range, totals and top categories', () => {
 
 test('no-spend days ignore future-dated records', () => {
   const state = buildStatsFromExpenses([
-    { amount: 10, category: '餐饮', note: 'a', spentAt: '2026-10-20T12:00:00+08:00', stageId: 'a' },
-    { amount: 10, category: '餐饮', note: 'b', spentAt: '2026-10-24T12:00:00+08:00', stageId: 'a' },
-    { amount: 10, category: '餐饮', note: 'c', spentAt: '2026-11-30T12:00:00+08:00', stageId: 'a' }
+    { amount: 10, category: '餐饮', note: 'a', spentAt: localSpentAt(2026, 10, 20), stageId: 'a' },
+    { amount: 10, category: '餐饮', note: 'b', spentAt: localSpentAt(2026, 10, 24), stageId: 'a' },
+    { amount: 10, category: '餐饮', note: 'c', spentAt: localSpentAt(2026, 11, 30), stageId: 'a' }
   ]);
   const stats = buildAchievementStatsFromState(state, stages, now);
   // 10-20 首日记账，昨天 10-25，跨度 5 天；(10-20, 10-25] 里只有 10-24 记了账
@@ -90,7 +92,7 @@ test('milestones unlock on life-scale thresholds', () => {
 
 test('yearsActive counts only completed anniversaries', () => {
   const state = buildStatsFromExpenses([
-    { amount: 10, category: '餐饮', note: 'a', spentAt: '2025-03-15T12:00:00+08:00', stageId: 'a' }
+    { amount: 10, category: '餐饮', note: 'a', spentAt: localSpentAt(2025, 3, 15), stageId: 'a' }
   ]);
 
   const dayBefore = buildAchievementStatsFromState(state, stages, new Date(2026, 2, 14, 12));

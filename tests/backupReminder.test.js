@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { backupReminder } from '../src/utils/backupReminder.js';
 
 const DAY = 24 * 60 * 60 * 1000;
-const NOW = new Date('2026-11-13T12:00:00Z').getTime();
+// 用本地时间构造，避免时区差异让「日历天数」变成另一种结果。
+const localTime = (m, d, h) => new Date(2026, m - 1, d, h, 0).getTime();
+const NOW = localTime(11, 13, 12);
 
 test('backupReminder asks for the first backup when none exists', () => {
   const info = backupReminder(null, NOW);
@@ -27,8 +29,8 @@ test('backupReminder warns when the last backup is stale', () => {
 });
 
 test('backupReminder counts calendar days, not 24-hour blocks', () => {
-  const at = new Date('2026-11-10T10:00:00Z').getTime();
-  const later = new Date('2026-11-13T09:00:00Z').getTime();
+  const at = localTime(11, 10, 10);
+  const later = localTime(11, 13, 9);
   const info = backupReminder(at, later);
   assert.equal(info.days, 3);
   assert.equal(info.text, '上次打包：3 天前');

@@ -8,7 +8,8 @@ import {
   parseSpentAt
 } from '../src/lib/parser.js';
 
-const NOW = new Date('2026-10-23T12:30:00+08:00');
+// 用本地时间构造，测试里的「昨天/今天」断言就不受运行时区影响。
+const NOW = new Date(2026, 9, 23, 12, 30);
 
 test('chineseToNumber handles common money forms', () => {
   assert.equal(chineseToNumber('三十五'), 35);

@@ -53,7 +53,7 @@ test('parseStageCsv reads metadata and quoted values', () => {
 
 test('parseStageCsv can re-import the app CSV export', () => {
   const csv = buildStageCsv(stage, [expense], {
-    now: new Date('2026-10-23T16:30:00+08:00')
+    now: new Date(2026, 9, 23, 16, 30)
   });
   const parsed = parseStageCsv(csv);
 
