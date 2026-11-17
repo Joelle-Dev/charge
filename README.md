@@ -1,95 +1,51 @@
 # 守财小果
 
-一个说一句就记上的轻量语音记账 PWA。猫猫角色叫「果冻」，按账本整理支出，数据只保存在本机浏览器，不需要安装原生 App。
+说一句就记上的轻量语音记账 PWA。猫猫角色叫「果冻」，按账本整理支出，数据只保存在本机浏览器。
 
 在线访问：https://joelle-dev.github.io/charge/
 
 ## 功能
 
-- 三屏记账：首页概览 / 记账 / 小票，左右滑动切换
-- 首页书架：每个账本做成书本样式，顶部展示所有账本的合并统计、猫粮罐预算进度与果冻情绪
-- 新建账本：第一屏直接创建，建好自动切换
-- 合并账本：勾选多个账本选一个目标，账目真实合并，源账本归档，10 秒内可撤销
-- 记账屏：按天分组的时间轴
-- 时间轴：一根竖线贯穿到底，日期在轴左、笔数与合计在轴右，分类圆章串在线上，全部展开
-- 按月查看：上下月切换或月份选择，查看任意月份的支出明细
-- 每日账单：点时间轴里的任意一笔支出进入全屏当日账单，左右箭头切换日期，查看并编辑当天每一笔
-- 账本管理：新建、切换、编辑、归档、删除，可选设置预算
-- 批量记：记账页右滑一屏或顶部入口，可输入、粘贴或直接说一段话，一次解析出多笔，逐笔校对确认后全部入账
-- 连续语音：批量记里点麦克风直接说，自动续听，停顿自动分隔多笔；无标点也能按金额拆分成多条
-- 解析卡片确认：识别结果可修改后批量入账
-- 手动补记：金额、分类、备注、日期、时间
-- 小票：按月生成一张消费小票，含果冻碎碎念、消费类别明细、花钱足迹日历与本月之最
-- 独立看账页：底部「看账」入口，按周 / 月 / 年查看支出折线图与分类支出排行榜
-- 底部五栏：账本 / 看账 / 记账（中间凸起 ＋）/ 小票 / 我的
-- 搜索明细：支持关键词、金额范围、分类筛选和多账本范围（不含归档），结果展示命中笔数与合计金额
-- 分类管理：底部面板添加、改名、删除、拖拽排序、换图标（内置 Lucide 线条图标），改名同步历史记录
-- 个人资料：设置昵称和头像（内置头像或本地上传，可拖动缩放裁切），显示在首页问候与账本小结；只存本机，随完整备份迁移
-- 数据与备份：导出完整备份（含分类图标和个人资料）、导入 / 换机、导出当前账本 CSV
-- 果冻的猫粮罐：预算进度、猫猫情绪和称号
-- 果冻的成就：连续记账、无支出日、预算守护等徽章
-- 账本小结：生成猫猫风格图片，可分享或保存
-- 本地存储：IndexedDB，支持离线使用
-- PWA：添加到主屏幕、图标、iOS 启动图、离线缓存
+- **账本**：书本式书架，新建 / 切换 / 合并 / 归档 / 删除，可设预算；长按卡片改名或改预算，卡片显示预算进度
+- **记账**：按天分组的全展开时间轴、每日账单、按月查看、手动补记
+- **批量记**：输入、粘贴或直接说一段话，一次解析多笔，逐笔校对后入账；支持连续语音
+- **查明细**：关键词、金额范围、分类与多账本范围搜索，展示命中笔数与合计
+- **看账**：按周 / 月 / 年查看支出折线图与分类排行
+- **小票**：按月生成消费小票，含类别明细、足迹日历与本月之最
+- **果冻**：猫粮罐预算、情绪与称号、成就徽章、可分享的账本小结图
+- **其他**：分类管理（含图标）、个人资料（昵称与头像，可裁切）、完整备份 / 导入 / CSV 导出、深浅色主题
+- **PWA**：添加到主屏幕、离线缓存、iOS 启动图
 
 ## 技术栈
 
-Vue 3 + Vant 4 + Vue Router + Vite 5 + vite-plugin-pwa，数据存储使用 IndexedDB。
+Vue 3 + Vant 4 + Vue Router + Vite 5 + vite-plugin-pwa，数据使用 IndexedDB。
 
 ## 本地开发
 
 ```bash
 npm install
 npm run dev
-```
-
-测试：
-
-```bash
-npm test
-```
-
-数据压测（使用 fake-indexeddb，可调整数据量）：
-
-```bash
-npm run stress
-STRESS_TOTAL=50000 STRESS_STAGES=4 STRESS_MONTHS=36 npm run stress
+npm test     # 单元测试
+npm run stress   # 数据压测，可用 STRESS_TOTAL 等环境变量调整规模
 ```
 
 ## 构建与部署
 
 ```bash
-npm run build:docs
+npm run build:docs   # 输出 dist/ 并复制到 docs/
 ```
 
-构建结果会输出到 `dist/` 并复制到 `docs/`。
+GitHub Pages 使用分支部署：Branch `main`，Folder `/docs`。也可改用 `.github/workflows/deploy.yml`（Actions 部署）。每次 push / PR 由 `.github/workflows/ci.yml` 跑测试与构建。
 
-GitHub Pages 推荐配置：
-
-- Source：Deploy from a branch
-- Branch：`main`
-- Folder：`/docs`
-
-也可以使用 `.github/workflows/deploy.yml` 通过 GitHub Actions 部署，将 Pages Source 改为 GitHub Actions，并按需启用 push 触发。
-
-每次 push 或 PR 会通过 `.github/workflows/ci.yml` 自动跑 `npm test` 和 `npm run build`。
-
-默认 `start_url` / `scope` 为 `/charge/`。如果仓库名不是 `charge`，构建时传入：
+部署到别的地址或仓库名时，构建前设置环境变量：
 
 ```bash
-VITE_APP_START_URL=/你的仓库名/ VITE_APP_SCOPE=/你的仓库名/ npm run build:docs
-```
-
-分享预览的 `og:url` / `og:image` 默认指向 `https://joelle-dev.github.io/charge/`。如果部署地址不同，再传入：
-
-```bash
+VITE_APP_START_URL=/仓库名/ VITE_APP_SCOPE=/仓库名/ \
 VITE_APP_PUBLIC_URL=https://你的地址/ npm run build:docs
 ```
 
-## 语音识别环境
-
-语音识别需要 HTTPS 或 localhost。手机真机使用时请通过 GitHub Pages 等 HTTPS 地址访问。
+**iOS 图标与启动图**：启动图由 `scripts/make_icons.sh` 从 `design/cat-avatar.png` 生成（iPhone + iPad 共 14 个尺寸），构建时按内容哈希加 `?v=`，换图后冷启动即生效。主屏幕图标受 iOS 限制无法原地更新，换图标需删掉旧图标重新添加，操作前先导出备份。
 
 ## 数据与隐私
 
-所有账目、账本和分类都保存在当前设备的浏览器 IndexedDB 中，不会上传到服务器。语音识别由浏览器和系统服务提供，是否上传音频取决于浏览器实现。
+账目、账本与分类只存在本机 IndexedDB，不会上传。语音识别由浏览器与系统提供，是否上传音频取决于浏览器实现。
